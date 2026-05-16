@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/mandala.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+
+  <meta name="theme-color" content="#C07830" />
+  <meta name="description" content="Svaadhyaya — Your daily practice. Your life, witnessed." />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Svaadhyaya" />
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,500;1,9..144,300;1,9..144,400&family=Plus+Jakarta+Sans:wght@300;400;500;600&family=Lora:ital,wght@0,400;0,500;1,400&family=Inter:wght@300;400;500&display=swap"
+    rel="stylesheet" />
+
+  <title>Svaadhyaya</title>
+
+  <style>
+    /* DIGITAL ASHRAM THEME - BASE LAYER
+        These variables can now be consumed by your React components/Tailwind config.
+      */
+    :root {
+      /* Core Brand Palette */
+      --hero-color: #C07830;
+      /* Your Saffron/Ochre */
+      --hero-color-light: #d69554;
+      --hero-color-dark: #9e5f22;
+
+      /* Light Mode (Parchment/Sandstone Vibe) */
+      --bg-color: #F9F6F0;
+      --text-primary: #2C2A28;
+      /* Soft charcoal, easier on eyes than pure black */
+      --text-secondary: #5C5854;
+      --surface-color: #FFFFFF;
+
+      /* Subtle SVG noise texture for depth without heavy images */
+      --bg-texture: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.04'/%3E%3C/svg%3E");
+    }
+
+    /* Dark Mode Overrides (Deep, meditative charcoal) */
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg-color: #1A1918;
+        --text-primary: #EBE8E3;
+        --text-secondary: #A39E98;
+        --surface-color: #242220;
+        --bg-texture: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.02'/%3E%3C/svg%3E");
+      }
+    }
+
+    /* Global Reset & Base Styling */
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: var(--bg-color);
+      background-image: var(--bg-texture);
+      color: var(--text-primary);
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      /* Clean sans for UI elements */
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      transition: background-color 0.5s ease, color 0.5s ease;
+      /* Smooth dark mode switching */
+      min-height: 100vh;
+    }
+
+    /* Use Fraunces for beautiful, classic headings */
+    h1,
+    h2,
+    h3,
+    h4,
+    h5,
+    h6 {
+      font-family: 'Fraunces', serif;
+      font-weight: 400;
+    }
+
+    /* Elegant Page Load Animation */
+    @keyframes softFadeIn {
+      0% {
+        opacity: 0;
+        transform: translateY(12px);
+        filter: blur(4px);
+      }
+
+      100% {
+        opacity: 1;
+        transform: translateY(0);
+        filter: blur(0);
+      }
+    }
+
+    #root {
+      /* This applies the animation to your entire React app the moment it mounts */
+      animation: softFadeIn 1.4s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="root"></div>
+  <script type="module" src="/src/main.jsx"></script>
+</body>
+
+</html>

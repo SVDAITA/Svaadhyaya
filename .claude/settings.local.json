@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\svdai\\\\svadhyaya\" -Recurse -Force)",
+      "Bash(Select-Object FullName)",
+      "Bash(ConvertTo-Csv -NoTypeInformation)",
+      "Bash(Out-String)",
+      "WebFetch(domain:api.prokerala.com)",
+      "WebSearch",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(find /mnt/c/Users/svdai/svadhyaya -name \"*panchang*\" -o -name \"*Panchang*\" 2>/dev/null)",
+      "WebFetch(domain:freeastrologyapi.com)"
+    ]
+  }
+}
