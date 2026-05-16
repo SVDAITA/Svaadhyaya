@@ -10,6 +10,7 @@ import {
 } from "../../components/shared/AreaComponents";
 import { useAreaData, useWeekCompletion } from "../../hooks/useAreaData";
 import { useThemeMode } from "../../hooks/useTheme";
+import { useAreaSubtitle } from "../../hooks/useAreaSubtitles";
 
 const COLOR = "#1A7A6E";
 const AREA = "finance";
@@ -145,6 +146,7 @@ export default function ArthaPage() {
   const { mode } = useThemeMode();
   const isDark = mode === "dark";
   const weekPct = useWeekCompletion(["finance_log"]);
+  const subtitle = useAreaSubtitle(AREA);
 
   const activeLakshyas = lakshyas.filter((l) => l.status === "active").length;
   const totalSiddhis = lakshyas.reduce(
@@ -154,7 +156,7 @@ export default function ArthaPage() {
 
   const bg = isDark
     ? `radial-gradient(ellipse 90% 35% at 50% -5%, ${COLOR}08 0%, #0D0C0A 65%)`
-    : `radial-gradient(ellipse 90% 35% at 50% -5%, ${COLOR}10 0%, #FAF5EE 65%)`;
+    : `radial-gradient(ellipse 90% 35% at 50% -5%, ${COLOR}10 0%, #F8FAFC 65%)`;
 
   if (loading)
     return (
@@ -189,7 +191,7 @@ export default function ArthaPage() {
         color={COLOR}
         emoji="💰"
         title="Artha"
-        subtitle="Debt-free May 2028 · ₹70L+ corpus by 2031 · Conscious Wealth"
+        subtitle={subtitle}
         quote="I respect money. I eliminate debt first, invest consistently, and build wealth without anxiety."
       />
 

@@ -153,107 +153,76 @@ export function SectionLabel({ children, icon: Icon, color }) {
 // ── AREA BANNER ────────────────────────────────────────────────────────────────
 export function AreaBanner({ color, emoji, title, subtitle, quote }) {
   return (
-    <Fade in timeout={800}>
+    <Fade in timeout={600}>
       <Box
         sx={{
-          mb: 4,
-          p: { xs: 3, md: 4 },
-          borderRadius: 4,
-          background: `linear-gradient(135deg, ${color}15 0%, ${color}05 100%)`,
-          borderLeft: `4px solid ${color}`,
-          borderTop: `1px solid ${color}20`,
-          borderRight: `1px solid ${color}10`,
-          borderBottom: `1px solid ${color}10`,
-          backgroundImage: `${ashramBgPattern}, linear-gradient(135deg, ${color}15 0%, ${color}05 100%)`,
+          mb: 3,
+          borderRadius: 3,
+          border: `1px solid ${color}22`,
+          borderTop: `3px solid ${color}`,
+          background: `linear-gradient(135deg, ${color}08 0%, transparent 80%)`,
+          p: { xs: 2, md: 2.5 },
           position: "relative",
           overflow: "hidden",
         }}
       >
-        {/* Decorative background glow */}
-        <Box
-          sx={{
-            position: "absolute",
-            top: -50,
-            right: -50,
-            width: 150,
-            height: 150,
-            borderRadius: "50%",
-            background: `${color}20`,
-            filter: "blur(40px)",
-            zIndex: 0,
-          }}
-        />
+        {/* Subtle watermark glow */}
+        <Box sx={{
+          position: "absolute", top: -20, right: -20,
+          width: 100, height: 100, borderRadius: "50%",
+          background: `${color}18`, filter: "blur(30px)", pointerEvents: "none",
+        }} />
 
-        <Box
-          sx={{
-            display: "flex",
-            alignItems: "flex-start",
-            gap: 2.5,
-            position: "relative",
-            zIndex: 1,
-          }}
-        >
-          <Typography
-            sx={{
-              fontSize: 42,
-              lineHeight: 1,
-              filter: "drop-shadow(0 2px 8px rgba(0,0,0,0.1))",
-            }}
-          >
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, position: "relative" }}>
+          <Box sx={{
+            width: 38, height: 38, borderRadius: 2,
+            background: `${color}14`,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            fontSize: 20, flexShrink: 0,
+            border: `1px solid ${color}20`,
+          }}>
             {emoji}
-          </Typography>
-          <Box sx={{ flex: 1 }}>
-            <Typography
-              variant="h3"
-              sx={{
-                fontFamily: '"Fraunces", serif',
-                fontWeight: 400,
-                color,
-                lineHeight: 1.1,
-                mb: 0.5,
-              }}
-            >
+          </Box>
+          <Box sx={{ flex: 1, minWidth: 0 }}>
+            <Typography sx={{
+              fontFamily: '"Fraunces","Lora",serif',
+              fontWeight: 400,
+              fontSize: { xs: 18, md: 20 },
+              color,
+              lineHeight: 1.2,
+              letterSpacing: "-0.2px",
+            }}>
               {title}
             </Typography>
-            <Typography
-              variant="body1"
-              sx={{
-                color: "text.secondary",
-                fontWeight: 300,
-                letterSpacing: 0.5,
-              }}
-            >
+            <Typography sx={{
+              fontSize: 11,
+              color: "text.secondary",
+              letterSpacing: 0.3,
+              mt: 0.25,
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+            }}>
               {subtitle}
             </Typography>
           </Box>
         </Box>
 
         {quote && (
-          <Box
-            sx={{
-              mt: 3,
-              pt: 3,
-              borderTop: `1px solid ${color}20`,
-              position: "relative",
-              zIndex: 1,
-              display: "flex",
-              gap: 1.5,
-            }}
-          >
-            <Spa sx={{ color: `${color}60`, fontSize: 18, mt: 0.5 }} />
-            <Typography
-              sx={{
-                fontFamily: '"Lora", serif',
-                fontStyle: "italic",
-                fontSize: 15,
-                color: "text.primary",
-                lineHeight: 1.8,
-                opacity: 0.85,
-              }}
-            >
-              "{quote}"
-            </Typography>
-          </Box>
+          <Typography sx={{
+            mt: 1.75,
+            pt: 1.75,
+            borderTop: `1px solid ${color}15`,
+            fontSize: 13,
+            fontFamily: '"Lora","Fraunces",serif',
+            fontStyle: "italic",
+            color: "text.secondary",
+            lineHeight: 1.65,
+            opacity: 0.9,
+            position: "relative",
+          }}>
+            "{quote}"
+          </Typography>
         )}
       </Box>
     </Fade>
@@ -263,61 +232,57 @@ export function AreaBanner({ color, emoji, title, subtitle, quote }) {
 // ── STAT CARD ──────────────────────────────────────────────────────────────────
 export function StatCard({ value, label, color, sub }) {
   return (
-    <Card
-      sx={{
-        ...cardBaseStyles,
-        mb: 0,
-        "&:hover": { transform: "translateY(-2px)" },
-      }}
-    >
-      <CardContent
-        sx={{
-          py: "20px !important",
-          px: "24px !important",
-          textAlign: "center",
-        }}
-      >
-        <Typography
-          sx={{
-            fontFamily: '"Fraunces", serif',
-            fontSize: 32,
-            fontWeight: 400,
-            color: color || "text.primary",
-            lineHeight: 1,
-            mb: 1,
-          }}
-        >
+    <Box sx={{
+      p: { xs: 1.5, md: 2 },
+      borderRadius: 3,
+      border: "1px solid",
+      borderColor: "divider",
+      bgcolor: "background.paper",
+      display: "flex",
+      alignItems: "center",
+      gap: 1.5,
+      boxShadow: "0 1px 6px rgba(0,0,0,0.03)",
+      transition: "box-shadow 0.2s",
+      "&:hover": { boxShadow: "0 3px 12px rgba(0,0,0,0.06)" },
+    }}>
+      <Box sx={{
+        width: 40, height: 40, borderRadius: 2,
+        background: `${color}12`,
+        display: "flex", alignItems: "center", justifyContent: "center",
+        flexShrink: 0,
+      }}>
+        <Typography sx={{
+          fontFamily: '"Fraunces",serif',
+          fontSize: 20,
+          fontWeight: 400,
+          color: color || "text.primary",
+          lineHeight: 1,
+        }}>
           {value}
         </Typography>
-        <Typography
-          variant="caption"
-          sx={{
-            display: "block",
-            textTransform: "uppercase",
-            letterSpacing: 1.5,
-            fontSize: 10,
-            fontWeight: 600,
-            color: "text.secondary",
-          }}
-        >
+      </Box>
+      <Box>
+        <Typography sx={{
+          fontSize: 12,
+          fontWeight: 600,
+          color: "text.primary",
+          letterSpacing: 0.3,
+          lineHeight: 1.3,
+        }}>
           {label}
         </Typography>
         {sub && (
-          <Typography
-            variant="caption"
-            sx={{
-              color: "text.disabled",
-              fontSize: 10,
-              mt: 0.5,
-              display: "block",
-              fontStyle: "italic",
-            }}
-          >
+          <Typography sx={{
+            fontSize: 10,
+            color: "text.disabled",
+            fontStyle: "italic",
+            mt: 0.25,
+          }}>
             {sub}
           </Typography>
         )}
-      </CardContent>
-    </Card>
+      </Box>
+    </Box>
   );
 }
 

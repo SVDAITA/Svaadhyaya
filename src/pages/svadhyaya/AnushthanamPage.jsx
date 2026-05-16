@@ -10,6 +10,7 @@ import {
 } from "../../components/shared/AreaComponents";
 import { useAreaData } from "../../hooks/useAreaData";
 import { useThemeMode } from "../../hooks/useTheme";
+import { useAreaSubtitle } from "../../hooks/useAreaSubtitles";
 
 const COLOR = "#C07830";
 const AREA = "spirit";
@@ -176,6 +177,7 @@ export default function AnushthanamPage() {
   const { lakshyas, loading, reload } = useAreaData(AREA);
   const { mode } = useThemeMode();
   const isDark = mode === "dark";
+  const subtitle = useAreaSubtitle(AREA);
 
   const activeLakshyas = lakshyas.filter((l) => l.status === "active").length;
   const totalSiddhis = lakshyas.reduce(
@@ -185,7 +187,7 @@ export default function AnushthanamPage() {
 
   const bg = isDark
     ? `radial-gradient(ellipse 90% 35% at 50% -5%, ${COLOR}08 0%, #0D0C0A 65%)`
-    : `radial-gradient(ellipse 90% 35% at 50% -5%, ${COLOR}12 0%, #FAF5EE 65%)`;
+    : `radial-gradient(ellipse 90% 35% at 50% -5%, ${COLOR}10 0%, #F8FAFC 65%)`;
 
   if (loading)
     return (
@@ -220,7 +222,7 @@ export default function AnushthanamPage() {
         color={COLOR}
         emoji="🪔"
         title="Anushthanam"
-        subtitle="Daily practice · Purohitam · Gayatri · 10-year commitment"
+        subtitle={subtitle}
         quote="I am a devotee who shows up for my practice every single day — wherever I am, whatever the day brings."
       />
 

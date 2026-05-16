@@ -10,6 +10,7 @@ import {
 } from "../../components/shared/AreaComponents";
 import { useAreaData } from "../../hooks/useAreaData";
 import { useThemeMode } from "../../hooks/useTheme";
+import { useAreaSubtitle } from "../../hooks/useAreaSubtitles";
 
 const COLOR = "#1A5FB0";
 const AREA = "career";
@@ -149,6 +150,7 @@ export default function VruttiPage() {
   const { lakshyas, loading, reload } = useAreaData(AREA);
   const { mode } = useThemeMode();
   const isDark = mode === "dark";
+  const subtitle = useAreaSubtitle(AREA);
 
   const activeLakshyas = lakshyas.filter((l) => l.status === "active").length;
   const totalSiddhis = lakshyas.reduce(
@@ -158,7 +160,7 @@ export default function VruttiPage() {
 
   const bg = isDark
     ? `radial-gradient(ellipse 90% 35% at 50% -5%, ${COLOR}08 0%, #0D0C0A 65%)`
-    : `radial-gradient(ellipse 90% 35% at 50% -5%, ${COLOR}10 0%, #FAF5EE 65%)`;
+    : `radial-gradient(ellipse 90% 35% at 50% -5%, ${COLOR}10 0%, #F8FAFC 65%)`;
 
   if (loading)
     return (
@@ -193,7 +195,7 @@ export default function VruttiPage() {
         color={COLOR}
         emoji="🚀"
         title="Vṛtti"
-        subtitle="Salesforce Lead → Application Architect · AI Practitioner · Ethical Leader"
+        subtitle={subtitle}
         quote="I am a great manager and leader — who develops people, creates opportunities, and leaves every team better than I found it."
       />
 

@@ -616,8 +616,8 @@ export default function VrittiTracker() {
 
   // ─── Theme Tokens ────────────────────────────────────────────────────────
   const bg = isDark
-    ? `radial-gradient(ellipse 100% 50% at 50% -15%, ${C.blue}14 0%, #0D0C0A 65%), radial-gradient(ellipse 60% 30% at 85% 90%, ${C.purple}08 0%, transparent 70%)`
-    : `radial-gradient(ellipse 100% 50% at 50% -15%, ${C.blue}09 0%, #F6F4F1 65%), radial-gradient(ellipse 60% 30% at 85% 90%, ${C.purple}06 0%, transparent 70%)`;
+    ? `radial-gradient(ellipse 90% 35% at 50% -5%, ${C.blue}14 0%, #0D0C0A 65%)`
+    : `radial-gradient(ellipse 90% 35% at 50% -5%, ${C.blue}09 0%, #F8FAFC 65%)`;
   const border = isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)";
   const cardBg = isDark ? "#1C1A18" : "#FDFCFA";
   const surfaceBg = isDark ? "#16140F" : "#F2EFE9";

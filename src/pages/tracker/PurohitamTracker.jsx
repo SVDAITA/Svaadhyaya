@@ -2533,7 +2533,7 @@ function AnushtanamTab({ user, isDark }) {
             </CardContent>
           </Card>
 
-          {/* Recent japa log */}
+          {/* Full japa log table */}
           <Card
             sx={{
               border: `1px solid ${border}`,
@@ -2543,63 +2543,91 @@ function AnushtanamTab({ user, isDark }) {
             }}
           >
             <CardContent sx={{ p: "16px 20px !important" }}>
-              <SL color={INDIGO}>Recent Japa Log</SL>
+              <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 1.5 }}>
+                <SL color={INDIGO}>Japa Log — All Entries</SL>
+                <Typography sx={{ fontSize: 11, color: textS }}>
+                  {japaLogs.length} record{japaLogs.length !== 1 ? "s" : ""}
+                </Typography>
+              </Box>
+
               {japaLogs.length === 0 ? (
-                <Typography
-                  sx={{ fontSize: 13, color: textS, fontStyle: "italic" }}
-                >
-                  No entries yet.
+                <Typography sx={{ fontSize: 13, color: textS, fontStyle: "italic" }}>
+                  No entries yet. Log your first japa count above.
                 </Typography>
               ) : (
-                japaLogs.slice(0, 8).map((l) => (
-                  <Box
-                    key={l.id}
-                    sx={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 1.5,
-                      py: 0.75,
-                      borderBottom: `1px solid ${border}`,
-                    }}
-                  >
-                    <Typography
-                      sx={{ fontSize: 11, color: textS, minWidth: 80 }}
-                    >
-                      {dayjs(l.day_date).format("D MMM YY")}
-                    </Typography>
-                    <Chip
-                      label={l.japa_name}
-                      size="small"
-                      sx={{
-                        fontSize: 10,
-                        height: 16,
-                        background: `${INDIGO}12`,
-                        color: INDIGO,
-                      }}
-                    />
-                    <Typography
-                      sx={{
-                        fontSize: 13,
-                        fontWeight: 700,
-                        color: INDIGO,
-                        ml: "auto",
-                      }}
-                    >
-                      {formatCount(l.count)}
-                    </Typography>
-                    <IconButton
-                      size="small"
-                      onClick={() => deleteJapaLog(l.id)}
-                      sx={{
-                        p: 0.3,
-                        opacity: 0.4,
-                        "&:hover": { opacity: 1, color: "#CF4E4E" },
-                      }}
-                    >
-                      <Delete sx={{ fontSize: 12 }} />
-                    </IconButton>
-                  </Box>
-                ))
+                <TableContainer sx={{ maxHeight: 420 }}>
+                  <Table size="small" stickyHeader>
+                    <TableHead>
+                      <TableRow>
+                        {["Date", "Japa", "Count", "Notes", ""].map((h) => (
+                          <TableCell
+                            key={h}
+                            align={h === "Count" ? "right" : "left"}
+                            sx={{
+                              fontSize: 10,
+                              fontWeight: 700,
+                              letterSpacing: 1,
+                              textTransform: "uppercase",
+                              color: textS,
+                              borderColor: border,
+                              bgcolor: isDark ? "#16140F" : "#F8FAFC",
+                              py: 1,
+                            }}
+                          >
+                            {h}
+                          </TableCell>
+                        ))}
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {japaLogs.map((l, idx) => (
+                        <TableRow
+                          key={l.id}
+                          sx={{
+                            bgcolor: idx % 2 === 0
+                              ? "transparent"
+                              : isDark ? "rgba(255,255,255,0.015)" : "rgba(0,0,0,0.013)",
+                            "&:last-child td": { border: 0 },
+                          }}
+                        >
+                          <TableCell sx={{ fontSize: 12, color: textS, borderColor: border, whiteSpace: "nowrap" }}>
+                            {dayjs(l.day_date).format("D MMM YYYY")}
+                          </TableCell>
+                          <TableCell sx={{ fontSize: 12, borderColor: border }}>
+                            <Chip
+                              label={l.japa_name}
+                              size="small"
+                              sx={{
+                                fontSize: 10,
+                                height: 18,
+                                background: `${INDIGO}12`,
+                                color: INDIGO,
+                                fontWeight: 600,
+                              }}
+                            />
+                          </TableCell>
+                          <TableCell align="right" sx={{ fontSize: 13, fontWeight: 700, color: INDIGO, borderColor: border, fontFamily: '"Fraunces",serif' }}>
+                            {formatCount(l.count)}
+                          </TableCell>
+                          <TableCell sx={{ fontSize: 12, color: textS, borderColor: border, maxWidth: 200 }}>
+                            <Typography noWrap sx={{ fontSize: 12, color: textS, maxWidth: 180 }}>
+                              {l.notes || "—"}
+                            </Typography>
+                          </TableCell>
+                          <TableCell align="right" sx={{ borderColor: border, p: 0.5 }}>
+                            <IconButton
+                              size="small"
+                              onClick={() => deleteJapaLog(l.id)}
+                              sx={{ p: 0.3, opacity: 0.35, "&:hover": { opacity: 1, color: "#CF4E4E" } }}
+                            >
+                              <Delete sx={{ fontSize: 13 }} />
+                            </IconButton>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
               )}
             </CardContent>
           </Card>
@@ -2963,11 +2991,11 @@ export default function PurohitamTracker() {
   const [tab, setTab] = useState(0);
 
   const bgSaffron = isDark
-    ? `radial-gradient(ellipse 110% 40% at 50% -5%, ${SAFFRON}10 0%, #0D0B08 65%)`
-    : `radial-gradient(ellipse 110% 40% at 50% -5%, ${SAFFRON}15 0%, #FFF8EE 65%)`;
+    ? `radial-gradient(ellipse 90% 35% at 50% -5%, ${SAFFRON}10 0%, #0D0B08 65%)`
+    : `radial-gradient(ellipse 90% 35% at 50% -5%, ${SAFFRON}12 0%, #F8FAFC 65%)`;
   const bgIndigo = isDark
-    ? `radial-gradient(ellipse 110% 40% at 50% -5%, ${INDIGO}12 0%, #07071A 65%)`
-    : `radial-gradient(ellipse 110% 40% at 50% -5%, ${INDIGO}10 0%, #F5F5FF 65%)`;
+    ? `radial-gradient(ellipse 90% 35% at 50% -5%, ${INDIGO}12 0%, #0A0A12 65%)`
+    : `radial-gradient(ellipse 90% 35% at 50% -5%, ${INDIGO}09 0%, #F8FAFC 65%)`;
 
   const bg = tab === 0 ? bgSaffron : bgIndigo;
   const accent = tab === 0 ? SAFFRON : INDIGO;

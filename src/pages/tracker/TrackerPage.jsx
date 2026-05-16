@@ -6,7 +6,6 @@ import {
   CardContent,
   Typography,
   Grid,
-  Chip,
   alpha,
 } from "@mui/material";
 import {
@@ -20,70 +19,70 @@ import {
   WorkHistory,
 } from "@mui/icons-material";
 import { useThemeMode } from "../../hooks/useTheme";
+import { useVisibility } from "../../hooks/useVisibility";
 
-// Adjusted colors slightly to feel more "Ashram" / Earthy & Classic
 const TRACKERS = [
   {
+    key: "finance",
     path: "/tracker/finance",
     icon: <AccountBalance sx={{ fontSize: 24 }} />,
-    title: "Artha Tracker",
-    subtitle: "Spending · Debt snowball · Corpus · Budgets",
-    color: "#2C6E63", // Deep Teal
-    chips: ["Daily spend", "Loan snowball", "SIP corpus"],
+    title: "Artha",
+    quote: "Wealth is not what you earn — it is what you keep, grow, and release with wisdom.",
+    color: "#2C6E63",
     chartData: "M0,25 C15,20 25,28 40,15 C55,2 65,22 80,10 C90,0 95,15 100,5",
   },
   {
+    key: "health",
     path: "/tracker/health",
     icon: <FitnessCenter sx={{ fontSize: 24 }} />,
-    title: "Sharīram Tracker",
-    subtitle: "Weight log · Measurements · Body composition",
-    color: "#3A7352", // Forest Green
-    chips: ["Weight log", "Belly girth", "Visceral fat"],
+    title: "Sharīram",
+    quote: "The body does not lie. These numbers are honest conversations with your physical self.",
+    color: "#3A7352",
     chartData: "M0,10 C15,25 25,5 40,20 C55,30 65,10 80,15 C90,18 95,5 100,10",
   },
   {
+    key: "diet",
     path: "/tracker/diet",
     icon: <Restaurant sx={{ fontSize: 24 }} />,
-    title: "Anna Tracker",
-    subtitle: "High-protein vegetarian meal plans · Nutrition",
-    color: "#A94442", // Earthy Red
-    chips: ["Protein intake", "Veg meals"],
+    title: "Anna",
+    quote: "Eat with the same intentionality you bring to your practice. What you consume shapes what you express.",
+    color: "#5A6E1A",
     chartData: "M0,20 C20,15 30,25 50,10 C60,2 75,20 85,15 C95,10 98,25 100,12",
   },
   {
+    key: "reading",
     path: "/tracker/reading",
     icon: <MenuBook sx={{ fontSize: 24 }} />,
-    title: "Pathanam Tracker",
-    subtitle: "Book tracker · Progress · Notes · 500-book library",
-    color: "#8C5839", // Clay / Sienna
-    chips: ["Book log", "Progress", "One-liners"],
+    title: "Pathanam",
+    quote: "Books are the only friends who never interrupt. Log the ones that changed you.",
+    color: "#8C5839",
     chartData: "M0,30 C10,30 20,10 40,15 C50,18 70,2 85,10 C95,15 98,5 100,5",
   },
   {
+    key: "career",
     path: "/tracker/career",
     icon: <WorkHistory sx={{ fontSize: 24 }} />,
-    title: "Vṛtti Tracker",
-    subtitle: "Professional goals · Task tracking · Career OS",
-    color: "#5B538C", // Muted Indigo
-    chips: ["Milestones", "Job tasks"],
+    title: "Vṛtti",
+    quote: "A career is a series of small decisions made daily. Track yours before they track you.",
+    color: "#5B538C",
     chartData: "M0,28 C20,25 30,15 45,20 C60,25 70,5 85,10 C95,12 98,2 100,0",
   },
   {
+    key: "sacred",
     path: "/tracker/sacred",
     icon: <AutoAwesome sx={{ fontSize: 24 }} />,
-    title: "Purohitam Tracker",
-    subtitle: "Daily sequence · Gayatri counter · Ritual record",
-    color: "#B37A32", // Bronze / Mustard
-    chips: ["Daily checklist", "Gayatri count", "Dakshina log"],
+    title: "Purohitam",
+    quote: "What you do every day without exception becomes who you are. Count with devotion.",
+    color: "#B37A32",
     chartData: "M0,15 C20,10 30,28 50,15 C60,8 70,20 85,10 C95,4 98,15 100,8",
   },
   {
+    key: "journey",
     path: "/tracker/journey",
     icon: <Flight sx={{ fontSize: 24 }} />,
-    title: "Yatra Tracker",
-    subtitle: "Trip archive · Cost capture · Ratings · Memories",
-    color: "#2C5B8E", // Ocean Blue
-    chips: ["Trip log", "Cost breakdown", "History"],
+    title: "Yatra",
+    quote: "Every journey reshapes the traveller. Archive it before memory softens the edges.",
+    color: "#2C5B8E",
     chartData: "M0,25 C15,20 30,5 45,15 C60,25 75,10 85,15 C95,18 98,5 100,10",
   },
 ];
@@ -145,29 +144,25 @@ export default function TrackerPage() {
   const navigate = useNavigate();
   const { mode, heroColor } = useThemeMode();
   const isDark = mode === "dark";
+  const vis = useVisibility();
+  const visibleTrackers = TRACKERS.filter((t) => vis.trackers[t.key] !== false);
 
-  // Classic Digital Ashram aesthetic colors
-  const bgBase = isDark ? "#0A0A09" : "#F8F6F0";
+  const bgBase = isDark ? "#0A0A09" : "#F8FAFC";
   const bgGradient = isDark
-    ? `radial-gradient(ellipse 80% 50% at 50% -10%, ${alpha(heroColor, 0.15)} 0%, transparent 80%)`
-    : `radial-gradient(ellipse 80% 50% at 50% -10%, ${alpha(heroColor, 0.12)} 0%, transparent 80%)`;
+    ? `radial-gradient(ellipse 90% 35% at 50% -5%, ${alpha(heroColor, 0.12)} 0%, #0A0A09 65%)`
+    : `radial-gradient(ellipse 90% 35% at 50% -5%, ${alpha(heroColor, 0.09)} 0%, #F8FAFC 65%)`;
 
-  // Subtle classic texture (SVG Base64) - dots/mandala feel
-  const textureOverlay = `url("data:image/svg+xml,%3Csvg width='24' height='24' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M2 12A1 1 0 1 0 2 10a1 1 0 0 0 0 2zm10 10a1 1 0 1 0 0-2 1 1 0 0 0 0 2zm10-10a1 1 0 1 0 0-2 1 1 0 0 0 0 2zM12 4a1 1 0 1 0 0-2 1 1 0 0 0 0 2z' fill='${isDark ? "%23ffffff" : "%23000000"}' fill-opacity='${isDark ? "0.03" : "0.04"}' fill-rule='evenodd'/%3E%3C/svg%3E")`;
-
-  const border = isDark ? alpha("#ffffff", 0.08) : alpha("#000000", 0.08);
-  const cardBg = isDark ? alpha("#181716", 0.8) : alpha("#ffffff", 0.7);
-  const textP = isDark ? "#F2EFEB" : "#282522";
-  const textS = isDark ? "#A6A39E" : "#68645E";
+  const border = isDark ? alpha("#ffffff", 0.08) : "#E2E8F0";
+  const cardBg = isDark ? alpha("#181716", 0.9) : "#FFFFFF";
+  const textP = isDark ? "#F2EFEB" : "#0f172a";
+  const textS = isDark ? "#A6A39E" : "#64748b";
 
   return (
     <Box
       sx={{
         position: "relative",
         minHeight: "100vh",
-        backgroundColor: bgBase,
-        backgroundImage: `${bgGradient}, ${textureOverlay}`,
-        backgroundAttachment: "fixed",
+        background: bgGradient,
         overflowX: "hidden",
         "@keyframes fadeInDown": {
           from: { opacity: 0, transform: "translateY(-15px)" },
@@ -216,7 +211,7 @@ export default function TrackerPage() {
                 fontWeight: 600,
               }}
             >
-              Detailed Tracking
+              Track
             </Typography>
             <Box
               sx={{
@@ -238,7 +233,7 @@ export default function TrackerPage() {
               letterSpacing: "-0.02em",
             }}
           >
-            Digital Ashram Trackers
+            Practice Trackers
           </Typography>
           <Typography
             sx={{
@@ -250,15 +245,14 @@ export default function TrackerPage() {
               lineHeight: 1.6,
             }}
           >
-            Refined OS tools designed for mindful progression across each life
-            area. Independent from daily practice — update naturally as your
-            journey unfolds.
+            Precise records for each dimension of your Svaadhyaya. Update
+            at your own rhythm — numbers that serve your growth.
           </Typography>
         </Box>
 
         {/* Tracker Cards Grid */}
         <Grid container spacing={2.5}>
-          {TRACKERS.map((t, index) => (
+          {visibleTrackers.map((t, index) => (
             <Grid
               item
               xs={12}
@@ -384,42 +378,18 @@ export default function TrackerPage() {
 
                       <Typography
                         sx={{
-                          fontSize: 13,
+                          fontSize: 12.5,
                           color: textS,
-                          display: "block",
-                          mt: 0.5,
-                          mb: 2,
-                          lineHeight: 1.5,
-                          fontWeight: 400,
+                          fontFamily: '"Lora","Fraunces",serif',
+                          fontStyle: "italic",
+                          lineHeight: 1.6,
+                          mt: 0.75,
+                          borderLeft: `2px solid ${alpha(t.color, 0.3)}`,
+                          pl: 1.25,
                         }}
                       >
-                        {t.subtitle}
+                        {t.quote}
                       </Typography>
-
-                      {/* Chips Container */}
-                      <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
-                        {t.chips.map((c) => (
-                          <Chip
-                            key={c}
-                            label={c}
-                            size="small"
-                            sx={{
-                              fontSize: 11,
-                              fontWeight: 500,
-                              height: 22,
-                              background: isDark
-                                ? alpha(t.color, 0.15)
-                                : alpha(t.color, 0.08),
-                              color: isDark ? alpha(t.color, 0.9) : t.color,
-                              border: `1px solid ${alpha(t.color, 0.1)}`,
-                              backdropFilter: "blur(4px)",
-                              "&:hover": {
-                                background: alpha(t.color, 0.2),
-                              },
-                            }}
-                          />
-                        ))}
-                      </Box>
                     </Box>
                   </Box>
                 </CardContent>

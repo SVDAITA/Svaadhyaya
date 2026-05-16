@@ -94,15 +94,15 @@ export default function DisruptionPage() {
 
   // Theme tokens
   const bg = isDark
-    ? `radial-gradient(ellipse 90% 35% at 50% -5%, ${heroColor}07 0%, #0D0C0A 65%)`
-    : `radial-gradient(ellipse 90% 35% at 50% -5%, ${heroColor}10 0%, #FAF5EE 65%)`;
-  const cardBg = isDark ? "#1A1916" : "#FCFBF9";
-  const border = isDark ? "rgba(255,255,255,0.08)" : "#D1D0CF";
-  const textP = isDark ? "#F0EDE8" : "#2C2C2C";
-  const textS = isDark ? "#9C9A94" : "#5F5F5F";
+    ? `radial-gradient(ellipse 90% 35% at 50% -5%, ${heroColor}08 0%, #0D0C0A 65%)`
+    : `radial-gradient(ellipse 90% 35% at 50% -5%, ${heroColor}10 0%, #F8FAFC 65%)`;
+  const cardBg = isDark ? "#1A1916" : "#FFFFFF";
+  const border = isDark ? "rgba(255,255,255,0.08)" : "#E2E8F0";
+  const textP = isDark ? "#F0EDE8" : "#0f172a";
+  const textS = isDark ? "#9C9A94" : "#64748b";
 
   // Unselected card border — visible in both modes
-  const unselBorder = isDark ? "rgba(255,255,255,0.10)" : "#D1D0CF";
+  const unselBorder = isDark ? "rgba(255,255,255,0.10)" : "#E2E8F0";
 
   const markDisrupted = async () => {
     if (!reason) {

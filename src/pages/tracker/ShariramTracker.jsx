@@ -79,8 +79,7 @@ const STATUS_CONFIG = {
   bmi: { label: "BMI", alert: 25, unit: "", lowerIsBetter: true },
 };
 
-// Subtle Zen/Ashram Pattern for Background
-const zenBackground = `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%239C92AC' fill-opacity='0.05'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`;
+const COLOR_HEALTH = "#2D7A4F";
 
 // Animation Variants
 const containerVariants = {
@@ -324,13 +323,16 @@ export default function ShariramHealthOS() {
     });
   };
 
+  const bg = isDark
+    ? `radial-gradient(ellipse 90% 35% at 50% -5%, ${COLOR_HEALTH}12 0%, #0D0C0A 65%)`
+    : `radial-gradient(ellipse 90% 35% at 50% -5%, ${COLOR_HEALTH}10 0%, #F8FAFC 65%)`;
+
   return (
     <Box
       sx={{
-        p: { xs: 2, md: 5 },
+        p: { xs: 2, md: 4 },
         minHeight: "100vh",
-        bgcolor: "background.default",
-        backgroundImage: zenBackground,
+        background: bg,
         color: "text.primary",
       }}
     >
@@ -383,7 +385,7 @@ export default function ShariramHealthOS() {
                   letterSpacing: 2,
                 }}
               >
-                Digital Ashram Diagnostics
+                Sharīram · Biometric Records
               </Typography>
             </Box>
           </Box>

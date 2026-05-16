@@ -14,7 +14,7 @@ export function useAreaData(area) {
   const weekStart = dayjs().startOf('week').format('YYYY-MM-DD')
 
   const load = useCallback(async () => {
-    if (!user) return
+    if (!user) { setLoading(false); return }
     setLoading(true)
 
     const [{ data: ms }, { data: lk }, { data: wg }, { data: lg }] = await Promise.all([

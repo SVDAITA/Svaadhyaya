@@ -40,6 +40,7 @@ import {
 } from "@mui/icons-material";
 import { useAuth } from "../../hooks/useAuth";
 import { useThemeMode } from "../../hooks/useTheme";
+import { useVisibility } from "../../hooks/useVisibility";
 
 const DRAWER_WIDTH = 240; // Slightly wider for a more breathable layout
 const COLLAPSED_WIDTH = 72;
@@ -64,36 +65,42 @@ const NAV_ITEMS = [
     icon: <Spa />,
     path: "/svadhyaya/anushthanam",
     color: "#C07830",
+    areaKey: "spirit",
   },
   {
     label: "Nādam",
     icon: <MusicNote />,
     path: "/svadhyaya/nadam",
     color: "#7C4DAB",
+    areaKey: "music",
   },
   {
     label: "Sharīram",
     icon: <FitnessCenter />,
     path: "/svadhyaya/shariram",
     color: "#2D7A4F",
+    areaKey: "health",
   },
   {
     label: "Vṛtti",
     icon: <Work />,
     path: "/svadhyaya/vrutti",
     color: "#1A5FB0",
+    areaKey: "career",
   },
   {
     label: "Artha",
     icon: <AccountBalance />,
     path: "/svadhyaya/artha",
     color: "#1A7A6E",
+    areaKey: "finance",
   },
   {
     label: "Vidyā",
     icon: <MenuBook />,
     path: "/svadhyaya/vidya",
     color: "#A0522D",
+    areaKey: "reading",
   },
   { divider: true, label: "Trackers" },
   { label: "Trackers", icon: <FlashOn />, path: "/tracker", color: "#1A5FB0" },
@@ -280,8 +287,8 @@ function TopBar({ user, heroColor, mode, toggleTheme, isDark }) {
         borderBottom: `1px solid ${divider}`,
         // Glassmorphism effect
         background: isDark
-          ? "rgba(18, 17, 16, 0.75)"
-          : "rgba(250, 249, 246, 0.8)",
+          ? "rgba(18, 17, 16, 0.85)"
+          : "rgba(255, 255, 255, 0.92)",
         backdropFilter: "blur(12px)",
         WebkitBackdropFilter: "blur(12px)",
         position: "sticky",
@@ -380,6 +387,12 @@ export default function AppLayout() {
 
   const [mobileOpen, setMobileOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
+  const vis = useVisibility();
+
+  const visibleNavItems = NAV_ITEMS.filter((item) => {
+    if (item.divider || !item.areaKey) return true;
+    return vis.areas[item.areaKey] !== false;
+  });
 
   const name = user?.user_metadata?.full_name || "Subbu";
   const initials = name
@@ -391,11 +404,11 @@ export default function AppLayout() {
   const avatarSrc = useMemo(() => localStorage.getItem("sv_avatar"), []);
 
   // Theme Constants
-  const appBg = isDark ? "#121110" : "#FAF9F6"; // Slightly warmer dark mode base
-  const drawerBg = isDark ? "#0A0908" : "#F4F1EC";
-  const dividerClr = isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)";
-  const textP = isDark ? "#F0EDE8" : "#2C2C2C";
-  const textS = isDark ? "#8C8881" : "#7A6E62";
+  const appBg = isDark ? "#121110" : "#F8FAFC";
+  const drawerBg = isDark ? "#0A0908" : "#FFFFFF";
+  const dividerClr = isDark ? "rgba(255,255,255,0.06)" : "#E2E8F0";
+  const textP = isDark ? "#F0EDE8" : "#0f172a";
+  const textS = isDark ? "#8C8881" : "#64748b";
 
   const drawerContent = (
     <Box
@@ -408,7 +421,7 @@ export default function AppLayout() {
         borderRight: `1px solid ${dividerClr}`,
         boxShadow: isDark
           ? `inset -10px 0 20px -10px rgba(0,0,0,0.5)`
-          : `inset -10px 0 20px -10px rgba(0,0,0,0.05)`,
+          : `1px 0 0 0 ${dividerClr}`,
         position: "relative",
       }}
     >
@@ -524,7 +537,7 @@ export default function AppLayout() {
           zIndex: 1,
         }}
       >
-        {NAV_ITEMS.map((item, i) => {
+        {visibleNavItems.map((item, i) => {
           if (item.divider)
             return (
               <Box key={i} sx={{ pt: 3, pb: 1, px: collapsed ? 0 : 1 }}>
@@ -859,7 +872,6 @@ export default function AppLayout() {
               key={location.pathname}
               sx={{
                 flex: 1,
-                p: { xs: 2, md: 4 }, // Built-in padding scaling for the main area
                 animation: "pageEnter 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) both",
               }}
             >

@@ -221,12 +221,10 @@ export default function DietPage() {
   const todayDate = useMemo(() => dayjs().format("YYYY-MM-DD"), []);
   const dayOfWeek = useMemo(() => dayjs().format("dddd").toLowerCase(), []);
 
-  // Theme Variables - Digital Ashram Vibes
-  const patternOpacity = isDark ? "0.03" : "0.04";
-  const bg = isDark ? `#0D0C0A` : `#FAF5EE`;
-
-  // Subtle mandala/ashram texture
-  const bgTexture = `url("data:image/svg+xml,%3Csvg width='40' height='40' viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%235A6E1A' fill-opacity='${patternOpacity}' fill-rule='evenodd'%3E%3Cpath d='M0 40L40 0H20L0 20M40 40V20L20 40'/%3E%3C/g%3E%3C/svg%3E")`;
+  // Theme Variables
+  const bg = isDark
+    ? `radial-gradient(ellipse 90% 35% at 50% -5%, ${COLOR}10 0%, #0D0C0A 65%)`
+    : `radial-gradient(ellipse 90% 35% at 50% -5%, ${COLOR}08 0%, #F8FAFC 65%)`;
 
   const border = isDark ? "rgba(255,255,255,0.08)" : "rgba(90, 110, 26, 0.15)";
   const cardBg = isDark ? "rgba(26, 25, 22, 0.8)" : "rgba(252, 251, 249, 0.8)";
@@ -385,7 +383,6 @@ export default function DietPage() {
         position: "relative",
         minHeight: "100vh",
         background: bg,
-        backgroundImage: bgTexture,
         overflow: "hidden",
       }}
     >

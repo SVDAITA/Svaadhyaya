@@ -18,6 +18,7 @@ import {
   Divider,
   Tooltip,
   Avatar,
+  Switch,
 } from "@mui/material";
 import {
   Delete,
@@ -29,6 +30,7 @@ import {
   CameraAlt,
   Visibility,
   VisibilityOff,
+  Tune,
 } from "@mui/icons-material";
 import { useAuth } from "../../hooks/useAuth";
 import { useThemeMode } from "../../hooks/useTheme";
@@ -36,6 +38,17 @@ import { supabase } from "../../lib/supabase";
 import { SectionLabel } from "../../components/shared/AreaComponents";
 import ThemeSettingsPanel from "../../components/shared/ThemeSettingsPanel";
 import dayjs from "dayjs";
+import { getAreaSubtitle, saveAreaSubtitles, AREA_SUBTITLE_DEFAULTS } from "../../hooks/useAreaSubtitles";
+import { getVisibility, saveVisibility } from "../../hooks/useVisibility";
+
+const AREA_INFO = [
+  { key: "spirit",  emoji: "🪔", name: "Anushthanam" },
+  { key: "music",   emoji: "🎵", name: "Nādam" },
+  { key: "health",  emoji: "💪", name: "Sharīram" },
+  { key: "finance", emoji: "💰", name: "Artha" },
+  { key: "career",  emoji: "🚀", name: "Vṛtti" },
+  { key: "reading", emoji: "📖", name: "Vidyā" },
+];
 
 function TabPanel({ children, value, index }) {
   return (
@@ -82,6 +95,44 @@ const [newPw, setNewPw] = useState("");
 
   // ── Logout confirm
   const [logoutOpen, setLogoutOpen] = useState(false);
+
+  // ── Area taglines
+  const [areaSubtitles, setAreaSubtitles] = useState(() => {
+    const out = {};
+    AREA_INFO.forEach(({ key }) => { out[key] = getAreaSubtitle(key); });
+    return out;
+  });
+
+  const handleSaveAreaSubtitles = () => {
+    saveAreaSubtitles(areaSubtitles);
+    setSuccess("Area taglines saved");
+    setTimeout(() => setSuccess(""), 3000);
+  };
+
+  // ── Visibility
+  const [visibility, setVisibility] = useState(() => getVisibility());
+
+  const toggleArea = (key) =>
+    setVisibility((v) => ({ ...v, areas: { ...v.areas, [key]: !v.areas[key] } }));
+
+  const toggleTracker = (key) =>
+    setVisibility((v) => ({ ...v, trackers: { ...v.trackers, [key]: !v.trackers[key] } }));
+
+  const handleSaveVisibility = () => {
+    saveVisibility(visibility);
+    setSuccess("Visibility saved");
+    setTimeout(() => setSuccess(""), 3000);
+  };
+
+  const TRACKER_INFO = [
+    { key: "finance", emoji: "💰", name: "Artha Tracker" },
+    { key: "health",  emoji: "💪", name: "Sharīram Tracker" },
+    { key: "diet",    emoji: "🥗", name: "Anna Tracker" },
+    { key: "reading", emoji: "📖", name: "Pathanam Tracker" },
+    { key: "career",  emoji: "🚀", name: "Vṛtti Tracker" },
+    { key: "sacred",  emoji: "🪔", name: "Purohitam Tracker" },
+    { key: "journey", emoji: "✈️",  name: "Yatra Tracker" },
+  ];
 
   const border = isDark ? "rgba(255,255,255,0.08)" : "#D1D0CF";
   const textP = isDark ? "#F0EDE8" : "#2C2C2C";
@@ -330,6 +381,11 @@ const [newPw, setNewPw] = useState("");
               icon={<Lock sx={{ fontSize: 17 }} />}
               iconPosition="start"
               label="Security"
+            />
+            <Tab
+              icon={<Tune sx={{ fontSize: 17 }} />}
+              iconPosition="start"
+              label="Areas"
             />
           </Tabs>
         </Box>
@@ -684,6 +740,104 @@ const [newPw, setNewPw] = useState("");
                 sx={{ textTransform: "none", fontSize: 13 }}
               >
                 Delete account
+              </Button>
+            </Box>
+          </TabPanel>
+          {/* ── AREAS TAB ── */}
+          <TabPanel value={tab} index={3}>
+            <Box sx={{ maxWidth: 520 }}>
+              <Typography sx={{ fontSize: 12, color: textS, mb: 3, lineHeight: 1.7 }}>
+                Edit the tagline shown under each life area's title. Leave blank to restore the default.
+              </Typography>
+              {AREA_INFO.map(({ key, emoji, name }) => (
+                <Box key={key} sx={{ mb: 2.5 }}>
+                  <Typography sx={{ fontSize: 12, fontWeight: 600, color: textP, mb: 0.75 }}>
+                    {emoji} {name}
+                  </Typography>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    value={areaSubtitles[key]}
+                    onChange={(e) => setAreaSubtitles((prev) => ({ ...prev, [key]: e.target.value }))}
+                    placeholder={AREA_SUBTITLE_DEFAULTS[key]}
+                    sx={{ "& .MuiOutlinedInput-root": { background: inputBg, fontSize: 13 } }}
+                  />
+                </Box>
+              ))}
+              <Button
+                variant="contained"
+                onClick={handleSaveAreaSubtitles}
+                sx={{
+                  mt: 1,
+                  background: heroColor,
+                  "&:hover": { background: heroColor, opacity: 0.88 },
+                  boxShadow: "none",
+                  px: 4,
+                  textTransform: "none",
+                  fontSize: 13,
+                }}
+              >
+                Save taglines
+              </Button>
+
+              {/* ── Visibility ── */}
+              <Divider sx={{ my: 4, borderColor: border }} />
+              <SectionLabel>Visibility</SectionLabel>
+              <Typography sx={{ fontSize: 12, color: textS, mb: 3, lineHeight: 1.7 }}>
+                Hide life areas or trackers you don't use. They'll disappear from the sidebar and tracker list.
+              </Typography>
+
+              <Typography sx={{ fontSize: 11, fontWeight: 700, color: textS, textTransform: "uppercase", letterSpacing: 1, mb: 1.5 }}>
+                Life Areas
+              </Typography>
+              <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5, mb: 3 }}>
+                {AREA_INFO.map(({ key, emoji, name }) => (
+                  <Box key={key} sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", py: 0.5 }}>
+                    <Typography sx={{ fontSize: 13, color: textP }}>
+                      {emoji} {name}
+                    </Typography>
+                    <Switch
+                      size="small"
+                      checked={visibility.areas[key] !== false}
+                      onChange={() => toggleArea(key)}
+                      sx={{ "& .MuiSwitch-thumb": { bgcolor: heroColor }, "& .Mui-checked + .MuiSwitch-track": { bgcolor: `${heroColor}80` } }}
+                    />
+                  </Box>
+                ))}
+              </Box>
+
+              <Typography sx={{ fontSize: 11, fontWeight: 700, color: textS, textTransform: "uppercase", letterSpacing: 1, mb: 1.5 }}>
+                Trackers
+              </Typography>
+              <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5, mb: 3 }}>
+                {TRACKER_INFO.map(({ key, emoji, name }) => (
+                  <Box key={key} sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", py: 0.5 }}>
+                    <Typography sx={{ fontSize: 13, color: textP }}>
+                      {emoji} {name}
+                    </Typography>
+                    <Switch
+                      size="small"
+                      checked={visibility.trackers[key] !== false}
+                      onChange={() => toggleTracker(key)}
+                      sx={{ "& .MuiSwitch-thumb": { bgcolor: heroColor }, "& .Mui-checked + .MuiSwitch-track": { bgcolor: `${heroColor}80` } }}
+                    />
+                  </Box>
+                ))}
+              </Box>
+
+              <Button
+                variant="contained"
+                onClick={handleSaveVisibility}
+                sx={{
+                  background: heroColor,
+                  "&:hover": { background: heroColor, opacity: 0.88 },
+                  boxShadow: "none",
+                  px: 4,
+                  textTransform: "none",
+                  fontSize: 13,
+                }}
+              >
+                Save visibility
               </Button>
             </Box>
           </TabPanel>

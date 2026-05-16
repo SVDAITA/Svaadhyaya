@@ -10,6 +10,7 @@ import {
 } from "../../components/shared/AreaComponents";
 import { useAreaData } from "../../hooks/useAreaData";
 import { useThemeMode } from "../../hooks/useTheme";
+import { useAreaSubtitle } from "../../hooks/useAreaSubtitles";
 
 const COLOR = "#A0522D";
 const AREA = "reading";
@@ -175,6 +176,7 @@ export default function VidyaPage() {
   const { lakshyas, loading, reload } = useAreaData(AREA);
   const { mode } = useThemeMode();
   const isDark = mode === "dark";
+  const subtitle = useAreaSubtitle(AREA);
 
   const activeLakshyas = lakshyas.filter((l) => l.status === "active").length;
   const totalSiddhis = lakshyas.reduce(
@@ -184,7 +186,7 @@ export default function VidyaPage() {
 
   const bg = isDark
     ? `radial-gradient(ellipse 90% 35% at 50% -5%, ${COLOR}08 0%, #0D0C0A 65%)`
-    : `radial-gradient(ellipse 90% 35% at 50% -5%, ${COLOR}10 0%, #FAF5EE 65%)`;
+    : `radial-gradient(ellipse 90% 35% at 50% -5%, ${COLOR}10 0%, #F8FAFC 65%)`;
 
   if (loading)
     return (
@@ -219,7 +221,7 @@ export default function VidyaPage() {
         color={COLOR}
         emoji="📖"
         title="Vidyā"
-        subtitle="300-book Library · UGC NET · 10 pages every night"
+        subtitle={subtitle}
         quote="Read to become, not to know. Every book is a conversation with a mind greater than mine."
       />
 

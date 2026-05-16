@@ -14,6 +14,7 @@ import {
   useWeekCompletion,
 } from "../../hooks/useAreaData";
 import { useThemeMode } from "../../hooks/useTheme";
+import { useAreaSubtitle } from "../../hooks/useAreaSubtitles";
 
 const COLOR = "#2D7A4F";
 const AREA = "health";
@@ -167,6 +168,7 @@ export default function ShariramPage() {
   const isDark = mode === "dark";
   const walkStreak = useHabitStreak("walk");
   const weekPct = useWeekCompletion(["walk", "healthy_eating"]);
+  const subtitle = useAreaSubtitle(AREA);
 
   const activeLakshyas = lakshyas.filter((l) => l.status === "active").length;
   const totalSiddhis = lakshyas.reduce(
@@ -176,7 +178,7 @@ export default function ShariramPage() {
 
   const bg = isDark
     ? `radial-gradient(ellipse 90% 35% at 50% -5%, ${COLOR}08 0%, #0D0C0A 65%)`
-    : `radial-gradient(ellipse 90% 35% at 50% -5%, ${COLOR}10 0%, #FAF5EE 65%)`;
+    : `radial-gradient(ellipse 90% 35% at 50% -5%, ${COLOR}10 0%, #F8FAFC 65%)`;
 
   if (loading)
     return (
@@ -211,7 +213,7 @@ export default function ShariramPage() {
         color={COLOR}
         emoji="💪"
         title="Sharīram"
-        subtitle="91kg → 80kg · Visceral fat 13 → 9 · Body age 42 → 37"
+        subtitle={subtitle}
         quote="The body is the primary instrument of dharma. Treat it with the same devotion you give your riyaz."
       />
 

@@ -331,7 +331,9 @@ export default function PravesaPage() {
     other: "",
   });
 
-  const bg = isDark ? "#0A0A0A" : "#FAFAFA";
+  const bg = isDark
+    ? `radial-gradient(ellipse 90% 35% at 50% -5%, ${COLOR}14 0%, #090C10 65%)`
+    : `radial-gradient(ellipse 90% 35% at 50% -5%, ${COLOR}10 0%, #F8FAFC 65%)`;
   const border = isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)";
   const cardBg = isDark ? "#161616" : "#FFFFFF";
   const textP = isDark ? "#F5F5F5" : "#1A1A1A";
