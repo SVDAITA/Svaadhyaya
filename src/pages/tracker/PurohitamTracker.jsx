@@ -1568,7 +1568,7 @@ function AnushtanamTab({ user, isDark }) {
   const [loading, setLoading] = useState(true);
   const [snack, setSnack] = useState("");
   const [japaFilter, setJapaFilter] = useState("Month");
-  const [selectedJapa, setSelectedJapa] = useState("Gayatri");
+  const [selectedJapa, setSelectedJapa] = useState("");
   const japaNames = [
     ...new Set([
       ...japaLogs.map((l) => l.japa_name),
@@ -1577,10 +1577,13 @@ function AnushtanamTab({ user, isDark }) {
   ];
 
   useEffect(() => {
-    if (japaNames.length > 0 && !japaNames.includes(selectedJapa)) {
-      setSelectedJapa(japaNames[0]);
+    if (
+      japaNames.length > 0 &&
+      (!selectedJapa || !japaNames.includes(selectedJapa))
+    ) {
+      setSelectedJapa(japaNames[0]); // picks first real name from data
     }
-  }, [japaNames]);
+  }, [japaNames, selectedJapa]);
 
   // Dialogs
   const [seqOpen, setSeqOpen] = useState(false);
@@ -1598,14 +1601,14 @@ function AnushtanamTab({ user, isDark }) {
   };
   const [sForm, setSForm] = useState(emptySeq);
   const [japaForm, setJapaForm] = useState({
-    japa_name: "Gayatri",
+    japa_name: "",
     count: "",
     notes: "",
   });
   const [goalForm, setGoalForm] = useState({
-    japa_name: "Gayatri",
-    target_count: "10000000",
-    deadline_years: "50",
+    japa_name: "",
+    target_count: "",
+    deadline_years: "",
     notes: "",
   });
   const [saving, setSaving] = useState(false);
@@ -1716,7 +1719,7 @@ function AnushtanamTab({ user, isDark }) {
       { onConflict: "user_id,japa_name,day_date" },
     );
     setJapaOpen(false);
-    setJapaForm({ japa_name: "Gayatri", count: "", notes: "" });
+    setJapaForm({ japa_name: "", count: "", notes: "" });
     setSaving(false);
     setSnack("Japa count saved");
     load();
@@ -2105,7 +2108,13 @@ function AnushtanamTab({ user, isDark }) {
                   <Button
                     size="small"
                     startIcon={<Flag />}
-                    onClick={() => setGoalOpen(true)}
+                    onClick={() => {
+                      setGoalForm((p) => ({
+                        ...p,
+                        japa_name: selectedJapa || "",
+                      }));
+                      setGoalOpen(true);
+                    }}
                     sx={{
                       fontSize: 11,
                       color: SACRED_GREEN,
@@ -2543,7 +2552,14 @@ function AnushtanamTab({ user, isDark }) {
             }}
           >
             <CardContent sx={{ p: "16px 20px !important" }}>
-              <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 1.5 }}>
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  mb: 1.5,
+                }}
+              >
                 <SL color={INDIGO}>Japa Log — All Entries</SL>
                 <Typography sx={{ fontSize: 11, color: textS }}>
                   {japaLogs.length} record{japaLogs.length !== 1 ? "s" : ""}
@@ -2551,7 +2567,9 @@ function AnushtanamTab({ user, isDark }) {
               </Box>
 
               {japaLogs.length === 0 ? (
-                <Typography sx={{ fontSize: 13, color: textS, fontStyle: "italic" }}>
+                <Typography
+                  sx={{ fontSize: 13, color: textS, fontStyle: "italic" }}
+                >
                   No entries yet. Log your first japa count above.
                 </Typography>
               ) : (
@@ -2584,13 +2602,23 @@ function AnushtanamTab({ user, isDark }) {
                         <TableRow
                           key={l.id}
                           sx={{
-                            bgcolor: idx % 2 === 0
-                              ? "transparent"
-                              : isDark ? "rgba(255,255,255,0.015)" : "rgba(0,0,0,0.013)",
+                            bgcolor:
+                              idx % 2 === 0
+                                ? "transparent"
+                                : isDark
+                                  ? "rgba(255,255,255,0.015)"
+                                  : "rgba(0,0,0,0.013)",
                             "&:last-child td": { border: 0 },
                           }}
                         >
-                          <TableCell sx={{ fontSize: 12, color: textS, borderColor: border, whiteSpace: "nowrap" }}>
+                          <TableCell
+                            sx={{
+                              fontSize: 12,
+                              color: textS,
+                              borderColor: border,
+                              whiteSpace: "nowrap",
+                            }}
+                          >
                             {dayjs(l.day_date).format("D MMM YYYY")}
                           </TableCell>
                           <TableCell sx={{ fontSize: 12, borderColor: border }}>
@@ -2606,19 +2634,45 @@ function AnushtanamTab({ user, isDark }) {
                               }}
                             />
                           </TableCell>
-                          <TableCell align="right" sx={{ fontSize: 13, fontWeight: 700, color: INDIGO, borderColor: border, fontFamily: '"Fraunces",serif' }}>
+                          <TableCell
+                            align="right"
+                            sx={{
+                              fontSize: 13,
+                              fontWeight: 700,
+                              color: INDIGO,
+                              borderColor: border,
+                              fontFamily: '"Fraunces",serif',
+                            }}
+                          >
                             {formatCount(l.count)}
                           </TableCell>
-                          <TableCell sx={{ fontSize: 12, color: textS, borderColor: border, maxWidth: 200 }}>
-                            <Typography noWrap sx={{ fontSize: 12, color: textS, maxWidth: 180 }}>
+                          <TableCell
+                            sx={{
+                              fontSize: 12,
+                              color: textS,
+                              borderColor: border,
+                              maxWidth: 200,
+                            }}
+                          >
+                            <Typography
+                              noWrap
+                              sx={{ fontSize: 12, color: textS, maxWidth: 180 }}
+                            >
                               {l.notes || "—"}
                             </Typography>
                           </TableCell>
-                          <TableCell align="right" sx={{ borderColor: border, p: 0.5 }}>
+                          <TableCell
+                            align="right"
+                            sx={{ borderColor: border, p: 0.5 }}
+                          >
                             <IconButton
                               size="small"
                               onClick={() => deleteJapaLog(l.id)}
-                              sx={{ p: 0.3, opacity: 0.35, "&:hover": { opacity: 1, color: "#CF4E4E" } }}
+                              sx={{
+                                p: 0.3,
+                                opacity: 0.35,
+                                "&:hover": { opacity: 1, color: "#CF4E4E" },
+                              }}
                             >
                               <Delete sx={{ fontSize: 13 }} />
                             </IconButton>
