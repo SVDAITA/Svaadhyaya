@@ -5,8 +5,6 @@ import {
   LakshyaSection,
   AreaJournal,
   WeeklyGoals,
-  AreaLog,
-  InsightCard,
 } from "../../components/shared/AreaComponents";
 import { useAreaData } from "../../hooks/useAreaData";
 import { useThemeMode } from "../../hooks/useTheme";
@@ -14,52 +12,6 @@ import { useAreaSubtitle } from "../../hooks/useAreaSubtitles";
 
 const COLOR = "#7C4DAB";
 const AREA = "music";
-
-const LOG_TYPES = [
-  {
-    id: "riyaz_notes",
-    label: "Riyaz notes",
-    hasValue: true,
-    valueLabel: "What I worked on",
-  },
-  {
-    id: "guru_feedback",
-    label: "Guru feedback",
-    hasValue: true,
-    valueLabel: "Feedback received",
-  },
-  {
-    id: "youtube_video",
-    label: "YouTube video published",
-    hasValue: true,
-    valueLabel: "Video title",
-  },
-  {
-    id: "new_kriti",
-    label: "New kriti learned",
-    hasValue: true,
-    valueLabel: "Kriti name + composer",
-  },
-  {
-    id: "concert",
-    label: "Concert / performance",
-    hasValue: true,
-    valueLabel: "Occasion / venue",
-  },
-  {
-    id: "subscriber_count",
-    label: "YouTube subscribers",
-    hasValue: true,
-    valueLabel: "Count",
-    unit: "subs",
-  },
-  {
-    id: "composition",
-    label: "Composition work",
-    hasValue: true,
-    valueLabel: "Details",
-  },
-];
 
 // Nāda — flowing sine wave / sound geometry
 function NadamBg({ isDark }) {
@@ -142,10 +94,6 @@ export default function NadamPage() {
     0,
   );
 
-  const bg = isDark
-    ? `radial-gradient(ellipse 90% 35% at 50% -5%, ${COLOR}08 0%, #0D0C0A 65%)`
-    : `radial-gradient(ellipse 90% 35% at 50% -5%, ${COLOR}10 0%, #F8FAFC 65%)`;
-
   if (loading)
     return (
       <Box
@@ -154,7 +102,6 @@ export default function NadamPage() {
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          background: bg,
         }}
       >
         <CircularProgress sx={{ color: COLOR }} />
@@ -168,7 +115,6 @@ export default function NadamPage() {
         maxWidth: 900,
         mx: "auto",
         minHeight: "100vh",
-        background: bg,
         position: "relative",
         overflow: "hidden",
       }}
@@ -184,7 +130,7 @@ export default function NadamPage() {
       />
 
       <Grid container spacing={2} sx={{ mb: 3 }}>
-        <Grid item xs={6} sm={4}>
+        <Grid item xs={6} sm={6}>
           <StatCard
             value={activeLakshyas}
             label="Active Visions"
@@ -192,7 +138,7 @@ export default function NadamPage() {
             sub="Lakshyas"
           />
         </Grid>
-        <Grid item xs={6} sm={4}>
+        <Grid item xs={6} sm={6}>
           <StatCard
             value={totalSiddhis}
             label="Milestones Set"
@@ -210,18 +156,7 @@ export default function NadamPage() {
       />
       <AreaJournal area={AREA} color={COLOR} />
 
-      <Grid container spacing={2}>
-        <Grid item xs={12} md={6}>
-          <WeeklyGoals area={AREA} color={COLOR} />
-        </Grid>
-        <Grid item xs={12} md={6}>
-          <InsightCard
-            color={COLOR}
-            insight="Saturday deep session (1 hour) is where real growth happens. Record YouTube content immediately after while the voice is warm. Protect Saturday mornings like the Anushthanam."
-          />
-          <AreaLog area={AREA} color={COLOR} logTypes={LOG_TYPES} />
-        </Grid>
-      </Grid>
+      <WeeklyGoals area={AREA} color={COLOR} />
     </Box>
   );
 }

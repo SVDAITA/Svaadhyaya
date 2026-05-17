@@ -19,6 +19,7 @@ import {
   Tooltip,
   Avatar,
   Switch,
+  Snackbar,
 } from "@mui/material";
 import {
   Delete,
@@ -31,6 +32,12 @@ import {
   Visibility,
   VisibilityOff,
   Tune,
+  MenuBook,
+  Edit as EditIcon,
+  Check,
+  Close,
+  Waves,
+  Info,
 } from "@mui/icons-material";
 import { useAuth } from "../../hooks/useAuth";
 import { useThemeMode } from "../../hooks/useTheme";
@@ -40,6 +47,85 @@ import ThemeSettingsPanel from "../../components/shared/ThemeSettingsPanel";
 import dayjs from "dayjs";
 import { getAreaSubtitle, saveAreaSubtitles, AREA_SUBTITLE_DEFAULTS } from "../../hooks/useAreaSubtitles";
 import { getVisibility, saveVisibility } from "../../hooks/useVisibility";
+
+const SETTINGS_DATE = "2000-01-01";
+
+const SYSTEM_SACRED_TASKS = [
+  { id: "anushthanam",   label: "Anushthanam",           emoji: "🪔" },
+  { id: "riyaz",         label: "Naada Saadhana",         emoji: "🎵" },
+  { id: "walk",          label: "Vyaayamam",              emoji: "🏃" },
+  { id: "reading",       label: "Pustaka Pathanam",       emoji: "📖" },
+  { id: "eat_healthy",   label: "Eat healthy (80% full)", emoji: "🥗" },
+  { id: "sleep_healthy", label: "Sleep healthy",           emoji: "🌙" },
+];
+
+const buildDefaultBaselines = () => ({
+  holiday:  SYSTEM_SACRED_TASKS.slice(0, 3).map((t) => ({ id: t.id, required: true,  minimum: "" })),
+  vacation: SYSTEM_SACRED_TASKS.slice(0, 1).map((t) => ({ id: t.id, required: true,  minimum: "" })),
+});
+
+function BaselineEditor({ mode, baselines, onChange, heroColor, isDark, textP, textS, border }) {
+  const entries = baselines[mode] || [];
+  const getEntry = (id) => entries.find((e) => e.id === id) || { id, required: false, minimum: "" };
+  const update = (id, patch) => {
+    const existing = entries.find((e) => e.id === id);
+    const next = existing
+      ? entries.map((e) => (e.id === id ? { ...e, ...patch } : e))
+      : [...entries, { id, required: false, minimum: "", ...patch }];
+    onChange({ ...baselines, [mode]: next });
+  };
+  return (
+    <Box>
+      {SYSTEM_SACRED_TASKS.map((task) => {
+        const entry = getEntry(task.id);
+        return (
+          <Box
+            key={task.id}
+            sx={{
+              mb: 1.25, p: 1.5, borderRadius: 2,
+              border: `1px solid ${entry.required ? `${heroColor}40` : border}`,
+              background: entry.required
+                ? `${heroColor}06`
+                : isDark ? "rgba(255,255,255,0.02)" : "rgba(0,0,0,0.01)",
+              transition: "all 0.15s",
+            }}
+          >
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+              <Typography sx={{ fontSize: 18, flexShrink: 0 }}>{task.emoji}</Typography>
+              <Typography sx={{ fontSize: 13, fontWeight: 500, color: textP, flex: 1 }}>{task.label}</Typography>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                <Typography sx={{ fontSize: 10, color: textS }}>Required</Typography>
+                <Switch
+                  size="small"
+                  checked={entry.required}
+                  onChange={(e) => update(task.id, { required: e.target.checked })}
+                  sx={{
+                    "& .MuiSwitch-thumb": { bgcolor: entry.required ? heroColor : undefined },
+                    "& .Mui-checked + .MuiSwitch-track": { bgcolor: `${heroColor}80` },
+                  }}
+                />
+              </Box>
+            </Box>
+            {entry.required && (
+              <TextField
+                fullWidth size="small" variant="standard"
+                placeholder={`Minimum version of ${task.label}…`}
+                value={entry.minimum}
+                onChange={(e) => update(task.id, { minimum: e.target.value })}
+                sx={{
+                  mt: 1, pl: 4,
+                  "& input": { fontSize: 12, color: heroColor },
+                  "& .MuiInput-underline:before": { borderBottomColor: `${heroColor}30` },
+                  "& .MuiInput-underline:after":  { borderBottomColor: heroColor },
+                }}
+              />
+            )}
+          </Box>
+        );
+      })}
+    </Box>
+  );
+}
 
 const AREA_INFO = [
   { key: "spirit",  emoji: "🪔", name: "Anushthanam" },
@@ -78,8 +164,14 @@ export default function SettingsPage() {
     () => localStorage.getItem("sv_avatar") || "",
   );
 
+  // ── Email edit
+  const [editingEmail, setEditingEmail] = useState(false);
+  const [newEmail, setNewEmail] = useState("");
+  const [emailLoading, setEmailLoading] = useState(false);
+  const [emailMsg, setEmailMsg] = useState("");
+
   // ── Security / Password
-const [newPw, setNewPw] = useState("");
+  const [newPw, setNewPw] = useState("");
   const [confirmPw, setConfirmPw] = useState("");
   const [showPw, setShowPw] = useState(false);
   const [pwLoading, setPwLoading] = useState(false);
@@ -95,6 +187,12 @@ const [newPw, setNewPw] = useState("");
 
   // ── Logout confirm
   const [logoutOpen, setLogoutOpen] = useState(false);
+
+  // ── Disruption baselines
+  const [baselines, setBaselines] = useState(buildDefaultBaselines());
+  const [baselinesLoading, setBaselinesLoading] = useState(false);
+  const [baselinesSaving, setBaselinesSaving] = useState(false);
+  const [snack, setSnack] = useState("");
 
   // ── Area taglines
   const [areaSubtitles, setAreaSubtitles] = useState(() => {
@@ -117,6 +215,24 @@ const [newPw, setNewPw] = useState("");
 
   const toggleTracker = (key) =>
     setVisibility((v) => ({ ...v, trackers: { ...v.trackers, [key]: !v.trackers[key] } }));
+
+  const handleEmailChange = async () => {
+    if (!newEmail.trim() || !newEmail.includes("@")) {
+      setError("Enter a valid email address");
+      return;
+    }
+    setEmailLoading(true);
+    setError("");
+    const { error: emailErr } = await supabase.auth.updateUser({ email: newEmail });
+    setEmailLoading(false);
+    if (emailErr) {
+      setError(emailErr.message);
+    } else {
+      setEmailMsg(`Verification sent to ${newEmail}. Click the link in both emails to confirm the change.`);
+      setEditingEmail(false);
+      setNewEmail("");
+    }
+  };
 
   const handleSaveVisibility = () => {
     saveVisibility(visibility);
@@ -152,18 +268,28 @@ const [newPw, setNewPw] = useState("");
 
   const loadSettings = async () => {
     if (!user) return;
-    const { data: profile } = await supabase
-      .from("user_profiles")
-      .select("*")
-      .eq("user_id", user.id)
-      .maybeSingle();
-
+    const [{ data: profile }, { data: settingsRow }] = await Promise.all([
+      supabase.from("user_profiles").select("*").eq("user_id", user.id).maybeSingle(),
+      supabase.from("days").select("disruption_baselines").eq("user_id", user.id).eq("day_date", SETTINGS_DATE).maybeSingle(),
+    ]);
     if (profile?.full_name) {
       const parts = profile.full_name.trim().split(" ");
       setFirstName(parts[0] || "");
       setLastName(parts.slice(1).join(" ") || "");
     }
     if (profile?.mantra) setMantra(profile.mantra);
+    if (settingsRow?.disruption_baselines) setBaselines(settingsRow.disruption_baselines);
+  };
+
+  const saveDisruptionBaselines = async () => {
+    if (!user) return;
+    setBaselinesSaving(true);
+    await supabase.from("days").upsert(
+      { user_id: user.id, day_date: SETTINGS_DATE, disruption_baselines: baselines },
+      { onConflict: "user_id,day_date" },
+    );
+    setBaselinesSaving(false);
+    setSnack("Baselines saved");
   };
 
   const handleSaveProfile = async () => {
@@ -234,7 +360,6 @@ const [newPw, setNewPw] = useState("");
       setError(pwErr.message);
     } else {
       setPwSuccess(true);
-      setCurrentPw("");
       setNewPw("");
       setConfirmPw("");
       setTimeout(() => setPwSuccess(false), 4000);
@@ -387,6 +512,16 @@ const [newPw, setNewPw] = useState("");
               iconPosition="start"
               label="Areas"
             />
+            <Tab
+              icon={<Waves sx={{ fontSize: 17 }} />}
+              iconPosition="start"
+              label="Disruption"
+            />
+            <Tab
+              icon={<MenuBook sx={{ fontSize: 17 }} />}
+              iconPosition="start"
+              label="Guide"
+            />
           </Tabs>
         </Box>
 
@@ -511,63 +646,56 @@ const [newPw, setNewPw] = useState("");
                 }}
               />
 
-              {/* Account info */}
-              <Box
-                sx={{
-                  p: 1.5,
-                  borderRadius: 2,
-                  background: isDark ? "rgba(255,255,255,0.03)" : "#FAF9F6",
-                  border: `1px solid ${border}`,
-                  mb: 3,
-                }}
-              >
-                <Typography
+              {/* Account email */}
+              <SectionLabel>Account email</SectionLabel>
+              {emailMsg && (
+                <Alert severity="info" sx={{ mb: 2, fontSize: 12, borderRadius: 2 }} onClose={() => setEmailMsg("")}>
+                  {emailMsg}
+                </Alert>
+              )}
+              {editingEmail ? (
+                <Box sx={{ display: "flex", gap: 1, mb: 3, alignItems: "center" }}>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    label="New email address"
+                    value={newEmail}
+                    onChange={(e) => setNewEmail(e.target.value)}
+                    sx={{ "& .MuiOutlinedInput-root": { background: inputBg } }}
+                  />
+                  <IconButton
+                    size="small"
+                    onClick={handleEmailChange}
+                    disabled={emailLoading}
+                    sx={{ color: heroColor, flexShrink: 0 }}
+                  >
+                    {emailLoading ? <CircularProgress size={16} /> : <Check sx={{ fontSize: 18 }} />}
+                  </IconButton>
+                  <IconButton size="small" onClick={() => { setEditingEmail(false); setNewEmail(""); }} sx={{ flexShrink: 0 }}>
+                    <Close sx={{ fontSize: 18 }} />
+                  </IconButton>
+                </Box>
+              ) : (
+                <Box
                   sx={{
-                    fontSize: 11,
-                    color: textS,
-                    mb: 0.25,
-                    textTransform: "uppercase",
-                    letterSpacing: 1,
+                    p: 1.5,
+                    borderRadius: 2,
+                    background: isDark ? "rgba(255,255,255,0.03)" : "#FAF9F6",
+                    border: `1px solid ${border}`,
+                    mb: 3,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
                   }}
                 >
-                  Account email
-                </Typography>
-                <Typography
-                  sx={{ fontSize: 13, color: textP, fontWeight: 500 }}
-                >
-                  {user?.email}
-                </Typography>
-              </Box>
-
-              <Box
-                sx={{
-                  p: 1.5,
-                  borderRadius: 2,
-                  background: isDark ? "rgba(255,255,255,0.03)" : "#FAF9F6",
-                  border: `1px solid ${border}`,
-                  mb: 3,
-                }}
-              >
-                <Typography
-                  sx={{
-                    fontSize: 11,
-                    color: textS,
-                    mb: 0.25,
-                    textTransform: "uppercase",
-                    letterSpacing: 1,
-                  }}
-                >
-                  Location
-                </Typography>
-                <Typography
-                  sx={{ fontSize: 13, color: textP, fontWeight: 500 }}
-                >
-                  Hyderabad, India
-                </Typography>
-                <Typography sx={{ fontSize: 10, color: textS, mt: 0.25 }}>
-                  Used for Panchangam calculations
-                </Typography>
-              </Box>
+                  <Typography sx={{ fontSize: 13, color: textP, fontWeight: 500 }}>
+                    {user?.email}
+                  </Typography>
+                  <IconButton size="small" onClick={() => setEditingEmail(true)} sx={{ color: textS }}>
+                    <EditIcon sx={{ fontSize: 15 }} />
+                  </IconButton>
+                </Box>
+              )}
 
               <Button
                 variant="contained"
@@ -841,6 +969,311 @@ const [newPw, setNewPw] = useState("");
               </Button>
             </Box>
           </TabPanel>
+          {/* ── DISRUPTION TAB ── */}
+          <TabPanel value={tab} index={4}>
+            <Box sx={{ maxWidth: 520 }}>
+              <Box
+                sx={{
+                  mb: 2.5, p: 2, borderRadius: 2,
+                  background: `${heroColor}08`,
+                  border: `1px solid ${heroColor}25`,
+                  display: "flex", gap: 1.5, alignItems: "flex-start",
+                }}
+              >
+                <Info sx={{ fontSize: 16, color: heroColor, mt: 0.2, flexShrink: 0 }} />
+                <Typography sx={{ fontSize: 12, color: textS, lineHeight: 1.7 }}>
+                  Define your minimum versions of each sacred task for disrupted days and vacations. These replace the defaults on the Disruption page.
+                </Typography>
+              </Box>
+
+              {baselinesLoading ? (
+                <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}>
+                  <CircularProgress size={24} sx={{ color: heroColor }} />
+                </Box>
+              ) : (
+                <>
+                  <SectionLabel>🌊 Disrupted day</SectionLabel>
+                  <Typography sx={{ fontSize: 12, color: textS, mb: 2, lineHeight: 1.6 }}>
+                    Toggle which tasks must still happen, and describe the minimum version.
+                  </Typography>
+                  <BaselineEditor
+                    mode="holiday"
+                    baselines={baselines}
+                    onChange={setBaselines}
+                    heroColor={heroColor}
+                    isDark={isDark}
+                    textP={textP}
+                    textS={textS}
+                    border={border}
+                  />
+
+                  <Divider sx={{ my: 3, borderColor: border }} />
+
+                  <SectionLabel>🏖️ Vacation (sacred mode)</SectionLabel>
+                  <Typography sx={{ fontSize: 12, color: textS, mb: 2, lineHeight: 1.6 }}>
+                    When on vacation in "Sacred only" mode — what still needs to happen?
+                  </Typography>
+                  <BaselineEditor
+                    mode="vacation"
+                    baselines={baselines}
+                    onChange={setBaselines}
+                    heroColor={heroColor}
+                    isDark={isDark}
+                    textP={textP}
+                    textS={textS}
+                    border={border}
+                  />
+
+                  <Button
+                    variant="contained"
+                    onClick={saveDisruptionBaselines}
+                    disabled={baselinesSaving}
+                    sx={{
+                      mt: 3,
+                      background: heroColor,
+                      "&:hover": { background: heroColor, opacity: 0.88 },
+                      boxShadow: "none", px: 4, textTransform: "none", fontSize: 13,
+                    }}
+                  >
+                    {baselinesSaving ? <CircularProgress size={18} color="inherit" /> : "Save baselines"}
+                  </Button>
+                </>
+              )}
+            </Box>
+          </TabPanel>
+
+          {/* ── GUIDE TAB ── */}
+          <TabPanel value={tab} index={5}>
+            <Box sx={{ maxWidth: 560 }}>
+              <Typography sx={{ fontSize: 12, color: textS, mb: 4, lineHeight: 1.8 }}>
+                Everything you need to get the most out of Svaadhyaya.
+              </Typography>
+
+              {/* Section: Philosophy */}
+              <SectionLabel>What is Svaadhyaya?</SectionLabel>
+              <Typography sx={{ fontSize: 13, color: textS, mb: 3, lineHeight: 1.85 }}>
+                Svaadhyaya (स्वाध्याय) means self-study — the practice of turning attention inward. This app is your personal intentionality system across six life areas: Anushthanam (spirit), Nādam (music), Sharīram (body), Artha (finance), Vṛtti (career), and Vidyā (learning). Each area has a dedicated space for long-range visions, milestone tracking, journaling, and weekly goals.
+              </Typography>
+
+              {/* Section: Daily Flows */}
+              <SectionLabel>Daily flows</SectionLabel>
+              <Box sx={{ mb: 3 }}>
+                {[
+                  { label: "Morning flow", desc: "Open Today → review flagged items → confirm your one intention → start the day." },
+                  { label: "Night flow", desc: "Open Today → log three wins → flag tomorrow's items → mark the day complete." },
+                  { label: "Grace mode", desc: "If the day was hard, use Disruption mode. It marks the day, preserves your streak, and activates sacred minimums." },
+                ].map(({ label, desc }) => (
+                  <Box key={label} sx={{ mb: 1.5, pl: 2, borderLeft: `2px solid ${heroColor}40` }}>
+                    <Typography sx={{ fontSize: 13, fontWeight: 600, color: textP, mb: 0.25 }}>{label}</Typography>
+                    <Typography sx={{ fontSize: 12, color: textS, lineHeight: 1.75 }}>{desc}</Typography>
+                  </Box>
+                ))}
+              </Box>
+
+              {/* Section: Lakshya → Siddhi → Ansh */}
+              <SectionLabel>Lakshya → Siddhi → Ansh</SectionLabel>
+              <Typography sx={{ fontSize: 13, color: textS, mb: 2, lineHeight: 1.85 }}>
+                Svaadhyaya uses a three-level goal hierarchy to connect daily work to long-range visions.
+              </Typography>
+              <Box sx={{ mb: 2 }}>
+                {[
+                  { label: "Lakshya (लक्ष्य) — the Vision", desc: "A long-range destination in any life area. Not a task — a direction. Add one from any area page by tapping “Add Lakshya”. Set a target date, write your why, and optionally add a Sanskrit mantra. Each Lakshya has a progress ring on the Dashboard." },
+                  { label: "Siddhi (सिद्धि) — the Milestone", desc: "A waypoint that proves you're moving toward your Lakshya. Add Siddhis from inside any Lakshya card. Each Siddhi can have its own Anshs (micro-tasks). Mark a Siddhi complete when you hit it — the Lakshya progress ring updates automatically." },
+                  { label: "Ansh (अंश) — the Micro-task", desc: "The smallest unit — a daily or weekly action that serves a Siddhi. Add Anshs inside any Siddhi. When you complete all Anshs under a Siddhi, the Siddhi is ready to be marked done." },
+                ].map(({ label, desc }) => (
+                  <Box key={label} sx={{ mb: 2, pl: 2, borderLeft: `2px solid ${heroColor}40` }}>
+                    <Typography sx={{ fontSize: 13, fontWeight: 600, color: textP, mb: 0.25 }}>{label}</Typography>
+                    <Typography sx={{ fontSize: 12, color: textS, lineHeight: 1.75 }}>{desc}</Typography>
+                  </Box>
+                ))}
+              </Box>
+
+              {/* Section: Linking tasks to Lakshyas */}
+              <SectionLabel>Linking tasks to Lakshyas</SectionLabel>
+              <Typography sx={{ fontSize: 13, color: textS, mb: 2, lineHeight: 1.85 }}>
+                Every task in Today can be linked to a Lakshya and Siddhi, so your daily actions pull forward your long-term visions.
+              </Typography>
+              <Box sx={{ mb: 3 }}>
+                {[
+                  { label: "Locked (sacred) tasks", desc: "Tap the 🔗 icon on any locked task row. A dialog opens — choose the life area, pick your Lakshya, then pick the specific Siddhi this task serves. Save. The task row will show the Lakshya title and ↳ Siddhi name beneath it." },
+                  { label: "Custom tasks", desc: "When adding a custom task via “Add Task”, you’ll see Lakshya and Siddhi dropdowns directly in the form. Select them there. You can also link later using the 🔗 icon on the task row." },
+                  { label: "Ansh tasks", desc: "Anshs are created from within a Siddhi card on any area page. They appear as micro-tasks linked automatically — no extra linking step needed." },
+                ].map(({ label, desc }) => (
+                  <Box key={label} sx={{ mb: 1.5, pl: 2, borderLeft: `2px solid ${heroColor}40` }}>
+                    <Typography sx={{ fontSize: 13, fontWeight: 600, color: textP, mb: 0.25 }}>{label}</Typography>
+                    <Typography sx={{ fontSize: 12, color: textS, lineHeight: 1.75 }}>{desc}</Typography>
+                  </Box>
+                ))}
+              </Box>
+
+              {/* Section: Deep Work */}
+              <SectionLabel>Deep work</SectionLabel>
+              <Typography sx={{ fontSize: 13, color: textS, mb: 3, lineHeight: 1.85 }}>
+                When adding a custom task, toggle <strong style={{ color: textP }}>Deep work</strong> on. When you complete the task, Svaadhyaya will ask for hours spent and an Ashta Siddhi quality rating (1–8). These entries build your deep work log — visible in the Vṛtti tracker. Use this for any task that demands sustained, focused attention.
+              </Typography>
+
+              {/* Section: Dashboard constellation */}
+              <SectionLabel>Dashboard constellation</SectionLabel>
+              <Typography sx={{ fontSize: 13, color: textS, mb: 2, lineHeight: 1.85 }}>
+                The Dashboard shows a constellation of your six life areas. Each node shows:
+              </Typography>
+              <Box sx={{ mb: 3 }}>
+                {[
+                  { label: "Progress ring", desc: "Fills as your Lakshyas move forward. Completed Siddhis drive the ring." },
+                  { label: "Milestone count", desc: "X / Y Siddhis complete across all active Lakshyas in that area." },
+                  { label: "Ansh count", desc: "X / Y Anshs complete — shows daily micro-task momentum." },
+                  { label: "Active Siddhi", desc: "↳ The name of the current milestone you're working toward (the earliest incomplete Siddhi)." },
+                ].map(({ label, desc }) => (
+                  <Box key={label} sx={{ mb: 1.25, pl: 2, borderLeft: `2px solid ${heroColor}40` }}>
+                    <Typography sx={{ fontSize: 13, fontWeight: 600, color: textP, mb: 0.25 }}>{label}</Typography>
+                    <Typography sx={{ fontSize: 12, color: textS, lineHeight: 1.75 }}>{desc}</Typography>
+                  </Box>
+                ))}
+              </Box>
+
+              {/* Section: Disruption baselines */}
+              <SectionLabel>Disruption baselines</SectionLabel>
+              <Typography sx={{ fontSize: 13, color: textS, mb: 2, lineHeight: 1.85 }}>
+                On a holiday or vacation, Svaadhyaya can enforce minimum sacred practices instead of full task lists. Configure these in <strong style={{ color: textP }}>Settings → Disruption</strong>.
+              </Typography>
+              <Box sx={{ mb: 3 }}>
+                {[
+                  { label: "Holiday baseline", desc: "On days marked as Holiday disruption, only the tasks you mark here are required. Everything else is optional. Typical choice: Anushthanam, Naada Saadhana, Vyaayamam." },
+                  { label: "Vacation baseline", desc: "On Vacation disruption days, an even smaller set is required — usually just Anushthanam. The rest of the day is truly free." },
+                  { label: "Required vs optional", desc: "Each task in the baseline can be toggled “Required” (must be done) or given a minimum count. Tasks not in the baseline are silently skipped on disruption days." },
+                ].map(({ label, desc }) => (
+                  <Box key={label} sx={{ mb: 1.5, pl: 2, borderLeft: `2px solid ${heroColor}40` }}>
+                    <Typography sx={{ fontSize: 13, fontWeight: 600, color: textP, mb: 0.25 }}>{label}</Typography>
+                    <Typography sx={{ fontSize: 12, color: textS, lineHeight: 1.75 }}>{desc}</Typography>
+                  </Box>
+                ))}
+              </Box>
+
+              {/* Section: Vacation streak immunity */}
+              <SectionLabel>Vacation streak immunity</SectionLabel>
+              <Typography sx={{ fontSize: 13, color: textS, mb: 3, lineHeight: 1.85 }}>
+                Go to <strong style={{ color: textP }}>Disruption → Vacations</strong> and add a date range for any upcoming or past vacation. Svaadhyaya will treat every day inside that range as exempt — your habit streaks will not break, even if you didn't log tasks on those days. Vacation ranges are separate from daily disruption mode: you don't need to mark each day individually.
+              </Typography>
+
+              {/* Section: Trackers */}
+              <SectionLabel>Trackers</SectionLabel>
+              <Typography sx={{ fontSize: 13, color: textS, mb: 3, lineHeight: 1.85 }}>
+                Trackers handle day-to-day logging and are separate from life area pages. Go to the Trackers section in the sidebar. Each tracker is purpose-built: Anna (food & macros), Sharīram (body metrics), Pathanam (books & library), Artha (finance), Vṛtti (career tasks), Purohitam (sacred practice), and Yatra (journeys).
+              </Typography>
+
+              {/* Section: JSON Formats */}
+              <SectionLabel>JSON upload formats</SectionLabel>
+              <Typography sx={{ fontSize: 12, color: textS, mb: 2, lineHeight: 1.75 }}>
+                Some trackers accept JSON uploads to sync your data. Use these formats exactly.
+              </Typography>
+
+              {/* Anna Tracker format */}
+              <Typography sx={{ fontSize: 12, fontWeight: 700, color: textP, mb: 0.75 }}>
+                🥗 Anna Tracker — Weekly meal plan
+              </Typography>
+              <Box
+                sx={{
+                  background: isDark ? "rgba(255,255,255,0.04)" : "#F4F3EC",
+                  border: `1px solid ${border}`,
+                  borderRadius: 2,
+                  p: 2,
+                  mb: 2.5,
+                  fontFamily: "monospace",
+                  fontSize: 11,
+                  color: textS,
+                  overflowX: "auto",
+                  whiteSpace: "pre",
+                  lineHeight: 1.7,
+                }}
+              >{`{
+  "monday": "Breakfast: Oats | Lunch: Dal Rice | Dinner: Khichdi",
+  "tuesday": "Breakfast: Idli | Lunch: Rajma Rice | Dinner: Soup",
+  "wednesday": "Breakfast: Poha | Lunch: Curd Rice | Dinner: Roti Sabzi",
+  "thursday": "Breakfast: Upma | Lunch: Dal Rice | Dinner: Khichdi",
+  "friday": "Breakfast: Dosa | Lunch: Pulao | Dinner: Soup",
+  "saturday": "Breakfast: Oats | Lunch: Chole Rice | Dinner: Salad",
+  "sunday": "Breakfast: Idli | Lunch: Biryani | Dinner: Light",
+  "groceries": ["Oats", "Dal", "Rice", "Vegetables"]
+}`}</Box>
+
+              {/* Pathanam Tracker format */}
+              <Typography sx={{ fontSize: 12, fontWeight: 700, color: textP, mb: 0.75 }}>
+                📖 Pathanam Tracker — Book library
+              </Typography>
+              <Box
+                sx={{
+                  background: isDark ? "rgba(255,255,255,0.04)" : "#F4F3EC",
+                  border: `1px solid ${border}`,
+                  borderRadius: 2,
+                  p: 2,
+                  mb: 2.5,
+                  fontFamily: "monospace",
+                  fontSize: 11,
+                  color: textS,
+                  overflowX: "auto",
+                  whiteSpace: "pre",
+                  lineHeight: 1.7,
+                }}
+              >{`[
+  {
+    "Title": "The Bhagavad Gita",
+    "Author": "Swami Sivananda",
+    "Pages": 560,
+    "Genre": "Philosophy",
+    "Language": "English",
+    "Read Status": "Read",
+    "Short Description": "Classic translation with commentary.",
+    "Price": "₹350",
+    "Location": "Home shelf — Row 2",
+    "Condition": "Good",
+    "Date Added": "2024-01-15"
+  }
+]`}</Box>
+              <Typography sx={{ fontSize: 11, color: textS, mb: 3, lineHeight: 1.7 }}>
+                <strong style={{ color: textP }}>Read Status</strong> must be exactly <code style={{ background: isDark ? "rgba(255,255,255,0.06)" : "#EEE", padding: "1px 5px", borderRadius: 3, fontFamily: "monospace" }}>"Read"</code> or <code style={{ background: isDark ? "rgba(255,255,255,0.06)" : "#EEE", padding: "1px 5px", borderRadius: 3, fontFamily: "monospace" }}>"Unread"</code>. All other fields except Title and Author are optional.
+              </Typography>
+
+              {/* Shariram Tracker format */}
+              <Typography sx={{ fontSize: 12, fontWeight: 700, color: textP, mb: 0.75 }}>
+                💪 Sharīram Tracker — Body snapshot
+              </Typography>
+              <Box
+                sx={{
+                  background: isDark ? "rgba(255,255,255,0.04)" : "#F4F3EC",
+                  border: `1px solid ${border}`,
+                  borderRadius: 2,
+                  p: 2,
+                  mb: 3,
+                  fontFamily: "monospace",
+                  fontSize: 11,
+                  color: textS,
+                  overflowX: "auto",
+                  whiteSpace: "pre",
+                  lineHeight: 1.7,
+                }}
+              >{`{
+  "date": "2026-05-17",
+  "weight": 82.5,
+  "bmi": 24.2,
+  "muscle_mass": 61.3,
+  "fat_pct": 21.4,
+  "visceral_fat": 8,
+  "body_age": 34
+}`}</Box>
+
+              {/* Section: Data export */}
+              <SectionLabel>Exporting your data</SectionLabel>
+              <Typography sx={{ fontSize: 13, color: textS, mb: 3, lineHeight: 1.85 }}>
+                Go to Settings → Security → "Export Svaadhyaya data". You'll receive a full JSON file containing all your days, logs, books, milestones, Lakshyas, Siddhis, and Anshs. This is your backup — keep it safe.
+              </Typography>
+
+              {/* Section: Visibility */}
+              <SectionLabel>Hiding areas & trackers</SectionLabel>
+              <Typography sx={{ fontSize: 13, color: textS, lineHeight: 1.85 }}>
+                Go to the Areas tab in Settings to toggle life areas and trackers on or off. Hidden items disappear from the sidebar but your data is preserved.
+              </Typography>
+            </Box>
+          </TabPanel>
         </CardContent>
       </Card>
 
@@ -962,6 +1395,20 @@ const [newPw, setNewPw] = useState("");
           </Button>
         </DialogActions>
       </Dialog>
+
+      <Snackbar
+        open={!!snack}
+        autoHideDuration={3500}
+        onClose={() => setSnack("")}
+        message={snack}
+        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+        action={
+          <IconButton size="small" onClick={() => setSnack("")} sx={{ color: "#fff" }}>
+            <Close sx={{ fontSize: 16 }} />
+          </IconButton>
+        }
+        ContentProps={{ sx: { background: "#2C2C2C", borderRadius: 2, fontSize: 13 } }}
+      />
     </Box>
   );
 }

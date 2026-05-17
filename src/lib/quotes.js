@@ -1,3 +1,12 @@
+export function getAllQuotes() {
+  try {
+    const extra = JSON.parse(localStorage.getItem("sv_admin_quotes") || "[]");
+    return [...QUOTES, ...extra];
+  } catch {
+    return QUOTES;
+  }
+}
+
 export const QUOTES = [
   { text: 'स्वाध्यायान्मा प्रमदः', translation: 'Never neglect self-study.', source: 'Taittiriya Upanishad' },
   { text: 'सा विद्या या विमुक्तये', translation: 'That alone is true knowledge which liberates.', source: 'Vishnu Purana' },

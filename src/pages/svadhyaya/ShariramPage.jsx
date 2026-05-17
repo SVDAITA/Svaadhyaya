@@ -5,69 +5,13 @@ import {
   LakshyaSection,
   AreaJournal,
   WeeklyGoals,
-  AreaLog,
-  InsightCard,
 } from "../../components/shared/AreaComponents";
-import {
-  useAreaData,
-  useHabitStreak,
-  useWeekCompletion,
-} from "../../hooks/useAreaData";
+import { useAreaData } from "../../hooks/useAreaData";
 import { useThemeMode } from "../../hooks/useTheme";
 import { useAreaSubtitle } from "../../hooks/useAreaSubtitles";
 
 const COLOR = "#2D7A4F";
 const AREA = "health";
-
-const LOG_TYPES = [
-  {
-    id: "weight",
-    label: "Weight",
-    hasValue: true,
-    valueLabel: "Weight",
-    unit: "kg",
-  },
-  {
-    id: "belly",
-    label: "Belly girth (navel)",
-    hasValue: true,
-    valueLabel: "Measurement",
-    unit: "inches",
-  },
-  {
-    id: "waist",
-    label: "Waist",
-    hasValue: true,
-    valueLabel: "Measurement",
-    unit: "inches",
-  },
-  {
-    id: "visceral_fat",
-    label: "Visceral fat score",
-    hasValue: true,
-    valueLabel: "Score",
-  },
-  {
-    id: "body_age",
-    label: "Body age",
-    hasValue: true,
-    valueLabel: "Age shown",
-  },
-  {
-    id: "workout",
-    label: "Cult Home workout",
-    hasValue: true,
-    valueLabel: "Session type + duration",
-  },
-  { id: "diet_compliance", label: "Diet compliance today", hasValue: false },
-  { id: "ate_by_9pm", label: "Finished eating by 9pm", hasValue: false },
-  {
-    id: "note",
-    label: "General health note",
-    hasValue: true,
-    valueLabel: "Note",
-  },
-];
 
 // Lotus / radial body geometry
 function ShariramBg({ isDark }) {
@@ -166,8 +110,6 @@ export default function ShariramPage() {
   const { lakshyas, loading, reload } = useAreaData(AREA);
   const { mode } = useThemeMode();
   const isDark = mode === "dark";
-  const walkStreak = useHabitStreak("walk");
-  const weekPct = useWeekCompletion(["walk", "healthy_eating"]);
   const subtitle = useAreaSubtitle(AREA);
 
   const activeLakshyas = lakshyas.filter((l) => l.status === "active").length;
@@ -175,10 +117,6 @@ export default function ShariramPage() {
     (acc, l) => acc + (l.siddhis?.length || 0),
     0,
   );
-
-  const bg = isDark
-    ? `radial-gradient(ellipse 90% 35% at 50% -5%, ${COLOR}08 0%, #0D0C0A 65%)`
-    : `radial-gradient(ellipse 90% 35% at 50% -5%, ${COLOR}10 0%, #F8FAFC 65%)`;
 
   if (loading)
     return (
@@ -188,7 +126,6 @@ export default function ShariramPage() {
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          background: bg,
         }}
       >
         <CircularProgress sx={{ color: COLOR }} />
@@ -202,7 +139,6 @@ export default function ShariramPage() {
         maxWidth: 900,
         mx: "auto",
         minHeight: "100vh",
-        background: bg,
         position: "relative",
         overflow: "hidden",
       }}
@@ -214,19 +150,10 @@ export default function ShariramPage() {
         emoji="💪"
         title="Sharīram"
         subtitle={subtitle}
-        quote="The body is the primary instrument of dharma. Treat it with the same devotion you give your riyaz."
       />
 
       <Grid container spacing={2} sx={{ mb: 3 }}>
-        <Grid item xs={6} sm={3}>
-          <StatCard
-            value={`${walkStreak}d`}
-            label="Walk Streak"
-            color={COLOR}
-            sub="3km daily"
-          />
-        </Grid>
-        <Grid item xs={6} sm={3}>
+        <Grid item xs={6} sm={6}>
           <StatCard
             value={activeLakshyas}
             label="Active Visions"
@@ -234,19 +161,12 @@ export default function ShariramPage() {
             sub="Lakshyas"
           />
         </Grid>
-        <Grid item xs={6} sm={3}>
+        <Grid item xs={6} sm={6}>
           <StatCard
             value={totalSiddhis}
             label="Milestones Set"
             color={COLOR}
             sub="Siddhis"
-          />
-        </Grid>
-        <Grid item xs={6} sm={3}>
-          <StatCard
-            value={`${weekPct}%`}
-            label="This Week"
-            color={weekPct >= 80 ? COLOR : "#C07830"}
           />
         </Grid>
       </Grid>
@@ -259,18 +179,7 @@ export default function ShariramPage() {
       />
       <AreaJournal area={AREA} color={COLOR} />
 
-      <Grid container spacing={2}>
-        <Grid item xs={12} md={6}>
-          <WeeklyGoals area={AREA} color={COLOR} />
-        </Grid>
-        <Grid item xs={12} md={6}>
-          <InsightCard
-            color={COLOR}
-            insight="Muscle mass is exceptional — the goal is purely fat reduction. The 10-min core routine directly targets visceral fat. Walk streak is your identity anchor; even 10 mins on hard days keeps the chain."
-          />
-          <AreaLog area={AREA} color={COLOR} logTypes={LOG_TYPES} />
-        </Grid>
-      </Grid>
+      <WeeklyGoals area={AREA} color={COLOR} />
     </Box>
   );
 }

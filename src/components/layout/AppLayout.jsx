@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
 import { Outlet, useNavigate, useLocation } from "react-router-dom";
+import MandalaSVG from "../shared/MandalaSVG";
 import {
   Box,
   Drawer,
@@ -140,57 +141,6 @@ const TextureOverlay = ({ isDark }) => (
   />
 );
 
-function MandalaSVG({ size = 22, color = "#A65D2E", spinning = false }) {
-  return (
-    <Box
-      component="svg"
-      width={size}
-      height={size}
-      viewBox="0 0 64 64"
-      fill="none"
-      sx={{
-        animation: spinning ? "spin 20s linear infinite" : "none",
-        "@keyframes spin": { "100%": { transform: "rotate(360deg)" } },
-      }}
-    >
-      <path
-        d="M32 4 L60 32 L32 60 L4 32 Z"
-        stroke={color}
-        strokeWidth="1.5"
-        fill="none"
-        opacity="0.5"
-      />
-      <circle
-        cx="32"
-        cy="32"
-        r="16"
-        stroke={color}
-        strokeWidth="1.2"
-        fill="none"
-        opacity="0.7"
-      />
-      <path
-        d="M20 32 Q32 20 44 32 Q32 44 20 32"
-        stroke={color}
-        strokeWidth="1"
-        fill="none"
-        opacity="0.6"
-      />
-      <path
-        d="M32 20 Q44 32 32 44 Q20 32 32 20"
-        stroke={color}
-        strokeWidth="1"
-        fill="none"
-        opacity="0.6"
-      />
-      <circle cx="32" cy="32" r="3" fill={color} />
-      <circle cx="32" cy="4" r="1.5" fill={color} opacity="0.6" />
-      <circle cx="60" cy="32" r="1.5" fill={color} opacity="0.6" />
-      <circle cx="32" cy="60" r="1.5" fill={color} opacity="0.6" />
-      <circle cx="4" cy="32" r="1.5" fill={color} opacity="0.6" />
-    </Box>
-  );
-}
 
 function MandalaWatermark({ color }) {
   return (
@@ -404,7 +354,9 @@ export default function AppLayout() {
   const avatarSrc = useMemo(() => localStorage.getItem("sv_avatar"), []);
 
   // Theme Constants
-  const appBg = isDark ? "#121110" : "#F8FAFC";
+  const appBg = isDark
+    ? `radial-gradient(ellipse 120% 35% at 50% 0%, ${heroColor}09 0%, #0D0C0A 55%)`
+    : `radial-gradient(ellipse 120% 35% at 50% 0%, ${heroColor}12 0%, #F8F5EF 55%)`;
   const drawerBg = isDark ? "#0A0908" : "#FFFFFF";
   const dividerClr = isDark ? "rgba(255,255,255,0.06)" : "#E2E8F0";
   const textP = isDark ? "#F0EDE8" : "#0f172a";
@@ -445,17 +397,17 @@ export default function AppLayout() {
             width: 42,
             height: 42,
             borderRadius: "50%",
-            background: `${heroColor}15`,
-            border: `1px solid ${heroColor}50`,
+            background: isDark ? `${heroColor}28` : `${heroColor}15`,
+            border: `1px solid ${isDark ? `${heroColor}70` : `${heroColor}50`}`,
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
             flexShrink: 0,
-            boxShadow: `0 0 15px ${heroColor}25`,
+            boxShadow: isDark ? `0 0 20px ${heroColor}40` : `0 0 15px ${heroColor}25`,
             mx: collapsed ? "auto" : 0,
           }}
         >
-          <MandalaSVG size={24} color={heroColor} spinning={true} />
+          <MandalaSVG size={24} color={heroColor} boost={isDark ? 2 : 1} />
         </Box>
 
         {!collapsed && (
@@ -470,16 +422,18 @@ export default function AppLayout() {
                 letterSpacing: 0.5,
               }}
             >
-              Svaadhyaya
+              Svādhyāya
             </Typography>
             <Typography
               variant="caption"
               sx={{
                 fontSize: 11,
-                letterSpacing: 3,
-                color: heroColor,
+                letterSpacing: 0,
+                color: isDark ? textP : heroColor,
                 fontWeight: 600,
-                textTransform: "uppercase",
+                whiteSpace: "nowrap",
+                fontFamily: '"Noto Sans Devanagari", "Mangal", sans-serif',
+                opacity: isDark ? 0.75 : 1,
               }}
             >
               स्वाध्याय
@@ -676,9 +630,10 @@ export default function AppLayout() {
             elevation={0}
             sx={{
               background: isDark
-                ? "rgba(10, 9, 8, 0.85)"
-                : "rgba(244, 241, 236, 0.9)",
-              backdropFilter: "blur(12px)",
+                ? `rgba(13, 12, 10, 0.82)`
+                : `rgba(248, 245, 239, 0.88)`,
+              backdropFilter: "blur(16px)",
+              WebkitBackdropFilter: "blur(16px)",
               borderBottom: `1px solid ${dividerClr}`,
               zIndex: 1200,
             }}
@@ -700,17 +655,34 @@ export default function AppLayout() {
                   gap: 1.5,
                 }}
               >
-                <MandalaSVG size={20} color={heroColor} spinning={true} />
-                <Typography
-                  sx={{
-                    fontFamily: '"Fraunces","Lora",serif',
-                    fontWeight: 600,
-                    fontSize: 18,
-                    color: textP,
-                  }}
-                >
-                  Svaadhyaya
-                </Typography>
+                <MandalaSVG size={20} color={heroColor} boost={isDark ? 2 : 1} />
+                <Box>
+                  <Typography
+                    sx={{
+                      fontFamily: '"Fraunces","Lora",serif',
+                      fontWeight: 600,
+                      fontSize: 18,
+                      lineHeight: 1.1,
+                      color: textP,
+                    }}
+                  >
+                    Svādhyāya
+                  </Typography>
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      display: "block",
+                      fontSize: 10,
+                      letterSpacing: 0,
+                      color: isDark ? textP : heroColor,
+                      fontWeight: 600,
+                      fontFamily: '"Noto Sans Devanagari", "Mangal", sans-serif',
+                      opacity: isDark ? 0.75 : 1,
+                    }}
+                  >
+                    स्वाध्याय
+                  </Typography>
+                </Box>
               </Box>
 
               <IconButton

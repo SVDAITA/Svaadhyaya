@@ -5,8 +5,6 @@ import {
   LakshyaSection,
   AreaJournal,
   WeeklyGoals,
-  AreaLog,
-  InsightCard,
 } from "../../components/shared/AreaComponents";
 import { useAreaData } from "../../hooks/useAreaData";
 import { useThemeMode } from "../../hooks/useTheme";
@@ -14,46 +12,6 @@ import { useAreaSubtitle } from "../../hooks/useAreaSubtitles";
 
 const COLOR = "#1A5FB0";
 const AREA = "career";
-
-const LOG_TYPES = [
-  {
-    id: "learning",
-    label: "Learning captured today",
-    hasValue: true,
-    valueLabel: "What I learned",
-  },
-  {
-    id: "adr",
-    label: "ADR written",
-    hasValue: true,
-    valueLabel: "Decision title",
-  },
-  { id: "friday_note", label: "Friday Architecture Note", hasValue: false },
-  {
-    id: "cert_progress",
-    label: "Certification progress",
-    hasValue: true,
-    valueLabel: "Cert + % done",
-  },
-  {
-    id: "project_win",
-    label: "Project win",
-    hasValue: true,
-    valueLabel: "What I built + impact",
-  },
-  {
-    id: "junior_coaching",
-    label: "Junior coached",
-    hasValue: true,
-    valueLabel: "What was discussed",
-  },
-  {
-    id: "client_feedback",
-    label: "Client feedback received",
-    hasValue: true,
-    valueLabel: "Feedback",
-  },
-];
 
 // Circuit / tech grid geometry
 function VrttiBg({ isDark }) {
@@ -158,10 +116,6 @@ export default function VruttiPage() {
     0,
   );
 
-  const bg = isDark
-    ? `radial-gradient(ellipse 90% 35% at 50% -5%, ${COLOR}08 0%, #0D0C0A 65%)`
-    : `radial-gradient(ellipse 90% 35% at 50% -5%, ${COLOR}10 0%, #F8FAFC 65%)`;
-
   if (loading)
     return (
       <Box
@@ -170,7 +124,6 @@ export default function VruttiPage() {
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          background: bg,
         }}
       >
         <CircularProgress sx={{ color: COLOR }} />
@@ -184,7 +137,6 @@ export default function VruttiPage() {
         maxWidth: 900,
         mx: "auto",
         minHeight: "100vh",
-        background: bg,
         position: "relative",
         overflow: "hidden",
       }}
@@ -196,19 +148,18 @@ export default function VruttiPage() {
         emoji="🚀"
         title="Vṛtti"
         subtitle={subtitle}
-        quote="I am a great manager and leader — who develops people, creates opportunities, and leaves every team better than I found it."
       />
 
       <Grid container spacing={2} sx={{ mb: 3 }}>
-        <Grid item xs={6} sm={4}>
+        <Grid item xs={6} sm={6}>
           <StatCard
             value={activeLakshyas}
-            label="Active Horizons"
+            label="Active Visions"
             color={COLOR}
-            sub="Career Lakshyas"
+            sub="Lakshyas"
           />
         </Grid>
-        <Grid item xs={6} sm={4}>
+        <Grid item xs={6} sm={6}>
           <StatCard
             value={totalSiddhis}
             label="Milestones Set"
@@ -226,18 +177,7 @@ export default function VruttiPage() {
       />
       <AreaJournal area={AREA} color={COLOR} />
 
-      <Grid container spacing={2}>
-        <Grid item xs={12} md={6}>
-          <WeeklyGoals area={AREA} color={COLOR} />
-        </Grid>
-        <Grid item xs={12} md={6}>
-          <InsightCard
-            color={COLOR}
-            insight="Think like the person you want to be promoted to — starting today. The title follows the behaviour. Write an ADR for every significant decision. Send the Friday Architecture Note every week without exception."
-          />
-          <AreaLog area={AREA} color={COLOR} logTypes={LOG_TYPES} />
-        </Grid>
-      </Grid>
+      <WeeklyGoals area={AREA} color={COLOR} />
     </Box>
   );
 }

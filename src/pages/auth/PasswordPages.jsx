@@ -4,23 +4,10 @@ import { Box, TextField, Button, Typography, Alert, CircularProgress, Link, Icon
 import { ArrowBack, DarkMode, LightMode, CheckCircle } from '@mui/icons-material'
 import { useAuth } from '../../hooks/useAuth'
 import { useThemeMode } from '../../hooks/useTheme'
-import { QUOTES } from '../../lib/quotes'
+import { getAllQuotes } from '../../lib/quotes'
+const QUOTES = getAllQuotes()
+import MandalaSVG from '../../components/shared/MandalaSVG'
 
-function MandalaSVG({ size=48, color='#C07830' }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 64 64" fill="none">
-      <path d="M32 4 L60 32 L32 60 L4 32 Z" stroke={color} strokeWidth="1" fill="none" opacity="0.5"/>
-      <circle cx="32" cy="32" r="16" stroke={color} strokeWidth="1.2" fill="none" opacity="0.7"/>
-      <path d="M20 32 Q32 20 44 32 Q32 44 20 32" stroke={color} strokeWidth="1" fill="none" opacity="0.6"/>
-      <path d="M32 20 Q44 32 32 44 Q20 32 32 20" stroke={color} strokeWidth="1" fill="none" opacity="0.6"/>
-      <circle cx="32" cy="32" r="3" fill={color}/>
-      <circle cx="32" cy="4" r="1.5" fill={color} opacity="0.4"/>
-      <circle cx="60" cy="32" r="1.5" fill={color} opacity="0.4"/>
-      <circle cx="32" cy="60" r="1.5" fill={color} opacity="0.4"/>
-      <circle cx="4" cy="32" r="1.5" fill={color} opacity="0.4"/>
-    </svg>
-  )
-}
 
 function QuotePanel({ isDark, primaryColor }) {
   const [idx, setIdx] = useState(() => Math.floor(Math.random() * QUOTES.length))
@@ -40,7 +27,8 @@ function QuotePanel({ isDark, primaryColor }) {
     <Box sx={{ flex:1, display:'flex', flexDirection:'column', justifyContent:'center', alignItems:'flex-start', background:bg, p:{md:6,lg:8}, borderRight:`1px solid ${isDark?'rgba(255,255,255,0.06)':'#D1D0CF'}`, position:'relative', overflow:'hidden' }}>
       <Box sx={{ position:'absolute', right:-40, bottom:-40, opacity:0.04 }}><MandalaSVG size={320} color={primaryColor}/></Box>
       <MandalaSVG size={52} color={primaryColor}/>
-      <Typography sx={{ fontFamily:'"Fraunces","Lora",serif', fontWeight:300, fontSize:28, color:tc, mt:3, mb:1 }}>Svaadhyaya</Typography>
+      <Typography sx={{ fontFamily:'"Fraunces","Lora",serif', fontWeight:300, fontSize:28, lineHeight:1.1, color:tc, mt:3, mb:0.5 }}>Svādhyāya</Typography>
+      <Typography variant="caption" sx={{ fontSize:12, fontFamily:'"Noto Sans Devanagari","Mangal",sans-serif', color:primaryColor, fontWeight:600, display:'block', mb:1 }}>स्वाध्याय</Typography>
       <Typography variant="caption" sx={{ color:primaryColor, letterSpacing:3, textTransform:'uppercase', fontSize:10, display:'block', mb:5 }}>The path continues</Typography>
       <Box sx={{ opacity:visible?1:0, transform:visible?'translateY(0)':'translateY(8px)', transition:'opacity 0.5s ease,transform 0.5s ease', mt:'auto' }}>
         <Typography sx={{ fontFamily:'"Fraunces","Lora",serif', fontStyle:'italic', fontSize:18, color:tc, lineHeight:1.7, mb:1 }}>"{q.text}"</Typography>
@@ -100,7 +88,8 @@ export function ForgotPasswordPage() {
       <Box sx={{ width:'100%', maxWidth:380 }}>
         <Box sx={{ display:{xs:'flex',md:'none'}, flexDirection:'column', alignItems:'center', mb:4 }}>
           <MandalaSVG size={48} color={primaryColor}/>
-          <Typography sx={{ fontFamily:'"Fraunces","Lora",serif', fontWeight:300, fontSize:20, color:textPrimary, mt:1.5 }}>Svaadhyaya</Typography>
+          <Typography sx={{ fontFamily:'"Fraunces","Lora",serif', fontWeight:300, fontSize:20, lineHeight:1.1, color:textPrimary, mt:1.5 }}>Svādhyāya</Typography>
+          <Typography variant="caption" sx={{ fontSize:11, fontFamily:'"Noto Sans Devanagari","Mangal",sans-serif', color:primaryColor, fontWeight:600 }}>स्वाध्याय</Typography>
         </Box>
         {sent ? (
           <Box sx={{ textAlign:'center' }}>

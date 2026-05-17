@@ -21,6 +21,8 @@ import {
   Rating,
   InputAdornment,
   Fade,
+  Snackbar,
+  Alert,
 } from "@mui/material";
 import {
   Add,
@@ -331,9 +333,9 @@ export default function PravesaPage() {
     other: "",
   });
 
-  const bg = isDark
-    ? `radial-gradient(ellipse 90% 35% at 50% -5%, ${COLOR}14 0%, #090C10 65%)`
-    : `radial-gradient(ellipse 90% 35% at 50% -5%, ${COLOR}10 0%, #F8FAFC 65%)`;
+  const [snack, setSnack] = useState({ open: false, msg: "", severity: "success" });
+  const showSnack = (msg, severity = "success") => setSnack({ open: true, msg, severity });
+
   const border = isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)";
   const cardBg = isDark ? "#161616" : "#FFFFFF";
   const textP = isDark ? "#F5F5F5" : "#1A1A1A";
@@ -385,11 +387,13 @@ export default function PravesaPage() {
     });
     setAddOpen(false);
     setSaving(false);
+    showSnack("Journey recorded.");
     load();
   };
 
   const deleteTrip = async (id) => {
     await supabase.from("travel_logs").delete().eq("id", id);
+    showSnack("Journey removed.");
     load();
   };
 
@@ -422,7 +426,6 @@ export default function PravesaPage() {
           justifyContent: "center",
           alignItems: "center",
           minHeight: "100vh",
-          background: bg,
         }}
       >
         <CircularProgress sx={{ color: COLOR }} thickness={2} size={60} />
@@ -436,8 +439,6 @@ export default function PravesaPage() {
         maxWidth: 1000,
         mx: "auto",
         minHeight: "100vh",
-        background: bg,
-        transition: "background 0.3s",
       }}
     >
       {/* Header */}
@@ -944,6 +945,17 @@ export default function PravesaPage() {
           </Button>
         </DialogActions>
       </Dialog>
+
+      <Snackbar
+        open={snack.open}
+        autoHideDuration={3000}
+        onClose={() => setSnack((s) => ({ ...s, open: false }))}
+        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+      >
+        <Alert severity={snack.severity} onClose={() => setSnack((s) => ({ ...s, open: false }))} sx={{ borderRadius: 2 }}>
+          {snack.msg}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 }

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import MandalaSVG from "../../components/shared/MandalaSVG";
 import {
   Box,
   Typography,
@@ -18,6 +19,7 @@ import {
   MenuItem,
   FormControl,
   InputLabel,
+  Switch,
 } from "@mui/material";
 import {
   CheckCircle,
@@ -36,6 +38,7 @@ import {
   Delete,
   AutoAwesome,
   Flag,
+  LinkOutlined,
 } from "@mui/icons-material";
 import { useAuth } from "../../hooks/useAuth";
 import { useThemeMode } from "../../hooks/useTheme";
@@ -52,65 +55,94 @@ const DEFAULT_SACRED = [
     label: "Anushthanam",
     emoji: "🪔",
     locked: true,
-    lakshya_key: "daily_anushthanam",
+    deep: true,
   },
   {
-    id: "riyaz",
+    id: "saadhana",
     label: "Naada Saadhana",
     emoji: "🎵",
     locked: true,
-    lakshya_key: "sangeeta_visharada",
-    deep: true, // Deep task triggers Ashta Siddhi logging
+    deep: true,
   },
   {
     id: "walk",
     label: "Vyaayamam",
     emoji: "🏃",
     locked: true,
-    lakshya_key: "reach_80kg",
+    deep: true,
   },
   {
     id: "reading",
     label: "Pustaka Pathanam",
     emoji: "📖",
     locked: true,
-    lakshya_key: "read_300_books",
+    deep: true,
+  },
+  {
+    id: "eat_healthy",
+    label: "Eat healthy (80% full)",
+    emoji: "🥗",
+    locked: true,
+    deep: true,
+  },
+  {
+    id: "sleep_healthy",
+    label: "Sleep healthy",
+    emoji: "🌙",
+    locked: true,
+    deep: true,
   },
 ];
 
 const DEFAULT_CORE = [
   {
     id: "office",
-    label: "Office Work",
+    label: "Vritti",
+    emoji: "🚀",
     locked: false,
-    lakshya_key: "absyz_technical_lead",
-    deep: true, // Deep task
+    deep: true,
   },
   {
-    id: "academics",
-    label: "Academics",
+    id: "vidya",
+    label: "Vidya",
+    emoji: "📚",
     locked: false,
-    lakshya_key: "ugc_net_december",
-    deep: true, // Deep task
+    deep: true,
   },
 ];
 
 const DEFAULT_EVENING = [
   {
-    id: "logs",
-    label: "Svaadhyaya Sync",
-    locked: false,
-    lakshya_key: "svaadhyaya_practice",
+    id: "saayam_sandhya",
+    label: "Sāyam Sandhyā",
+    emoji: "🪔",
+    locked: true,
+    deep: true,
   },
   {
-    id: "gratitude",
-    label: "Evening SET",
-    locked: false,
-    lakshya_key: "daily_anushthanam",
+    id: "dinner_before_8",
+    label: "Dinner before 8",
+    emoji: "🍽️",
+    locked: true,
+    deep: true,
+  },
+  {
+    id: "next_day_prep",
+    label: "Preparing for next day",
+    emoji: "📋",
+    locked: true,
+    deep: true,
+  },
+  {
+    id: "update_trackers",
+    label: "Update trackers",
+    emoji: "📊",
+    locked: true,
+    deep: true,
   },
 ];
 
-const DAY_TYPES = ["working", "holiday", "vacation"];
+const DAY_TYPES = ["working day", "holiday", "vacation"];
 
 // ── CLOCK ──────────────────────────────────────────────────────────────────────
 function useRunningClock() {
@@ -123,146 +155,157 @@ function useRunningClock() {
 }
 
 // ── SVG ────────────────────────────────────────────────────────────────────────
-function MandalaSVG({ size = 16, color = "#A65D2E" }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 64 64" fill="none">
-      <path
-        d="M32 4 L60 32 L32 60 L4 32 Z"
-        stroke={color}
-        strokeWidth="1.5"
-        fill="none"
-        opacity="0.6"
-      />
-      <circle
-        cx="32"
-        cy="32"
-        r="14"
-        stroke={color}
-        strokeWidth="1.5"
-        fill="none"
-        opacity="0.7"
-      />
-      <path
-        d="M22 32 Q32 22 42 32 Q32 42 22 32"
-        stroke={color}
-        strokeWidth="1"
-        fill="none"
-        opacity="0.5"
-      />
-      <circle cx="32" cy="32" r="3" fill={color} />
-    </svg>
-  );
-}
 
+// Dharmachakra — 8-spoked wheel, bold strokes, fully visible in dark mode
 function KalachakraSVG({ size = 20, color = "#A65D2E" }) {
-  const spokes = [0, 45, 90, 135, 180, 225, 270, 315].map((deg, i) => {
-    const r = (Math.PI * deg) / 180;
-    return (
-      <line
-        key={i}
-        x1={32 + 7 * Math.cos(r)}
-        y1={32 + 7 * Math.sin(r)}
-        x2={32 + 26 * Math.cos(r)}
-        y2={32 + 26 * Math.sin(r)}
-        stroke={color}
-        strokeWidth="1"
-        opacity="0.5"
-      />
-    );
-  });
-  const dots = [0, 60, 120, 180, 240, 300].map((deg, i) => {
-    const r = (Math.PI * deg) / 180;
-    return (
-      <circle
-        key={i}
-        cx={32 + 22 * Math.cos(r)}
-        cy={32 + 22 * Math.sin(r)}
-        r="2.5"
-        fill={color}
-        opacity="0.5"
-      />
-    );
-  });
+  const CX = 32, CY = 32;
+  const spokeAngles = Array.from({ length: 8 }, (_, i) => (i * 45 * Math.PI) / 180);
+
   return (
     <svg width={size} height={size} viewBox="0 0 64 64" fill="none">
-      <circle
-        cx="32"
-        cy="32"
-        r="28"
-        stroke={color}
-        strokeWidth="1.5"
-        fill="none"
-        opacity="0.5"
-      />
-      <circle
-        cx="32"
-        cy="32"
-        r="18"
-        stroke={color}
-        strokeWidth="1"
-        fill="none"
-        opacity="0.6"
-      />
-      <circle
-        cx="32"
-        cy="32"
-        r="5"
-        stroke={color}
-        strokeWidth="1.5"
-        fill="none"
-      />
-      {spokes}
-      {dots}
+      {/* Outer rim — bold */}
+      <circle cx={CX} cy={CY} r="27" stroke={color} strokeWidth="3.5" opacity="0.9" />
+
+      {/* Subtle inner track */}
+      <circle cx={CX} cy={CY} r="20" stroke={color} strokeWidth="0.8" opacity="0.35" strokeDasharray="2 3" />
+
+      {/* 8 spokes */}
+      {spokeAngles.map((angle, i) => (
+        <line
+          key={i}
+          x1={CX + 10 * Math.cos(angle)}
+          y1={CY + 10 * Math.sin(angle)}
+          x2={CX + 23 * Math.cos(angle)}
+          y2={CY + 23 * Math.sin(angle)}
+          stroke={color}
+          strokeWidth="2.8"
+          strokeLinecap="round"
+          opacity="0.9"
+        />
+      ))}
+
+      {/* Lotus petal tips at rim — between spokes */}
+      {Array.from({ length: 8 }, (_, i) => {
+        const angle = ((i * 45 + 22.5) * Math.PI) / 180;
+        const tx = CX + 22 * Math.cos(angle);
+        const ty = CY + 22 * Math.sin(angle);
+        return (
+          <ellipse
+            key={`p${i}`}
+            cx={tx} cy={ty}
+            rx="2" ry="3.5"
+            fill={color} opacity="0.5"
+            transform={`rotate(${i * 45 + 22.5}, ${tx}, ${ty})`}
+          />
+        );
+      })}
+
+      {/* Hub outer ring */}
+      <circle cx={CX} cy={CY} r="10" stroke={color} strokeWidth="2.5" opacity="0.9" />
+
+      {/* Hub fill */}
+      <circle cx={CX} cy={CY} r="6.5" fill={color} opacity="0.92" />
+
+      {/* Center highlight dot */}
+      <circle cx={CX} cy={CY} r="2.5" fill="white" opacity="0.65" />
     </svg>
   );
 }
 
 // ── PANCHANGAM ─────────────────────────────────────────────────────────────────
 function PanchangamCard({ data, loading, heroColor, isDark }) {
-  const clock  = useRunningClock();
+  const clock = useRunningClock();
   const cardBg = isDark ? "#1A1916" : "#FCFBF9";
   const border = isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)";
-  const textP  = isDark ? "#F0EDE8" : "#2C2C2C";
-  const textS  = isDark ? "#7A7874" : "#9C9A94";
+  const textP = isDark ? "#F0EDE8" : "#2C2C2C";
+  const textS = isDark ? "#7A7874" : "#9C9A94";
 
-  const fields = data ? [
-    { label: "Samvatsara", value: data.samvatsara || "—" },
-    { label: "Masam",      value: data.masam      || "—" },
-    { label: "Tithi",      value: data.tithi      || "—" },
-    { label: "Paksham",    value: data.paksha     || "—" },
-    { label: "Varam",      value: data.varam      || "—" },
-    { label: "Nakshatram", value: data.nakshatra  || "—" },
-    { label: "Ayana",      value: data.ayana      || "—" },
-    { label: "Ritu",       value: data.ritu       || "—" },
-  ] : [];
+  const fields = data
+    ? [
+        { label: "Samvatsara", value: data.samvatsara || "—" },
+        { label: "Masam", value: data.masam || "—" },
+        { label: "Tithi", value: data.tithi || "—" },
+        { label: "Paksham", value: data.paksha || "—" },
+        { label: "Varam", value: data.varam || "—" },
+        { label: "Nakshatram", value: data.nakshatra || "—" },
+        { label: "Ayana", value: data.ayana || "—" },
+        { label: "Ritu", value: data.ritu || "—" },
+      ]
+    : [];
 
   return (
-    <Card sx={{ mb: 2.5, border: `1px solid ${border}`, borderRadius: 3, background: cardBg, boxShadow: "none" }}>
+    <Card
+      sx={{
+        mb: 2.5,
+        border: `1px solid ${border}`,
+        borderRadius: 3,
+        background: cardBg,
+        boxShadow: "none",
+      }}
+    >
       <CardContent sx={{ p: "0 !important" }}>
-
         {/* ── Header ── */}
-        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", px: 2.5, pt: 1.75, pb: 1.5 }}>
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            px: 2.5,
+            pt: 1.75,
+            pb: 1.5,
+          }}
+        >
           <Box sx={{ display: "flex", alignItems: "center", gap: 1.25 }}>
-            <Box sx={{
-              width: 30, height: 30, borderRadius: "50%",
-              background: `${heroColor}12`, border: `1px solid ${heroColor}30`,
-              display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
-            }}>
+            <Box
+              sx={{
+                width: 30,
+                height: 30,
+                borderRadius: "50%",
+                background: `${heroColor}12`,
+                border: `1px solid ${heroColor}30`,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                flexShrink: 0,
+              }}
+            >
               <KalachakraSVG size={16} color={heroColor} />
             </Box>
             <Box>
-              <Typography sx={{ fontSize: 9, letterSpacing: 1.5, textTransform: "uppercase", color: textS, fontWeight: 700 }}>
+              <Typography
+                sx={{
+                  fontSize: 9,
+                  letterSpacing: 1.5,
+                  textTransform: "uppercase",
+                  color: textS,
+                  fontWeight: 700,
+                }}
+              >
                 Panchangam · Hyderabad
               </Typography>
-              <Typography sx={{ fontSize: 12.5, color: textP, fontWeight: 500, lineHeight: 1.3, fontFamily: '"Lora","Fraunces",serif' }}>
+              <Typography
+                sx={{
+                  fontSize: 12.5,
+                  color: textP,
+                  fontWeight: 500,
+                  lineHeight: 1.3,
+                  fontFamily: '"Lora","Fraunces",serif',
+                }}
+              >
                 {dayjs().format("dddd, D MMMM YYYY")}
               </Typography>
             </Box>
           </Box>
-          <Typography sx={{
-            fontVariantNumeric: "tabular-nums", fontSize: 17,
-            fontWeight: 700, color: heroColor, letterSpacing: 1, fontFamily: "monospace",
-          }}>
+          <Typography
+            sx={{
+              fontVariantNumeric: "tabular-nums",
+              fontSize: 17,
+              fontWeight: 700,
+              color: heroColor,
+              letterSpacing: 1,
+              fontFamily: "monospace",
+            }}
+          >
             {clock}
           </Typography>
         </Box>
@@ -273,34 +316,50 @@ function PanchangamCard({ data, loading, heroColor, isDark }) {
             <CircularProgress size={16} sx={{ color: heroColor }} />
           </Box>
         ) : (
-          <Box sx={{
-            display: "grid",
-            gridTemplateColumns: { xs: "repeat(2, 1fr)", sm: "repeat(4, 1fr)" },
-            gap: 0,
-            borderTop: `1px solid ${border}`,
-            mx: 2.5,
-            mb: 1.75,
-            pt: 1.5,
-          }}>
+          <Box
+            sx={{
+              display: "grid",
+              gridTemplateColumns: {
+                xs: "repeat(2, 1fr)",
+                sm: "repeat(4, 1fr)",
+              },
+              gap: 0,
+              borderTop: `1px solid ${border}`,
+              mx: 2.5,
+              mb: 1.75,
+              pt: 1.5,
+            }}
+          >
             {fields.map(({ label, value }) => (
               <Box key={label} sx={{ pr: 2, pb: 1.25 }}>
-                <Typography sx={{
-                  fontSize: 8.5, letterSpacing: 1.5, textTransform: "uppercase",
-                  color: textS, fontWeight: 700, display: "block", mb: 0.35,
-                }}>
+                <Typography
+                  sx={{
+                    fontSize: 8.5,
+                    letterSpacing: 1.5,
+                    textTransform: "uppercase",
+                    color: textS,
+                    fontWeight: 700,
+                    display: "block",
+                    mb: 0.35,
+                  }}
+                >
                   {label}
                 </Typography>
-                <Typography sx={{
-                  fontSize: 13, fontFamily: '"Lora","Fraunces",serif',
-                  color: textP, fontWeight: 500, lineHeight: 1.3,
-                }}>
+                <Typography
+                  sx={{
+                    fontSize: 13,
+                    fontFamily: '"Lora","Fraunces",serif',
+                    color: textP,
+                    fontWeight: 500,
+                    lineHeight: 1.3,
+                  }}
+                >
                   {value}
                 </Typography>
               </Box>
             ))}
           </Box>
         )}
-
       </CardContent>
     </Card>
   );
@@ -468,6 +527,8 @@ function AddTaskDialog({
 }) {
   const [label, setLabel] = useState("");
   const [lakshyaId, setLakshyaId] = useState("");
+  const [siddhiId, setSiddhiId] = useState("");
+  const [isDeep, setIsDeep] = useState(false);
   const bg = isDark ? "#1A1916" : "#FCFBF9";
   const border = isDark ? "rgba(255,255,255,0.08)" : "#D1D0CF";
   const textP = isDark ? "#F0EDE8" : "#2C2C2C";
@@ -475,19 +536,36 @@ function AddTaskDialog({
   const names = {
     sacred: "Sacred Foundation",
     core: "Core Task",
-    evening: "Evening Habit",
+    evening: "Evening Rite",
   };
+
+  const handleLakshyaChange = (id) => {
+    setLakshyaId(id);
+    setSiddhiId("");
+  };
+
+  const activeSiddhis = lakshyaId
+    ? (lakshyas.find((l) => l.id === lakshyaId)?.siddhis || []).filter(
+        (s) => s.status !== "completed",
+      )
+    : [];
 
   const handle = () => {
     if (!label.trim()) return;
-    const chosen = lakshyas.find((l) => l.id === lakshyaId);
+    const chosenLakshya = lakshyas.find((l) => l.id === lakshyaId);
+    const chosenSiddhi = activeSiddhis.find((s) => s.id === siddhiId);
     onAdd({
       label: label.trim(),
       lakshya_id: lakshyaId || null,
-      lakshyaTitle: chosen?.title || null,
+      lakshyaTitle: chosenLakshya?.title || null,
+      siddhi_id: siddhiId || null,
+      siddhiTitle: chosenSiddhi?.title || null,
+      deep: isDeep || undefined,
     });
     setLabel("");
     setLakshyaId("");
+    setSiddhiId("");
+    setIsDeep(false);
   };
 
   return (
@@ -552,11 +630,11 @@ function AddTaskDialog({
           size="small"
           sx={{ mb: 2 }}
         />
-        <FormControl fullWidth size="small" sx={{ mb: 2.5 }}>
+        <FormControl fullWidth size="small" sx={{ mb: lakshyaId ? 1.5 : 2.5 }}>
           <InputLabel>Link to Lakshya (optional)</InputLabel>
           <Select
             value={lakshyaId}
-            onChange={(e) => setLakshyaId(e.target.value)}
+            onChange={(e) => handleLakshyaChange(e.target.value)}
             label="Link to Lakshya (optional)"
           >
             <MenuItem value="">
@@ -567,7 +645,13 @@ function AddTaskDialog({
                 <Box>
                   <Typography sx={{ fontSize: 13 }}>{l.title}</Typography>
                   {l.pillar && (
-                    <Typography sx={{ fontSize: 10, color: textS }}>
+                    <Typography
+                      sx={{
+                        fontSize: 10,
+                        color: textS,
+                        textTransform: "capitalize",
+                      }}
+                    >
                       {l.pillar}
                     </Typography>
                   )}
@@ -576,6 +660,82 @@ function AddTaskDialog({
             ))}
           </Select>
         </FormControl>
+
+        {/* Siddhi dropdown — only visible once a Lakshya is chosen */}
+        {lakshyaId && (
+          <FormControl fullWidth size="small" sx={{ mb: 2.5 }}>
+            <InputLabel>Link to Milestone (optional)</InputLabel>
+            <Select
+              value={siddhiId}
+              onChange={(e) => setSiddhiId(e.target.value)}
+              label="Link to Milestone (optional)"
+            >
+              <MenuItem value="">
+                <em>No milestone</em>
+              </MenuItem>
+              {activeSiddhis.length === 0 ? (
+                <MenuItem disabled>
+                  <Typography
+                    sx={{ fontSize: 12, fontStyle: "italic", color: textS }}
+                  >
+                    No active milestones on this goal
+                  </Typography>
+                </MenuItem>
+              ) : (
+                activeSiddhis.map((s) => (
+                  <MenuItem key={s.id} value={s.id}>
+                    <Typography sx={{ fontSize: 13 }}>{s.title}</Typography>
+                  </MenuItem>
+                ))
+              )}
+            </Select>
+          </FormControl>
+        )}
+
+        <Box
+          onClick={() => setIsDeep((p) => !p)}
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            mb: 2,
+            px: 1.5,
+            py: 1,
+            borderRadius: 2,
+            border: `1px solid ${isDeep ? heroColor + "50" : border}`,
+            background: isDeep ? `${heroColor}08` : "transparent",
+            cursor: "pointer",
+            transition: "all 0.15s",
+          }}
+        >
+          <Box>
+            <Typography
+              sx={{
+                fontSize: 12,
+                fontWeight: 600,
+                color: isDeep ? heroColor : textP,
+                lineHeight: 1.3,
+              }}
+            >
+              Deep work
+            </Typography>
+            <Typography sx={{ fontSize: 10, color: textS, lineHeight: 1.4 }}>
+              Log hours & Ashta Siddhi on completion
+            </Typography>
+          </Box>
+          <Switch
+            size="small"
+            checked={isDeep}
+            onChange={() => setIsDeep((p) => !p)}
+            onClick={(e) => e.stopPropagation()}
+            sx={{
+              "& .MuiSwitch-thumb": { bgcolor: isDeep ? heroColor : undefined },
+              "& .Mui-checked + .MuiSwitch-track": {
+                bgcolor: `${heroColor}80`,
+              },
+            }}
+          />
+        </Box>
         <Button
           fullWidth
           variant="contained"
@@ -591,6 +751,220 @@ function AddTaskDialog({
           }}
         >
           Add Task
+        </Button>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ── LINK LAKSHYA DIALOG ────────────────────────────────────────────────────────
+function LinkLakshyaDialog({
+  open,
+  task,
+  lakshyas,
+  currentLink,
+  onSave,
+  onClose,
+  heroColor,
+  isDark,
+}) {
+  const [lakshyaId, setLakshyaId] = useState("");
+  const [siddhiId, setSiddhiId] = useState("");
+  const bg = isDark ? "#1A1916" : "#FCFBF9";
+  const border = isDark ? "rgba(255,255,255,0.08)" : "#D1D0CF";
+  const textP = isDark ? "#F0EDE8" : "#2C2C2C";
+  const textS = isDark ? "#7A7874" : "#9C9A94";
+
+  useEffect(() => {
+    if (open) {
+      setLakshyaId(currentLink?.lakshya_id || "");
+      setSiddhiId(currentLink?.siddhi_id || "");
+    }
+  }, [open, currentLink]);
+
+  // When lakshya changes, reset siddhi selection
+  const handleLakshyaChange = (id) => {
+    setLakshyaId(id);
+    setSiddhiId("");
+  };
+
+  const activeSiddhis = lakshyaId
+    ? (lakshyas.find((l) => l.id === lakshyaId)?.siddhis || []).filter(
+        (s) => s.status !== "completed",
+      )
+    : [];
+
+  if (!task) return null;
+
+  const handle = () => {
+    const chosenLakshya = lakshyas.find((l) => l.id === lakshyaId);
+    const chosenSiddhi = activeSiddhis.find((s) => s.id === siddhiId);
+    onSave(
+      task.id,
+      lakshyaId || null,
+      chosenLakshya?.title || null,
+      siddhiId || null,
+      chosenSiddhi?.title || null,
+    );
+    onClose();
+  };
+
+  return (
+    <Dialog
+      open={open}
+      onClose={onClose}
+      maxWidth="xs"
+      fullWidth
+      PaperProps={{
+        sx: {
+          borderRadius: 3,
+          border: `1px solid ${border}`,
+          boxShadow: "none",
+          background: bg,
+        },
+      }}
+    >
+      <DialogContent sx={{ p: "24px 28px !important" }}>
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            mb: 2.5,
+          }}
+        >
+          <Box>
+            <Typography
+              sx={{
+                fontSize: 9,
+                letterSpacing: 2,
+                textTransform: "uppercase",
+                color: textS,
+                fontWeight: 700,
+                mb: 0.5,
+              }}
+            >
+              {task.emoji} {task.label}
+            </Typography>
+            <Typography
+              sx={{
+                fontFamily: '"Lora","Fraunces",serif',
+                fontSize: 17,
+                fontWeight: 600,
+                color: textP,
+              }}
+            >
+              Link to Hierarchy
+            </Typography>
+          </Box>
+          <IconButton size="small" onClick={onClose} sx={{ color: textS }}>
+            <Close sx={{ fontSize: 16 }} />
+          </IconButton>
+        </Box>
+
+        {/* Step 1 — Lakshya */}
+        <Typography
+          sx={{
+            fontSize: 9,
+            fontWeight: 700,
+            letterSpacing: 1.5,
+            textTransform: "uppercase",
+            color: heroColor,
+            mb: 0.75,
+          }}
+        >
+          Step 1 · Choose Lakshya
+        </Typography>
+        <FormControl fullWidth size="small" sx={{ mb: 2 }}>
+          <InputLabel>Lakshya (Goal)</InputLabel>
+          <Select
+            value={lakshyaId}
+            onChange={(e) => handleLakshyaChange(e.target.value)}
+            label="Lakshya (Goal)"
+          >
+            <MenuItem value="">
+              <em>No link</em>
+            </MenuItem>
+            {lakshyas.map((l) => (
+              <MenuItem key={l.id} value={l.id}>
+                <Box>
+                  <Typography sx={{ fontSize: 13 }}>{l.title}</Typography>
+                  {l.pillar && (
+                    <Typography
+                      sx={{
+                        fontSize: 10,
+                        color: textS,
+                        textTransform: "capitalize",
+                      }}
+                    >
+                      {l.pillar}
+                    </Typography>
+                  )}
+                </Box>
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+
+        {/* Step 2 — Siddhi (only shown when a Lakshya is selected) */}
+        {lakshyaId && (
+          <>
+            <Typography
+              sx={{
+                fontSize: 9,
+                fontWeight: 700,
+                letterSpacing: 1.5,
+                textTransform: "uppercase",
+                color: heroColor,
+                mb: 0.75,
+              }}
+            >
+              Step 2 · Choose Milestone (optional)
+            </Typography>
+            <FormControl fullWidth size="small" sx={{ mb: 2.5 }}>
+              <InputLabel>Siddhi (Milestone)</InputLabel>
+              <Select
+                value={siddhiId}
+                onChange={(e) => setSiddhiId(e.target.value)}
+                label="Siddhi (Milestone)"
+              >
+                <MenuItem value="">
+                  <em>No milestone</em>
+                </MenuItem>
+                {activeSiddhis.length === 0 ? (
+                  <MenuItem disabled>
+                    <Typography
+                      sx={{ fontSize: 12, fontStyle: "italic", color: textS }}
+                    >
+                      No active milestones on this goal
+                    </Typography>
+                  </MenuItem>
+                ) : (
+                  activeSiddhis.map((s) => (
+                    <MenuItem key={s.id} value={s.id}>
+                      <Typography sx={{ fontSize: 13 }}>{s.title}</Typography>
+                    </MenuItem>
+                  ))
+                )}
+              </Select>
+            </FormControl>
+          </>
+        )}
+
+        <Button
+          fullWidth
+          variant="contained"
+          onClick={handle}
+          sx={{
+            py: 1.2,
+            background: heroColor,
+            "&:hover": { background: heroColor, opacity: 0.88 },
+            boxShadow: "none",
+            borderRadius: 2,
+            fontSize: 13,
+          }}
+        >
+          {lakshyaId ? "Save Link" : "Clear Link"}
         </Button>
       </DialogContent>
     </Dialog>
@@ -1324,6 +1698,7 @@ function TaskRow({
   checked,
   onToggle,
   onDelete,
+  onLink,
   heroColor,
   isDark,
   locked,
@@ -1436,24 +1811,56 @@ function TaskRow({
           )}
         </Box>
         {item.lakshyaTitle && (
-          <Box
-            sx={{ display: "flex", alignItems: "center", gap: 0.4, mt: 0.2 }}
-          >
-            <Flag sx={{ fontSize: 10, color: heroColor, opacity: 0.7 }} />
-            <Typography
-              sx={{
-                fontSize: 10,
-                color: heroColor,
-                opacity: 0.85,
-                fontWeight: 500,
-                letterSpacing: 0.3,
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-              }}
-            >
-              {item.lakshyaTitle}
-            </Typography>
+          <Box sx={{ mt: 0.25 }}>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 0.4 }}>
+              <Flag
+                sx={{
+                  fontSize: 10,
+                  color: heroColor,
+                  opacity: 0.7,
+                  flexShrink: 0,
+                }}
+              />
+              <Typography
+                sx={{
+                  fontSize: 10,
+                  color: heroColor,
+                  opacity: 0.85,
+                  fontWeight: 600,
+                  letterSpacing: 0.3,
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {item.lakshyaTitle}
+              </Typography>
+            </Box>
+            {item.siddhiTitle && (
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 0.4,
+                  pl: 1.8,
+                }}
+              >
+                <Typography
+                  sx={{
+                    fontSize: 9,
+                    color: heroColor,
+                    opacity: 0.55,
+                    fontWeight: 500,
+                    letterSpacing: 0.2,
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  ↳ {item.siddhiTitle}
+                </Typography>
+              </Box>
+            )}
           </Box>
         )}
         {checked && item.hours && (
@@ -1493,6 +1900,32 @@ function TaskRow({
         >
           <Delete sx={{ fontSize: 14 }} />
         </IconButton>
+      )}
+      {locked && onLink && (
+        <Tooltip
+          title={item.lakshyaTitle ? "Change Lakshya link" : "Link to Lakshya"}
+        >
+          <IconButton
+            size="small"
+            onClick={(e) => {
+              e.stopPropagation();
+              onLink();
+            }}
+            sx={{
+              color: item.lakshyaTitle
+                ? heroColor
+                : isDark
+                  ? "#5C5A54"
+                  : "#C8C6C0",
+              "&:hover": { color: heroColor, background: `${heroColor}12` },
+              p: 0.3,
+              flexShrink: 0,
+              transition: "color 0.15s",
+            }}
+          >
+            <LinkOutlined sx={{ fontSize: 14 }} />
+          </IconButton>
+        </Tooltip>
       )}
     </Box>
   );
@@ -1554,8 +1987,9 @@ export default function TodayPage() {
   const [customEvening, setCustomEvening] = useState([]);
 
   const [lakshyas, setLakshyas] = useState([]);
-  const [lakshyaMap, setLakshyaMap] = useState({});
+  const [taskLakshyaLinks, setTaskLakshyaLinks] = useState({});
   const [anshs, setAnshs] = useState([]);
+  const [linkingTask, setLinkingTask] = useState(null);
 
   const [showMorningFlow, setShowMorningFlow] = useState(false);
   const [showEveningFlow, setShowEveningFlow] = useState(false);
@@ -1571,25 +2005,23 @@ export default function TodayPage() {
   const enrichWithLakshya = (tasks) =>
     tasks.map((t) => ({
       ...t,
-      lakshyaTitle:
-        t.lakshya_key && lakshyaMap[t.lakshya_key]
-          ? lakshyaMap[t.lakshya_key].title
-          : null,
+      lakshyaTitle: taskLakshyaLinks[t.id]?.title || null,
+      siddhiTitle: taskLakshyaLinks[t.id]?.siddhi_title || null,
     }));
 
   const allSacred = enrichWithLakshya(DEFAULT_SACRED).concat(customSacred);
   const allCore = enrichWithLakshya(DEFAULT_CORE).concat(customCore);
   const allEvening = enrichWithLakshya(DEFAULT_EVENING).concat(customEvening);
 
-  const bg = isDark
-    ? `radial-gradient(ellipse 90% 35% at 50% -5%, ${heroColor}07 0%, #0D0C0A 65%)`
-    : `radial-gradient(ellipse 90% 35% at 50% -5%, ${heroColor}10 0%, #FAF5EE 65%)`;
   const cardBg = isDark ? "#1A1916" : "#FCFBF9";
   const border = isDark ? "rgba(255,255,255,0.08)" : "#D1D0CF";
   const textP = isDark ? "#F0EDE8" : "#2C2C2C";
 
   const load = useCallback(async () => {
-    if (!user) return;
+    if (!user) {
+      setLoading(false);
+      return;
+    }
     const { data: dayData } = await supabase
       .from("days")
       .select("*")
@@ -1624,41 +2056,28 @@ export default function TodayPage() {
 
     const { data: allLakshyas } = await supabase
       .from("lakshyas")
-      .select("id, title, pillar")
+      .select("id, title, pillar, siddhis(id, title, status)")
       .eq("user_id", user.id)
       .eq("status", "active")
       .order("created_at");
-    if (allLakshyas) {
-      setLakshyas(allLakshyas);
-      const map = {};
-      const PILLAR_MATCHES = {
-        anushthanam: ["anushthanam", "spirit", "gayatri", "sandhya"],
-        riyaz: ["sangeeta", "naada", "music", "carnatic", "visharada"],
-        walk: ["80kg", "weight", "health", "vyaayamam", "fitness"],
-        reading: ["300 book", "pustaka", "reading", "vidya", "library"],
-        office: ["absyz", "career", "technical lead", "vrutti", "salesforce"],
-        academics: ["ugc", "net", "phd", "academia", "learning"],
-        logs: ["svaadhyaya", "consistent", "practice", "spirit"],
-        gratitude: ["anushthanam", "spirit", "evening"],
-      };
-      allLakshyas.forEach((l) => {
-        Object.entries(PILLAR_MATCHES).forEach(([taskId, keywords]) => {
-          if (
-            !map[taskId] &&
-            keywords.some((kw) => l.title.toLowerCase().includes(kw))
-          ) {
-            map[taskId] = l;
-          }
-        });
-      });
-      setLakshyaMap(map);
-    }
+    setLakshyas(allLakshyas || []);
     const { data: anshData } = await supabase
       .from("anshs")
       .select("*, siddhi:siddhis(title), lakshya:lakshyas(title)")
       .eq("user_id", user.id)
       .eq("status", "active");
     if (anshData) setAnshs(anshData);
+
+    const { data: settingsRow } = await supabase
+      .from("days")
+      .select("task_lakshya_links")
+      .eq("user_id", user.id)
+      .eq("day_date", "2000-01-01")
+      .single();
+    if (settingsRow?.task_lakshya_links) {
+      setTaskLakshyaLinks(settingsRow.task_lakshya_links);
+    }
+
     setLoading(false);
   }, [user, today]);
 
@@ -1675,6 +2094,36 @@ export default function TodayPage() {
         { onConflict: "user_id,day_date" },
       );
     setTimeout(() => setSyncing(false), 700);
+  };
+
+  const saveTaskLakshyaLink = async (
+    taskId,
+    lakshyaId,
+    lakshyaTitle,
+    siddhiId,
+    siddhiTitle,
+  ) => {
+    const next = lakshyaId
+      ? {
+          ...taskLakshyaLinks,
+          [taskId]: {
+            lakshya_id: lakshyaId,
+            title: lakshyaTitle,
+            ...(siddhiId
+              ? { siddhi_id: siddhiId, siddhi_title: siddhiTitle }
+              : {}),
+          },
+        }
+      : Object.fromEntries(
+          Object.entries(taskLakshyaLinks).filter(([k]) => k !== taskId),
+        );
+    setTaskLakshyaLinks(next);
+    await supabase
+      .from("days")
+      .upsert(
+        { user_id: user.id, day_date: "2000-01-01", task_lakshya_links: next },
+        { onConflict: "user_id,day_date" },
+      );
   };
 
   const allItems = [
@@ -1750,12 +2199,22 @@ export default function TodayPage() {
     setUndoSnack(false);
   };
 
-  const handleAddTask = ({ label, lakshya_id, lakshyaTitle }) => {
+  const handleAddTask = ({
+    label,
+    lakshya_id,
+    lakshyaTitle,
+    siddhi_id,
+    siddhiTitle,
+    deep,
+  }) => {
     const item = {
       id: `custom_${Date.now()}`,
       label,
       lakshya_id: lakshya_id || null,
       lakshyaTitle: lakshyaTitle || null,
+      siddhi_id: siddhi_id || null,
+      siddhiTitle: siddhiTitle || null,
+      ...(deep ? { deep: true } : {}),
     };
     if (addTaskFor === "sacred") {
       const n = [...customSacred, item];
@@ -1811,6 +2270,7 @@ export default function TodayPage() {
         onDelete={
           isDeletable ? () => handleDeleteTask(section, item.id) : undefined
         }
+        onLink={item.locked ? () => setLinkingTask(richItem) : undefined}
         heroColor={heroColor}
         isDark={isDark}
         locked={!!item.locked}
@@ -1839,7 +2299,6 @@ export default function TodayPage() {
         maxWidth: 1100,
         mx: "auto",
         minHeight: "100vh",
-        background: bg,
       }}
     >
       <Box
@@ -2106,8 +2565,8 @@ export default function TodayPage() {
                         {
                           id: ansh.id,
                           label: ansh.title,
-                          lakshyaTitle:
-                            ansh.lakshya?.title || ansh.siddhi?.title || null,
+                          lakshyaTitle: ansh.lakshya?.title || null,
+                          siddhiTitle: ansh.siddhi?.title || null,
                           deep: true,
                         },
                         "core",
@@ -2172,7 +2631,7 @@ export default function TodayPage() {
             >
               <CardContent sx={{ px: 2, py: "14px !important" }}>
                 <SectionHeader
-                  label="Closing Rite"
+                  label="Sāyam Sandhyā"
                   heroColor={heroColor}
                   isDark={isDark}
                   onAdd={() => setAddTaskFor("evening")}
@@ -2346,6 +2805,16 @@ export default function TodayPage() {
         heroColor={heroColor}
         isDark={isDark}
         lakshyas={lakshyas}
+      />
+      <LinkLakshyaDialog
+        open={!!linkingTask}
+        task={linkingTask}
+        lakshyas={lakshyas}
+        currentLink={linkingTask ? taskLakshyaLinks[linkingTask.id] : null}
+        onSave={saveTaskLakshyaLink}
+        onClose={() => setLinkingTask(null)}
+        heroColor={heroColor}
+        isDark={isDark}
       />
       <Snackbar
         open={undoSnack}

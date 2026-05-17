@@ -1,12 +1,12 @@
 import { useState, useEffect } from "react";
 
 const DEFAULTS = {
-  spirit:  "Daily practice · Purohitam · Gayatri · 10-year commitment",
-  music:   "Carnatic vocal · Sangeeta Visharada · Composer · Teacher",
-  health:  "91kg → 80kg · Visceral fat 13 → 9 · Body age 42 → 37",
-  finance: "Debt-free May 2028 · ₹70L+ corpus by 2031 · Conscious Wealth",
-  career:  "Salesforce Lead → Application Architect · AI Practitioner · Ethical Leader",
-  reading: "300-book Library · UGC NET · 10 pages every night",
+  spirit:  "Your spiritual practice · daily ritual · long-term commitment",
+  music:   "Your art form · skill-building · creative expression",
+  health:  "Your health goal · current → target · the practice that sustains you",
+  finance: "Your financial vision · debt-free date · wealth milestone",
+  career:  "Your role · the level you're growing into · your professional path",
+  reading: "Your reading practice · a goal · the habit that feeds your mind",
 };
 
 const key = (area) => `sv_subtitle_${area}`;

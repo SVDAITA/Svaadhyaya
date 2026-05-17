@@ -140,7 +140,9 @@ export function createAppTheme(
         styleOverrides: {
           body: { transition: FLUID_TRANSITION },
           '*, *::before, *::after': {
-            // Only transition bg/color/border, not transform/opacity (would break animations)
+            transitionProperty: 'background-color, color, border-color, box-shadow',
+            transitionDuration: '0.25s',
+            transitionTimingFunction: 'ease',
           },
         },
       },

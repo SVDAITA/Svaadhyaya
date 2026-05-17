@@ -4,7 +4,9 @@ import { Box, TextField, Button, Typography, InputAdornment, IconButton, Alert, 
 import { Visibility, VisibilityOff, CheckCircle } from '@mui/icons-material'
 import { useAuth } from '../../hooks/useAuth'
 import { useThemeMode } from '../../hooks/useTheme'
-import { QUOTES } from '../../lib/quotes'
+import { getAllQuotes } from '../../lib/quotes'
+const QUOTES = getAllQuotes()
+import MandalaSVG from '../../components/shared/MandalaSVG'
 
 const BG = '#F8FAFC'
 const PANEL_BG = 'linear-gradient(160deg, #EEF2FF 0%, #F0F9FF 100%)'
@@ -12,21 +14,6 @@ const BORDER = '#E2E8F0'
 const TEXT = '#0f172a'
 const SUBTEXT = '#475569'
 
-function MandalaSVG({ size = 48, color = '#1e3a8a' }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 64 64" fill="none">
-      <path d="M32 4 L60 32 L32 60 L4 32 Z" stroke={color} strokeWidth="1" fill="none" opacity="0.5"/>
-      <circle cx="32" cy="32" r="16" stroke={color} strokeWidth="1.2" fill="none" opacity="0.7"/>
-      <path d="M20 32 Q32 20 44 32 Q32 44 20 32" stroke={color} strokeWidth="1" fill="none" opacity="0.6"/>
-      <path d="M32 20 Q44 32 32 44 Q20 32 32 20" stroke={color} strokeWidth="1" fill="none" opacity="0.6"/>
-      <circle cx="32" cy="32" r="3" fill={color}/>
-      <circle cx="32" cy="4" r="1.5" fill={color} opacity="0.4"/>
-      <circle cx="60" cy="32" r="1.5" fill={color} opacity="0.4"/>
-      <circle cx="32" cy="60" r="1.5" fill={color} opacity="0.4"/>
-      <circle cx="4" cy="32" r="1.5" fill={color} opacity="0.4"/>
-    </svg>
-  )
-}
 
 function QuotePanel({ primaryColor }) {
   const [idx, setIdx] = useState(() => Math.floor(Math.random() * QUOTES.length))
@@ -116,7 +103,8 @@ export default function SignupPage() {
       <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', p: { xs: 2, md: 4 }, background: '#fff' }}>
         <Box sx={{ display: { xs: 'flex', md: 'none' }, flexDirection: 'column', alignItems: 'center', mb: 4 }}>
           <MandalaSVG size={44} color={primaryColor} />
-          <Typography sx={{ fontFamily: '"Fraunces","Lora",serif', fontWeight: 300, fontSize: 20, color: TEXT, mt: 1.5 }}>Svaadhyaya</Typography>
+          <Typography sx={{ fontFamily: '"Fraunces","Lora",serif', fontWeight: 300, fontSize: 20, lineHeight: 1.1, color: TEXT, mt: 1.5 }}>Svādhyāya</Typography>
+          <Typography variant="caption" sx={{ fontSize: 11, fontFamily: '"Noto Sans Devanagari","Mangal",sans-serif', color: primaryColor, fontWeight: 600 }}>स्वाध्याय</Typography>
         </Box>
         <Box sx={{ width: '100%', maxWidth: 380 }}>
           <Typography variant="h5" sx={{ fontFamily: '"Fraunces","Lora",serif', fontWeight: 400, color: TEXT, mb: 0.5 }}>Create account</Typography>

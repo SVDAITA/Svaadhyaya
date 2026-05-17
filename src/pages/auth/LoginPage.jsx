@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
-import { useNavigate, Link as RouterLink } from 'react-router-dom'
+import { useNavigate, useLocation, Link as RouterLink } from 'react-router-dom'
+import MandalaSVG from '../../components/shared/MandalaSVG'
 import {
   Box, TextField, Button, Typography,
   InputAdornment, IconButton, Alert, CircularProgress, Link, Divider
@@ -7,7 +8,8 @@ import {
 import { Visibility, VisibilityOff } from '@mui/icons-material'
 import { useAuth } from '../../hooks/useAuth'
 import { useThemeMode } from '../../hooks/useTheme'
-import { QUOTES } from '../../lib/quotes'
+import { getAllQuotes } from '../../lib/quotes'
+const QUOTES = getAllQuotes()
 
 const BG = '#F8FAFC'
 const PANEL_BG = 'linear-gradient(160deg, #EEF2FF 0%, #F0F9FF 100%)'
@@ -15,21 +17,6 @@ const BORDER = '#E2E8F0'
 const TEXT = '#0f172a'
 const SUBTEXT = '#475569'
 
-function MandalaSVG({ size = 48, color = '#1e3a8a' }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path d="M32 4 L60 32 L32 60 L4 32 Z" stroke={color} strokeWidth="1" fill="none" opacity="0.5"/>
-      <circle cx="32" cy="32" r="16" stroke={color} strokeWidth="1.2" fill="none" opacity="0.7"/>
-      <path d="M20 32 Q32 20 44 32 Q32 44 20 32" stroke={color} strokeWidth="1" fill="none" opacity="0.6"/>
-      <path d="M32 20 Q44 32 32 44 Q20 32 32 20" stroke={color} strokeWidth="1" fill="none" opacity="0.6"/>
-      <circle cx="32" cy="32" r="3" fill={color}/>
-      <circle cx="32" cy="4" r="1.5" fill={color} opacity="0.4"/>
-      <circle cx="60" cy="32" r="1.5" fill={color} opacity="0.4"/>
-      <circle cx="32" cy="60" r="1.5" fill={color} opacity="0.4"/>
-      <circle cx="4" cy="32" r="1.5" fill={color} opacity="0.4"/>
-    </svg>
-  )
-}
 
 function QuotePanel({ primaryColor }) {
   const [idx, setIdx] = useState(() => Math.floor(Math.random() * QUOTES.length))
@@ -63,7 +50,7 @@ function QuotePanel({ primaryColor }) {
       <Typography sx={{ fontFamily: '"Fraunces","Lora",serif', fontWeight: 300, fontSize: 26, color: TEXT, mt: 3, mb: 1, lineHeight: 1.2, letterSpacing: '-0.3px' }}>
         Svaadhyaya
       </Typography>
-      <Typography variant="caption" sx={{ color: primaryColor, letterSpacing: 3, textTransform: 'uppercase', fontSize: 10, display: 'block', mb: 5, fontWeight: 600 }}>
+      <Typography variant="caption" sx={{ color: primaryColor, letterSpacing: 3, textTransform: 'uppercase', fontSize: 10, display: 'block', mb: 5, fontWeight: 600, whiteSpace: 'nowrap' }}>
         स्वाध्याय · Self-study
       </Typography>
 
@@ -91,7 +78,9 @@ function QuotePanel({ primaryColor }) {
 export default function LoginPage() {
   const { signIn } = useAuth()
   const navigate = useNavigate()
+  const location = useLocation()
   const { primaryColor } = useThemeMode()
+  const from = location.state?.from?.pathname || '/svadhyaya'
   const [form, setForm] = useState({ email: '', password: '' })
   const [showPass, setShowPass] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -105,7 +94,7 @@ export default function LoginPage() {
     setError(''); setLoading(true)
     try {
       await signIn(form.email, form.password)
-      navigate('/svadhyaya')
+      navigate(from, { replace: true })
     } catch (err) {
       setError(err.message || 'Login failed. Please check your credentials.')
     } finally { setLoading(false) }
@@ -124,7 +113,8 @@ export default function LoginPage() {
         {/* Mobile logo */}
         <Box sx={{ display: { xs: 'flex', md: 'none' }, flexDirection: 'column', alignItems: 'center', mb: 4 }}>
           <MandalaSVG size={44} color={primaryColor} />
-          <Typography sx={{ fontFamily: '"Fraunces","Lora",serif', fontWeight: 300, fontSize: 20, color: TEXT, mt: 1.5 }}>Svaadhyaya</Typography>
+          <Typography sx={{ fontFamily: '"Fraunces","Lora",serif', fontWeight: 300, fontSize: 20, lineHeight: 1.1, color: TEXT, mt: 1.5 }}>Svādhyāya</Typography>
+          <Typography variant="caption" sx={{ fontSize: 11, fontFamily: '"Noto Sans Devanagari","Mangal",sans-serif', color: primaryColor, fontWeight: 600 }}>स्वाध्याय</Typography>
         </Box>
 
         <Box sx={{ width: '100%', maxWidth: 380 }}>

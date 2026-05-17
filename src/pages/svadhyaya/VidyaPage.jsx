@@ -5,8 +5,6 @@ import {
   LakshyaSection,
   AreaJournal,
   WeeklyGoals,
-  AreaLog,
-  InsightCard,
 } from "../../components/shared/AreaComponents";
 import { useAreaData } from "../../hooks/useAreaData";
 import { useThemeMode } from "../../hooks/useTheme";
@@ -14,46 +12,6 @@ import { useAreaSubtitle } from "../../hooks/useAreaSubtitles";
 
 const COLOR = "#A0522D";
 const AREA = "reading";
-
-const LOG_TYPES = [
-  {
-    id: "book_started",
-    label: "Book started",
-    hasValue: true,
-    valueLabel: "Title + author",
-  },
-  {
-    id: "book_finished",
-    label: "Book finished",
-    hasValue: true,
-    valueLabel: "Title + one sentence",
-  },
-  {
-    id: "pages_read",
-    label: "Pages read today",
-    hasValue: true,
-    valueLabel: "Count",
-    unit: "pages",
-  },
-  {
-    id: "ugc_topic",
-    label: "UGC NET topic studied",
-    hasValue: true,
-    valueLabel: "Topic name",
-  },
-  {
-    id: "insight",
-    label: "Key insight from reading",
-    hasValue: true,
-    valueLabel: "The insight",
-  },
-  {
-    id: "purohitam_study",
-    label: "Purohitam study",
-    hasValue: true,
-    valueLabel: "Ritual studied",
-  },
-];
 
 // Scroll / manuscript lines — scholar's motif
 function VidyaBg({ isDark }) {
@@ -184,10 +142,6 @@ export default function VidyaPage() {
     0,
   );
 
-  const bg = isDark
-    ? `radial-gradient(ellipse 90% 35% at 50% -5%, ${COLOR}08 0%, #0D0C0A 65%)`
-    : `radial-gradient(ellipse 90% 35% at 50% -5%, ${COLOR}10 0%, #F8FAFC 65%)`;
-
   if (loading)
     return (
       <Box
@@ -196,7 +150,6 @@ export default function VidyaPage() {
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          background: bg,
         }}
       >
         <CircularProgress sx={{ color: COLOR }} />
@@ -210,31 +163,16 @@ export default function VidyaPage() {
         maxWidth: 900,
         mx: "auto",
         minHeight: "100vh",
-        background: bg,
         position: "relative",
         overflow: "hidden",
       }}
     >
       <VidyaBg isDark={isDark} />
 
-      <AreaBanner
-        color={COLOR}
-        emoji="📖"
-        title="Vidyā"
-        subtitle={subtitle}
-        quote="Read to become, not to know. Every book is a conversation with a mind greater than mine."
-      />
+      <AreaBanner color={COLOR} emoji="📖" title="Vidya" subtitle={subtitle} />
 
       <Grid container spacing={2} sx={{ mb: 3 }}>
-        <Grid item xs={6} sm={4}>
-          <StatCard
-            value="300"
-            label="Physical Library"
-            color={COLOR}
-            sub="Total collection"
-          />
-        </Grid>
-        <Grid item xs={6} sm={4}>
+        <Grid item xs={6} sm={6}>
           <StatCard
             value={activeLakshyas}
             label="Active Visions"
@@ -242,7 +180,7 @@ export default function VidyaPage() {
             sub="Education Lakshyas"
           />
         </Grid>
-        <Grid item xs={6} sm={4}>
+        <Grid item xs={6} sm={6}>
           <StatCard
             value={totalSiddhis}
             label="Milestones Set"
@@ -260,18 +198,7 @@ export default function VidyaPage() {
       />
       <AreaJournal area={AREA} color={COLOR} />
 
-      <Grid container spacing={2}>
-        <Grid item xs={12} md={6}>
-          <WeeklyGoals area={AREA} color={COLOR} />
-        </Grid>
-        <Grid item xs={12} md={6}>
-          <InsightCard
-            color={COLOR}
-            insight="Telugu at its own pace — for rasa, not for speed. English for information, Telugu for feeling. The 10-page minimum is non-negotiable. Missing once means reading 20 the next night."
-          />
-          <AreaLog area={AREA} color={COLOR} logTypes={LOG_TYPES} />
-        </Grid>
-      </Grid>
+      <WeeklyGoals area={AREA} color={COLOR} />
     </Box>
   );
 }

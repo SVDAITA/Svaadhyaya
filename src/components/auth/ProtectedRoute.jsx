@@ -8,7 +8,7 @@ export default function ProtectedRoute({ children }) {
 
   if (loading) return (
     <Box sx={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <CircularProgress color="primary" />
+      <CircularProgress size={28} />
     </Box>
   )
 

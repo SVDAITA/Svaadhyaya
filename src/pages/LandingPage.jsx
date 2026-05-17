@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom'
 import { Box, Button, Typography, Grid } from '@mui/material'
 import { useThemeMode } from '../hooks/useTheme'
+import MandalaSVG from '../components/shared/MandalaSVG'
 
 const FEATURES = [
   { emoji: '🌅', title: 'Morning flow', desc: 'Review what you flagged the night before. Approve. Set the one thing. Start.' },
@@ -16,21 +17,6 @@ const BORDER = '#E2E8F0'
 const TEXT = '#0f172a'
 const SUBTEXT = '#475569'
 
-function MandalaSVG({ size = 64, color = '#1e3a8a' }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" aria-label="Svaadhyaya mandala logo">
-      <path d="M32 4 L60 32 L32 60 L4 32 Z" stroke={color} strokeWidth="1" fill="none" opacity="0.5"/>
-      <circle cx="32" cy="32" r="16" stroke={color} strokeWidth="1.2" fill="none" opacity="0.7"/>
-      <path d="M20 32 Q32 20 44 32 Q32 44 20 32" stroke={color} strokeWidth="1" fill="none" opacity="0.6"/>
-      <path d="M32 20 Q44 32 32 44 Q20 32 32 20" stroke={color} strokeWidth="1" fill="none" opacity="0.6"/>
-      <circle cx="32" cy="32" r="3" fill={color}/>
-      <circle cx="32" cy="4" r="1.5" fill={color} opacity="0.4"/>
-      <circle cx="60" cy="32" r="1.5" fill={color} opacity="0.4"/>
-      <circle cx="32" cy="60" r="1.5" fill={color} opacity="0.4"/>
-      <circle cx="4" cy="32" r="1.5" fill={color} opacity="0.4"/>
-    </svg>
-  )
-}
 
 export default function LandingPage() {
   const navigate = useNavigate()
@@ -43,7 +29,10 @@ export default function LandingPage() {
       <Box sx={{ px: { xs: 2, md: 5 }, py: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: `1px solid ${BORDER}`, background: '#fff' }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
           <MandalaSVG size={32} color={primaryColor} />
-          <Typography sx={{ fontFamily: '"Fraunces","Lora",serif', fontWeight: 400, fontSize: 18, color: TEXT }}>Svaadhyaya</Typography>
+          <Box>
+            <Typography sx={{ fontFamily: '"Fraunces","Lora",serif', fontWeight: 400, fontSize: 18, lineHeight: 1.1, color: TEXT }}>Svādhyāya</Typography>
+            <Typography variant="caption" sx={{ display: 'block', fontSize: 10, fontFamily: '"Noto Sans Devanagari","Mangal",sans-serif', color: primaryColor, fontWeight: 600, letterSpacing: 0 }}>स्वाध्याय</Typography>
+          </Box>
         </Box>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           <Button variant="outlined" size="small" onClick={() => navigate('/auth/login')}
@@ -62,7 +51,7 @@ export default function LandingPage() {
         <Box sx={{ mb: 3, opacity: 0.9 }}>
           <MandalaSVG size={72} color={primaryColor} />
         </Box>
-        <Typography variant="caption" sx={{ letterSpacing: 4, textTransform: 'uppercase', fontSize: 11, color: primaryColor, display: 'block', mb: 2, fontWeight: 600 }}>
+        <Typography variant="caption" sx={{ letterSpacing: 0, fontSize: 13, color: primaryColor, display: 'block', mb: 2, fontWeight: 600, whiteSpace: 'nowrap', fontFamily: '"Noto Sans Devanagari", sans-serif' }}>
           स्वाध्याय
         </Typography>
         <Typography variant="h2" sx={{ fontFamily: '"Fraunces","Lora",serif', fontWeight: 300, fontSize: { xs: 34, md: 50 }, lineHeight: 1.18, color: TEXT, mb: 2.5 }}>
@@ -71,13 +60,13 @@ export default function LandingPage() {
         <Typography sx={{ fontSize: { xs: 15, md: 17 }, color: SUBTEXT, lineHeight: 1.85, mb: 4.5, maxWidth: 540 }}>
           Svaadhyaya is a personal intentionality system — a place where your spiritual practice, music, health, career, finances, and reading all find their home. Not a productivity app. A sanctuary.
         </Typography>
-        <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center', flexWrap: 'wrap' }}>
+        <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, gap: 2, justifyContent: 'center', alignItems: 'center', width: { xs: '100%', sm: 'auto' } }}>
           <Button variant="contained" size="large" onClick={() => navigate('/auth/signup')}
-            sx={{ background: primaryColor, '&:hover': { background: primaryColor, opacity: 0.88 }, px: 4, py: 1.4, fontSize: 15, fontWeight: 500, borderRadius: 2, textTransform: 'none', boxShadow: '0 2px 12px rgba(30,58,138,0.18)' }}>
+            sx={{ background: primaryColor, '&:hover': { background: primaryColor, opacity: 0.88 }, px: 4, py: 1.4, fontSize: 15, fontWeight: 500, borderRadius: 2, textTransform: 'none', boxShadow: '0 2px 12px rgba(30,58,138,0.18)', width: { xs: '100%', sm: 'auto' } }}>
             Begin your practice
           </Button>
           <Button variant="outlined" size="large" onClick={() => navigate('/auth/login')}
-            sx={{ borderColor: BORDER, color: TEXT, px: 4, py: 1.4, fontSize: 15, textTransform: 'none', borderRadius: 2, '&:hover': { borderColor: primaryColor, color: primaryColor, background: 'transparent' } }}>
+            sx={{ borderColor: BORDER, color: TEXT, px: 4, py: 1.4, fontSize: 15, textTransform: 'none', borderRadius: 2, '&:hover': { borderColor: primaryColor, color: primaryColor, background: 'transparent' }, width: { xs: '100%', sm: 'auto' } }}>
             Sign in
           </Button>
         </Box>

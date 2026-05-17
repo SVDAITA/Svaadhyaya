@@ -27,6 +27,9 @@ import {
   InputLabel,
   IconButton,
   Stack,
+  TextField,
+  Snackbar,
+  Alert,
 } from "@mui/material";
 import {
   CloudUpload,
@@ -39,6 +42,7 @@ import {
   SelfImprovement,
   Timeline,
   CompareArrows,
+  TrackChanges,
 } from "@mui/icons-material";
 import { motion } from "framer-motion";
 import {
@@ -59,24 +63,23 @@ const COLOR_STANDARD = "#4A90E2";
 const COLOR_ALERT = "#C07830";
 const COLOR_CRITICAL = "#CF4E4E";
 
-// PDF-derived logic for "Good" vs "Bad" highlighting
-const STATUS_CONFIG = {
-  muscle_mass: {
-    label: "Muscle Mass",
-    excellent: 60,
-    unit: "kg",
-    lowerIsBetter: false,
-  },
-  visceral_fat: {
-    label: "Visceral Fat",
-    alert: 9.1,
-    unit: "",
-    lowerIsBetter: true,
-  },
-  weight: { label: "Total Weight", alert: 85, unit: "kg", lowerIsBetter: true },
-  body_age: { label: "Body Age", alert: 35, unit: "yrs", lowerIsBetter: true },
-  fat_pct: { label: "Fat Ratio", alert: 24, unit: "%", lowerIsBetter: true },
-  bmi: { label: "BMI", alert: 25, unit: "", lowerIsBetter: true },
+// Metric metadata — thresholds are NOT hardcoded; user sets their own targets
+const METRIC_META = {
+  muscle_mass: { label: "Muscle Mass", unit: "kg", lowerIsBetter: false },
+  visceral_fat: { label: "Visceral Fat", unit: "", lowerIsBetter: true },
+  weight: { label: "Total Weight", unit: "kg", lowerIsBetter: true },
+  body_age: { label: "Body Age", unit: "yrs", lowerIsBetter: true },
+  fat_pct: { label: "Fat Ratio", unit: "%", lowerIsBetter: true },
+  bmi: { label: "BMI", unit: "", lowerIsBetter: true },
+};
+
+const DEFAULT_TARGETS = {
+  muscle_mass: { excellent: "", alert: "" },
+  visceral_fat: { alert: "" },
+  weight: { alert: "" },
+  body_age: { alert: "" },
+  fat_pct: { alert: "" },
+  bmi: { alert: "" },
 };
 
 const COLOR_HEALTH = "#2D7A4F";
@@ -103,21 +106,37 @@ export default function ShariramHealthOS() {
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [uploadOpen, setUploadOpen] = useState(false);
+  const [targetsOpen, setTargetsOpen] = useState(false);
+  const [targets, setTargets] = useState(DEFAULT_TARGETS);
   const [compA, setCompA] = useState("");
   const [compB, setCompB] = useState("");
+  const [snack, setSnack] = useState({ open: false, msg: "", severity: "success" });
+  const showSnack = (msg, severity = "success") => setSnack({ open: true, msg, severity });
 
   const fetchLogs = useCallback(async () => {
     if (!user) return;
     setLoading(true);
-    const { data, error } = await supabase
-      .from("health_logs")
-      .select("*")
-      .eq("user_id", user.id)
-      .order("date", { ascending: false });
-
-    if (!error) setLogs(data || []);
+    const [logsRes, settingsRes] = await Promise.all([
+      supabase.from("health_logs").select("*").eq("user_id", user.id).order("date", { ascending: false }),
+      supabase.from("days").select("habits").eq("user_id", user.id).eq("day_date", "2000-01-01").maybeSingle(),
+    ]);
+    if (!logsRes.error) setLogs(logsRes.data || []);
+    if (settingsRes.data?.habits?.health_targets) {
+      setTargets({ ...DEFAULT_TARGETS, ...settingsRes.data.habits.health_targets });
+    }
     setLoading(false);
   }, [user]);
+
+  const saveTargets = async (newTargets) => {
+    setTargets(newTargets);
+    const { data: existing } = await supabase.from("days").select("habits").eq("user_id", user.id).eq("day_date", "2000-01-01").maybeSingle();
+    await supabase.from("days").upsert(
+      { user_id: user.id, day_date: "2000-01-01", habits: { ...(existing?.habits || {}), health_targets: newTargets } },
+      { onConflict: "user_id,day_date" },
+    );
+    setTargetsOpen(false);
+    showSnack("Targets saved.");
+  };
 
   useEffect(() => {
     fetchLogs();
@@ -169,13 +188,14 @@ export default function ShariramHealthOS() {
           type: key,
           value: Number(val),
           date: data.date || dayjs().format("YYYY-MM-DD"),
-          unit: STATUS_CONFIG[key]?.unit || "",
+          unit: METRIC_META[key]?.unit || "",
         }));
         await supabase.from("health_logs").insert(entries);
         setUploadOpen(false);
+        showSnack("Snapshot imported successfully.");
         fetchLogs();
       } catch (err) {
-        alert("Invalid JSON format.");
+        showSnack("Invalid JSON format.", "error");
       }
     };
     reader.readAsText(file);
@@ -183,32 +203,29 @@ export default function ShariramHealthOS() {
 
   // Reusable Component for Diagnostics
   const MetricStatus = ({ id, value }) => {
-    const config = STATUS_CONFIG[id];
-    if (!config || value === undefined) return null;
+    const meta = METRIC_META[id];
+    if (!meta || value === undefined) return null;
+    const t = targets[id] || {};
 
     let status = {
-      label: "Standard",
+      label: "Logged",
       color: isDark ? alpha(COLOR_STANDARD, 0.8) : COLOR_STANDARD,
       icon: <InfoOutlined fontSize="small" />,
     };
 
-    if (id === "muscle_mass" && value >= config.excellent) {
+    const excellent = t.excellent !== "" && t.excellent != null ? Number(t.excellent) : null;
+    const alertVal = t.alert !== "" && t.alert != null ? Number(t.alert) : null;
+
+    if (id === "muscle_mass" && excellent !== null && value >= excellent) {
       status = {
         label: "Excellent",
         color: isDark ? alpha(COLOR_EXCELLENT, 0.8) : COLOR_EXCELLENT,
         icon: <CheckCircle fontSize="small" />,
       };
-    } else if (value >= config.alert) {
+    } else if (alertVal !== null && (meta.lowerIsBetter ? value >= alertVal : value < alertVal)) {
       status = {
-        label: id === "visceral_fat" || id === "weight" ? "High" : "Alert",
-        color:
-          id === "weight"
-            ? isDark
-              ? alpha(COLOR_CRITICAL, 0.8)
-              : COLOR_CRITICAL
-            : isDark
-              ? alpha(COLOR_ALERT, 0.8)
-              : COLOR_ALERT,
+        label: meta.lowerIsBetter ? "High" : "Below Target",
+        color: isDark ? alpha(COLOR_ALERT, 0.8) : COLOR_ALERT,
         icon: <ErrorOutline fontSize="small" />,
       };
     }
@@ -242,7 +259,7 @@ export default function ShariramHealthOS() {
               letterSpacing: 0.5,
             }}
           >
-            {config.label}
+            {meta.label}
           </Typography>
           <Chip
             label={status.label}
@@ -266,7 +283,7 @@ export default function ShariramHealthOS() {
             variant="caption"
             sx={{ ml: 0.5, fontWeight: 500 }}
           >
-            {config.unit}
+            {meta.unit}
           </Typography>
         </Typography>
       </Box>
@@ -303,16 +320,16 @@ export default function ShariramHealthOS() {
       const valA = snapshots[compA].metrics[key] || 0;
       const valB = snapshots[compB].metrics[key] || 0;
       const diff = (valB - valA).toFixed(1);
-      const config = STATUS_CONFIG[key];
+      const meta = METRIC_META[key];
 
-      let isGood = config.lowerIsBetter ? diff <= 0 : diff >= 0;
-      if (diff == 0) isGood = true; // Neutral is fine
+      let isGood = meta.lowerIsBetter ? diff <= 0 : diff >= 0;
+      if (diff == 0) isGood = true;
 
       return {
         key,
-        label: config.label,
+        label: meta.label,
         diff: diff > 0 ? `+${diff}` : diff,
-        unit: config.unit,
+        unit: meta.unit,
         color:
           diff == 0
             ? "text.secondary"
@@ -323,16 +340,11 @@ export default function ShariramHealthOS() {
     });
   };
 
-  const bg = isDark
-    ? `radial-gradient(ellipse 90% 35% at 50% -5%, ${COLOR_HEALTH}12 0%, #0D0C0A 65%)`
-    : `radial-gradient(ellipse 90% 35% at 50% -5%, ${COLOR_HEALTH}10 0%, #F8FAFC 65%)`;
-
   return (
     <Box
       sx={{
         p: { xs: 2, md: 4 },
         minHeight: "100vh",
-        background: bg,
         color: "text.primary",
       }}
     >
@@ -389,19 +401,29 @@ export default function ShariramHealthOS() {
               </Typography>
             </Box>
           </Box>
-          <Button
-            variant="contained"
-            startIcon={<CloudUpload />}
-            onClick={() => setUploadOpen(true)}
-            sx={{
-              borderRadius: 8,
-              px: 3,
-              py: 1.5,
-              boxShadow: `0 4px 14px ${alpha(theme.palette.primary.main, 0.3)}`,
-            }}
-          >
-            Import Snapshot
-          </Button>
+          <Stack direction="row" spacing={1.5}>
+            <Button
+              variant="outlined"
+              startIcon={<TrackChanges />}
+              onClick={() => setTargetsOpen(true)}
+              sx={{ borderRadius: 8, px: 2.5, py: 1.5 }}
+            >
+              Set Targets
+            </Button>
+            <Button
+              variant="contained"
+              startIcon={<CloudUpload />}
+              onClick={() => setUploadOpen(true)}
+              sx={{
+                borderRadius: 8,
+                px: 3,
+                py: 1.5,
+                boxShadow: `0 4px 14px ${alpha(theme.palette.primary.main, 0.3)}`,
+              }}
+            >
+              Import Snapshot
+            </Button>
+          </Stack>
         </Box>
 
         {/* ── CURRENT MONTH BEAUTIFUL ANALYTICS ── */}
@@ -919,18 +941,9 @@ export default function ShariramHealthOS() {
                         size="small"
                         color="error"
                         onClick={async () => {
-                          if (
-                            window.confirm(
-                              "Are you sure you want to delete this snapshot?",
-                            )
-                          ) {
-                            await supabase
-                              .from("health_logs")
-                              .delete()
-                              .eq("user_id", user.id)
-                              .eq("date", date);
-                            fetchLogs();
-                          }
+                          await supabase.from("health_logs").delete().eq("user_id", user.id).eq("date", date);
+                          showSnack("Snapshot removed.");
+                          fetchLogs();
                         }}
                       >
                         <Delete fontSize="small" />
@@ -943,6 +956,7 @@ export default function ShariramHealthOS() {
           </TableContainer>
         </Box>
 
+        {/* ── IMPORT SNAPSHOT DIALOG ── */}
         <Dialog
           open={uploadOpen}
           onClose={() => setUploadOpen(false)}
@@ -952,9 +966,11 @@ export default function ShariramHealthOS() {
             Import Data Snapshot
           </DialogTitle>
           <DialogContent>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2, mt: 1 }}>
+              JSON format: {"{ \"date\": \"YYYY-MM-DD\", \"metrics\": { \"weight\": 80, \"muscle_mass\": 62, ... } }"}
+            </Typography>
             <Box
               sx={{
-                mt: 2,
                 p: 4,
                 border: `2px dashed ${theme.palette.divider}`,
                 borderRadius: 2,
@@ -976,7 +992,71 @@ export default function ShariramHealthOS() {
             </Button>
           </DialogActions>
         </Dialog>
+
+        {/* ── SET TARGETS DIALOG ── */}
+        <Dialog
+          open={targetsOpen}
+          onClose={() => setTargetsOpen(false)}
+          maxWidth="sm"
+          fullWidth
+          PaperProps={{ sx: { borderRadius: 3 } }}
+        >
+          <DialogTitle sx={{ fontFamily: "Fraunces, serif" }}>
+            Configure Personal Targets
+          </DialogTitle>
+          <DialogContent>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 3, mt: 1 }}>
+              Set your personal targets for each metric. Leave blank to show values without status coloring.
+            </Typography>
+            <Stack spacing={2.5}>
+              {Object.entries(METRIC_META).map(([key, meta]) => (
+                <Box key={key}>
+                  <Typography variant="caption" sx={{ fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5, color: "text.secondary" }}>
+                    {meta.label} {meta.unit ? `(${meta.unit})` : ""}
+                  </Typography>
+                  <Stack direction="row" spacing={2} sx={{ mt: 0.75 }}>
+                    {key === "muscle_mass" && (
+                      <TextField
+                        label="Excellent ≥"
+                        type="number"
+                        size="small"
+                        value={targets[key]?.excellent ?? ""}
+                        onChange={(e) => setTargets((t) => ({ ...t, [key]: { ...t[key], excellent: e.target.value } }))}
+                        sx={{ flex: 1 }}
+                      />
+                    )}
+                    <TextField
+                      label={meta.lowerIsBetter ? "Alert if ≥" : "Alert if <"}
+                      type="number"
+                      size="small"
+                      value={targets[key]?.alert ?? ""}
+                      onChange={(e) => setTargets((t) => ({ ...t, [key]: { ...t[key], alert: e.target.value } }))}
+                      sx={{ flex: 1 }}
+                    />
+                  </Stack>
+                </Box>
+              ))}
+            </Stack>
+          </DialogContent>
+          <DialogActions sx={{ p: 3, pt: 1 }}>
+            <Button onClick={() => setTargetsOpen(false)} color="inherit">Cancel</Button>
+            <Button variant="contained" onClick={() => saveTargets(targets)} sx={{ borderRadius: 2 }}>
+              Save Targets
+            </Button>
+          </DialogActions>
+        </Dialog>
       </Box>
+
+      <Snackbar
+        open={snack.open}
+        autoHideDuration={3000}
+        onClose={() => setSnack((s) => ({ ...s, open: false }))}
+        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+      >
+        <Alert severity={snack.severity} onClose={() => setSnack((s) => ({ ...s, open: false }))} sx={{ borderRadius: 2 }}>
+          {snack.msg}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 }

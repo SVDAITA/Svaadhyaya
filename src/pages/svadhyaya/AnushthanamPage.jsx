@@ -5,8 +5,6 @@ import {
   LakshyaSection,
   AreaJournal,
   WeeklyGoals,
-  AreaLog,
-  InsightCard,
 } from "../../components/shared/AreaComponents";
 import { useAreaData } from "../../hooks/useAreaData";
 import { useThemeMode } from "../../hooks/useTheme";
@@ -14,38 +12,6 @@ import { useAreaSubtitle } from "../../hooks/useAreaSubtitles";
 
 const COLOR = "#C07830";
 const AREA = "spirit";
-
-const LOG_TYPES = [
-  { id: "purohitam", label: "Purohitam booking", hasValue: false },
-  {
-    id: "gayatri_count",
-    label: "Gayatri count",
-    hasValue: true,
-    valueLabel: "Count",
-    unit: "times",
-  },
-  {
-    id: "ritual_learned",
-    label: "Ritual learned",
-    hasValue: true,
-    valueLabel: "Ritual name",
-  },
-  {
-    id: "abhishekam",
-    label: "Special abhishekam",
-    hasValue: true,
-    valueLabel: "Deity / occasion",
-  },
-  { id: "mahapuja", label: "Mahapuja performed", hasValue: false },
-  {
-    id: "purohitam_income",
-    label: "Purohitam income",
-    hasValue: true,
-    valueLabel: "Amount",
-    unit: "₹",
-  },
-  { id: "note", label: "General note", hasValue: true, valueLabel: "Note" },
-];
 
 // Yantra — mandala + diamond geometry, spiritual
 function AnushthanamBg({ isDark }) {
@@ -185,10 +151,6 @@ export default function AnushthanamPage() {
     0,
   );
 
-  const bg = isDark
-    ? `radial-gradient(ellipse 90% 35% at 50% -5%, ${COLOR}08 0%, #0D0C0A 65%)`
-    : `radial-gradient(ellipse 90% 35% at 50% -5%, ${COLOR}10 0%, #F8FAFC 65%)`;
-
   if (loading)
     return (
       <Box
@@ -197,7 +159,6 @@ export default function AnushthanamPage() {
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          background: bg,
         }}
       >
         <CircularProgress sx={{ color: COLOR }} />
@@ -211,7 +172,6 @@ export default function AnushthanamPage() {
         maxWidth: 900,
         mx: "auto",
         minHeight: "100vh",
-        background: bg,
         position: "relative",
         overflow: "hidden",
       }}
@@ -223,11 +183,10 @@ export default function AnushthanamPage() {
         emoji="🪔"
         title="Anushthanam"
         subtitle={subtitle}
-        quote="I am a devotee who shows up for my practice every single day — wherever I am, whatever the day brings."
       />
 
       <Grid container spacing={2} sx={{ mb: 3 }}>
-        <Grid item xs={6} sm={4}>
+        <Grid item xs={6} sm={6}>
           <StatCard
             value={activeLakshyas}
             label="Active Visions"
@@ -235,7 +194,7 @@ export default function AnushthanamPage() {
             sub="Lakshyas"
           />
         </Grid>
-        <Grid item xs={6} sm={4}>
+        <Grid item xs={6} sm={6}>
           <StatCard
             value={totalSiddhis}
             label="Milestones Set"
@@ -253,18 +212,7 @@ export default function AnushthanamPage() {
       />
       <AreaJournal area={AREA} color={COLOR} />
 
-      <Grid container spacing={2}>
-        <Grid item xs={12} md={6}>
-          <WeeklyGoals area={AREA} color={COLOR} />
-        </Grid>
-        <Grid item xs={12} md={6}>
-          <InsightCard
-            color={COLOR}
-            insight="On travel or disrupted days — the 5-minute minimum (Gayatri + deepam) keeps the chain unbroken. Pack the travel bag. Never break the practice."
-          />
-          <AreaLog area={AREA} color={COLOR} logTypes={LOG_TYPES} />
-        </Grid>
-      </Grid>
+      <WeeklyGoals area={AREA} color={COLOR} />
     </Box>
   );
 }

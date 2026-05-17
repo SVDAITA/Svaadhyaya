@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ThemeProvider } from "./hooks/useTheme";
 import { AuthProvider } from "./hooks/useAuth";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
+import PublicRoute from "./components/auth/PublicRoute";
 import AppLayout from "./components/layout/AppLayout";
 
 import LandingPage from "./pages/LandingPage";
@@ -19,7 +20,7 @@ import DisruptionPage from "./pages/svadhyaya/DisruptionPage";
 import AnushthanamPage from "./pages/svadhyaya/AnushthanamPage";
 import NadamPage from "./pages/svadhyaya/NadamPage";
 import ShariramPage from "./pages/svadhyaya/ShariramPage";
-import VruttiPage from "./pages/svadhyaya/KarmaPage";
+import VruttiPage from "./pages/svadhyaya/VruttiPage";
 import ArthaPage from "./pages/svadhyaya/ArthaPage";
 import VidyaPage from "./pages/svadhyaya/VidyaPage";
 import SettingsPage from "./pages/svadhyaya/SettingsPage";
@@ -35,6 +36,7 @@ import PurohitamTracker from "./pages/tracker/PurohitamTracker";
 import YatraTracker from "./pages/tracker/YatraTracker";
 
 import NotFoundPage from "./pages/NotFoundPage";
+import AdminPage from "./pages/AdminPage";
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { staleTime: 1000 * 60 * 5, retry: 1 } },
@@ -45,20 +47,14 @@ export default function App() {
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
         <AuthProvider>
-          <BrowserRouter>
+          <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
             <Routes>
               {/* Public */}
               <Route path="/" element={<LandingPage />} />
-              <Route path="/auth/login" element={<LoginPage />} />
-              <Route path="/auth/signup" element={<SignupPage />} />
-              <Route
-                path="/auth/forgot-password"
-                element={<ForgotPasswordPage />}
-              />
-              <Route
-                path="/auth/reset-password"
-                element={<ResetPasswordPage />}
-              />
+              <Route path="/auth/login" element={<PublicRoute><LoginPage /></PublicRoute>} />
+              <Route path="/auth/signup" element={<PublicRoute><SignupPage /></PublicRoute>} />
+              <Route path="/auth/forgot-password" element={<PublicRoute><ForgotPasswordPage /></PublicRoute>} />
+              <Route path="/auth/reset-password" element={<ResetPasswordPage />} />
 
               {/* Protected app */}
               <Route
@@ -103,6 +99,7 @@ export default function App() {
                 <Route path="/tracker/journey" element={<YatraTracker />} />
               </Route>
 
+              <Route path="/svdaiadmin" element={<ProtectedRoute><AdminPage /></ProtectedRoute>} />
               <Route path="*" element={<NotFoundPage />} />
             </Routes>
           </BrowserRouter>

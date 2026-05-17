@@ -13,6 +13,7 @@ import {
   Tab,
   LinearProgress,
   Alert,
+  Snackbar,
   IconButton,
   keyframes,
   Divider,
@@ -39,74 +40,9 @@ import dayjs from "dayjs";
 
 const COLOR = "#5A6E1A";
 
-// Default fallback plan
-const DEFAULT_PLAN = {
-  groceries: [
-    "Apples (1kg)",
-    "Jowar Flour (1kg)",
-    "Cucumber (500g)",
-    "Makhana (250g)",
-    "Chamomile Tea",
-  ],
-  monday: [
-    {
-      id: "m_wake",
-      time: "6:30 AM",
-      label: "Wake-up detox",
-      items: ["Apple cinnamon detox water 500ml"],
-      note: "Before Anushthanam",
-      calories: 5,
-    },
-    {
-      id: "m_break",
-      time: "9:30 AM",
-      label: "Breakfast",
-      items: ["Ragi malt 250ml OR 2 jowar rotis", "Palakura pappu 1 katori"],
-      note: "80% full rule",
-      calories: 380,
-    },
-    {
-      id: "m_mid",
-      time: "11:00 AM",
-      label: "Mid-morning",
-      items: ["Makhana chaat 1 bowl"],
-      note: "Light only",
-      calories: 150,
-    },
-    {
-      id: "m_lunch",
-      time: "1:00 PM",
-      label: "Lunch",
-      items: ["2 jowar rotis", "Dal 1 katori", "Sabzi 1 katori", "Salad"],
-      note: "Before work",
-      calories: 520,
-    },
-    {
-      id: "m_snack",
-      time: "4:00 PM",
-      label: "Evening snack",
-      items: ["Sprout chaat 1 katori"],
-      note: "Keep metabolism active",
-      calories: 180,
-    },
-    {
-      id: "m_dinner",
-      time: "7:00 PM",
-      label: "Dinner",
-      items: ["2 multigrain rotis", "Sabzi 1 katori", "Dahi 1 katori"],
-      note: "Finish by 9pm",
-      calories: 400,
-    },
-    {
-      id: "m_night",
-      time: "9:00 PM",
-      label: "Night drink",
-      items: ["Chamomile tea 1 cup"],
-      note: "12:12 fast begins",
-      calories: 0,
-    },
-  ],
-};
+const EMPTY_PLAN = { groceries: [] };
+
+const FASTING_OPTIONS = ["12:12", "14:10", "16:8", "18:6", "20:4", "OMAD", "Custom"];
 
 const DEFAULT_MACROS = {
   calories: 1750,
@@ -211,20 +147,20 @@ export default function DietPage() {
   const [savingNotes, setSavingNotes] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  const [weeklyPlan, setWeeklyPlan] = useState(DEFAULT_PLAN);
+  const [weeklyPlan, setWeeklyPlan] = useState(EMPTY_PLAN);
   const [jsonInput, setJsonInput] = useState("");
   const [jsonError, setJsonError] = useState("");
   const [macros, setMacros] = useState(DEFAULT_MACROS);
   const [editingMacros, setEditingMacros] = useState(false);
+  const [fastingWindow, setFastingWindow] = useState("12:12");
+  const [snack, setSnack] = useState({ open: false, msg: "", severity: "success" });
+  const showSnack = (msg, severity = "success") => setSnack({ open: true, msg, severity });
 
   // Memoize dates to prevent unnecessary re-renders and stabilize hooks
   const todayDate = useMemo(() => dayjs().format("YYYY-MM-DD"), []);
   const dayOfWeek = useMemo(() => dayjs().format("dddd").toLowerCase(), []);
 
   // Theme Variables
-  const bg = isDark
-    ? `radial-gradient(ellipse 90% 35% at 50% -5%, ${COLOR}10 0%, #0D0C0A 65%)`
-    : `radial-gradient(ellipse 90% 35% at 50% -5%, ${COLOR}08 0%, #F8FAFC 65%)`;
 
   const border = isDark ? "rgba(255,255,255,0.08)" : "rgba(90, 110, 26, 0.15)";
   const cardBg = isDark ? "rgba(26, 25, 22, 0.8)" : "rgba(252, 251, 249, 0.8)";
@@ -261,6 +197,7 @@ export default function DietPage() {
     if (settingsData?.habits?.weekly_plan)
       setWeeklyPlan(settingsData.habits.weekly_plan);
     if (settingsData?.habits?.macros) setMacros(settingsData.habits.macros);
+    if (settingsData?.habits?.fasting_window) setFastingWindow(settingsData.habits.fasting_window);
 
     setLoading(false);
   }, [user, todayDate]);
@@ -299,6 +236,7 @@ export default function DietPage() {
         { onConflict: "user_id,day_date" },
       );
     setSavingNotes(false);
+    showSnack("Reflections saved.");
   };
 
   const handleJsonUpload = async () => {
@@ -311,6 +249,7 @@ export default function DietPage() {
       setJsonError("");
       setJsonInput("");
       setTab(0);
+      showSnack("Meal plan synced successfully.");
 
       const { data: existing } = await supabase
         .from("days")
@@ -340,13 +279,14 @@ export default function DietPage() {
       .eq("day_date", "2000-01-01")
       .maybeSingle();
 
-    const merged = { ...(existing?.habits || {}), macros: macros };
+    const merged = { ...(existing?.habits || {}), macros, fasting_window: fastingWindow };
     await supabase
       .from("days")
       .upsert(
         { user_id: user.id, day_date: "2000-01-01", habits: merged },
         { onConflict: "user_id,day_date" },
       );
+    showSnack("Nutrition targets saved.");
   };
 
   const handleMacroChange = (key, val) => {
@@ -370,7 +310,6 @@ export default function DietPage() {
           justifyContent: "center",
           alignItems: "center",
           minHeight: "100vh",
-          background: bg,
         }}
       >
         <CircularProgress sx={{ color: COLOR }} />
@@ -382,7 +321,6 @@ export default function DietPage() {
       sx={{
         position: "relative",
         minHeight: "100vh",
-        background: bg,
         overflow: "hidden",
       }}
     >
@@ -457,8 +395,9 @@ export default function DietPage() {
                 gap: 1,
               }}
             >
-              <MonitorWeight sx={{ fontSize: 16 }} /> Fitelo Weekly Plan{" "}
-              <span style={{ opacity: 0.5 }}>|</span> 12:12 Fasting
+              <MonitorWeight sx={{ fontSize: 16 }} />
+              {weeklyPlan.monday || weeklyPlan.tuesday ? "Weekly plan loaded" : "No plan synced yet"}
+              <span style={{ opacity: 0.5 }}>|</span> {fastingWindow} fasting
             </Typography>
           </Box>
         </Box>
@@ -579,7 +518,9 @@ export default function DietPage() {
                     borderRadius: 3,
                   }}
                 >
-                  Your ashram is quiet today. No meals found for {dayOfWeek}.
+                  {!weeklyPlan.monday && !weeklyPlan.tuesday
+                    ? `No meal plan uploaded yet. Go to "Sync Plan" tab to upload your weekly JSON.`
+                    : `No meals scheduled for ${dayOfWeek}.`}
                 </Alert>
               ) : (
                 <Box sx={{ position: "relative", ml: 2 }}>
@@ -860,9 +801,35 @@ export default function DietPage() {
                 Nutrition Architecture
               </Typography>
               <Typography sx={{ fontSize: 13, color: textS, mt: 0.5 }}>
-                Calibrated for Fat Loss & Muscle Preservation
+                Your personal nutrition targets
               </Typography>
             </Box>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 2, flexWrap: "wrap" }}>
+              {editingMacros ? (
+                <Box>
+                  <Typography sx={{ fontSize: 11, color: textS, mb: 0.5, textTransform: "uppercase", letterSpacing: 1 }}>Fasting window</Typography>
+                  <select
+                    value={fastingWindow}
+                    onChange={(e) => setFastingWindow(e.target.value)}
+                    style={{
+                      background: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)",
+                      color: textP,
+                      border: `1px solid ${border}`,
+                      borderRadius: 8,
+                      padding: "6px 12px",
+                      fontSize: 14,
+                      cursor: "pointer",
+                    }}
+                  >
+                    {FASTING_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
+                  </select>
+                </Box>
+              ) : (
+                <Box sx={{ textAlign: "center" }}>
+                  <Typography sx={{ fontSize: 11, color: textS, textTransform: "uppercase", letterSpacing: 1 }}>Fasting</Typography>
+                  <Typography sx={{ fontSize: 16, fontWeight: 700, color: COLOR }}>{fastingWindow}</Typography>
+                </Box>
+              )}
             <Button
               variant={editingMacros ? "contained" : "outlined"}
               onClick={() =>
@@ -883,6 +850,7 @@ export default function DietPage() {
             >
               {editingMacros ? "Lock Architecture" : "Calibrate"}
             </Button>
+            </Box>
           </Box>
 
           <Grid container spacing={3}>
@@ -1320,6 +1288,17 @@ export default function DietPage() {
           </Card>
         </TabPanel>
       </Box>
+
+      <Snackbar
+        open={snack.open}
+        autoHideDuration={3000}
+        onClose={() => setSnack((s) => ({ ...s, open: false }))}
+        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+      >
+        <Alert severity={snack.severity} onClose={() => setSnack((s) => ({ ...s, open: false }))} sx={{ borderRadius: 2 }}>
+          {snack.msg}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 }

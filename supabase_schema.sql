@@ -192,6 +192,48 @@ create table if not exists public.books (
 );
 
 -- ============================================================
+-- LAKSHYAS  (Long-term Goals — per Life Pillar)
+-- ============================================================
+create table if not exists public.lakshyas (
+  id uuid primary key default uuid_generate_v4(),
+  user_id uuid not null references public.profiles(id) on delete cascade,
+  title text not null,
+  pillar text not null,            -- spirit | music | health | career | finance | reading
+  status text default 'active',   -- active | archived | completed
+  timeline_years integer,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+
+-- ============================================================
+-- SIDDHIS  (Milestones — children of a Lakshya)
+-- ============================================================
+create table if not exists public.siddhis (
+  id uuid primary key default uuid_generate_v4(),
+  user_id uuid not null references public.profiles(id) on delete cascade,
+  lakshya_id uuid not null references public.lakshyas(id) on delete cascade,
+  title text not null,
+  progress_percent integer default 0,
+  status text default 'active',   -- active | completed
+  target_date date,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+
+-- ============================================================
+-- ANSHS  (Daily Micro-tasks — children of a Siddhi)
+-- ============================================================
+create table if not exists public.anshs (
+  id uuid primary key default uuid_generate_v4(),
+  user_id uuid not null references public.profiles(id) on delete cascade,
+  lakshya_id uuid not null references public.lakshyas(id) on delete cascade,
+  siddhi_id uuid not null references public.siddhis(id) on delete cascade,
+  title text not null,
+  status text default 'active',   -- active | completed
+  created_at timestamptz default now()
+);
+
+-- ============================================================
 -- VISION CONTENT
 -- Editable goal documents per area
 -- ============================================================
@@ -221,6 +263,9 @@ alter table public.finance_logs enable row level security;
 alter table public.health_logs enable row level security;
 alter table public.books enable row level security;
 alter table public.vision_content enable row level security;
+alter table public.lakshyas enable row level security;
+alter table public.siddhis enable row level security;
+alter table public.anshs enable row level security;
 
 -- Profiles
 create policy "Users can view own profile" on public.profiles for select using (auth.uid() = id);
@@ -255,6 +300,15 @@ create policy "Users can manage own books" on public.books for all using (auth.u
 
 -- Vision content
 create policy "Users can manage own vision content" on public.vision_content for all using (auth.uid() = user_id);
+
+-- Lakshyas
+create policy "Users can manage own lakshyas" on public.lakshyas for all using (auth.uid() = user_id);
+
+-- Siddhis
+create policy "Users can manage own siddhis" on public.siddhis for all using (auth.uid() = user_id);
+
+-- Anshs
+create policy "Users can manage own anshs" on public.anshs for all using (auth.uid() = user_id);
 
 -- ============================================================
 -- SEED DATA — Initial milestones for Subbu

@@ -40,13 +40,13 @@ import { SectionLabel } from "../../components/shared/AreaComponents";
 
 // ── ANIMATIONS & STYLING ────────────────────────────────────────────────────
 const fadeUp = keyframes`
-  0% { opacity: 0; transform: translateY(20px); filter: blur(4px); }
-  100% { opacity: 1; transform: translateY(0); filter: blur(0); }
+  0% { opacity: 0; transform: translateY(10px); }
+  100% { opacity: 1; transform: translateY(0); }
 `;
 
 const pulseScale = keyframes`
   0% { transform: scale(1); }
-  50% { transform: scale(1.05); }
+  50% { transform: scale(1.04); }
   100% { transform: scale(1); }
 `;
 
@@ -104,27 +104,26 @@ function calculateDailyMass(dayData) {
 }
 
 // FIXED: Handles current day pending state so streaks don't break at 8 AM.
-function calcStreak(dayMap, habitId) {
+// vacationDateSet: Set of "YYYY-MM-DD" strings from the vacations table date ranges.
+function calcStreak(dayMap, habitId, vacationDateSet = new Set()) {
   let streak = 0;
   const todayStr = dayjs().format("YYYY-MM-DD");
 
-  // Has the user completed the habit today?
-  const todayDone =
-    dayMap[todayStr]?.habits?.[habitId] ||
-    dayMap[todayStr]?.disruption_mode === "holiday" ||
-    dayMap[todayStr]?.disruption_mode === "vacation";
+  const isExempt = (dateStr) => {
+    const day = dayMap[dateStr];
+    return (
+      day?.disruption_mode === "holiday" ||
+      day?.disruption_mode === "vacation" ||
+      vacationDateSet.has(dateStr)
+    );
+  };
 
-  // If not done today, start checking from yesterday.
+  const todayDone = dayMap[todayStr]?.habits?.[habitId] || isExempt(todayStr);
   const startIndex = todayDone ? 0 : 1;
 
   for (let i = startIndex; i < 365; i++) {
     const date = dayjs().subtract(i, "day").format("YYYY-MM-DD");
-    const day = dayMap[date];
-    if (
-      day?.disruption_mode === "holiday" ||
-      day?.disruption_mode === "vacation" ||
-      day?.habits?.[habitId]
-    ) {
+    if (dayMap[date]?.habits?.[habitId] || isExempt(date)) {
       streak++;
     } else {
       break;
@@ -148,41 +147,29 @@ function getTimeGreeting() {
 
 // ── COMPONENTS ───────────────────────────────────────────────────────────────
 
-function DynamicStreakCard({ areaKey, streak, isDark, delay }) {
+function DynamicStreakCard({ areaKey, streak, lakshyaTitle, isDark, delay }) {
   const theme = AREA_THEMES[areaKey] || {
     label: areaKey,
     color: "#5C5A52",
     emoji: "✨",
   };
   const textP = isDark ? "#F0EDE8" : "#2C2C2C";
+  const textS = isDark ? "#7A7874" : "#9C9A94";
 
   return (
     <Card
       sx={{
-        border: "1px solid",
-        borderColor: isDark
-          ? alpha(theme.color, 0.15)
-          : alpha(theme.color, 0.2),
-        borderRadius: 4,
-        background: isDark
-          ? `linear-gradient(145deg, rgba(26,25,22,0.8) 0%, ${alpha(theme.color, 0.05)} 100%)`
-          : `linear-gradient(145deg, rgba(255,255,255,0.9) 0%, ${alpha(theme.color, 0.05)} 100%)`,
-        backdropFilter: "blur(12px)",
-        boxShadow: isDark
-          ? `0 8px 32px ${alpha(theme.color, 0.05)}`
-          : `0 8px 24px ${alpha(theme.color, 0.08)}`,
+        border: `1px solid ${isDark ? alpha(theme.color, 0.18) : alpha(theme.color, 0.22)}`,
+        borderRadius: 2.5,
+        background: isDark ? "rgba(26,25,22,0.7)" : "rgba(255,255,255,0.8)",
+        boxShadow: "none",
         position: "relative",
         overflow: "hidden",
         height: "100%",
-        animation: `${fadeUp} 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) both`,
+        animation: `${fadeUp} 0.5s ease both`,
         animationDelay: `${delay}s`,
-        transition: "transform 0.3s ease, box-shadow 0.3s ease",
-        "&:hover": {
-          transform: "translateY(-4px)",
-          boxShadow: isDark
-            ? `0 12px 40px ${alpha(theme.color, 0.15)}`
-            : `0 12px 32px ${alpha(theme.color, 0.15)}`,
-        },
+        transition: "border-color 0.2s ease",
+        "&:hover": { borderColor: theme.color },
       }}
     >
       <Box
@@ -198,65 +185,62 @@ function DynamicStreakCard({ areaKey, streak, isDark, delay }) {
       >
         {theme.emoji}
       </Box>
-      <CardContent sx={{ p: 2.5, position: "relative", zIndex: 1 }}>
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
-          <Box
-            sx={{
-              width: 24,
-              height: 24,
-              borderRadius: "50%",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              background: alpha(theme.color, 0.1),
-              fontSize: 12,
-            }}
-          >
-            {theme.emoji}
-          </Box>
+      <CardContent sx={{ p: 2, position: "relative", zIndex: 1 }}>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, mb: 1.5 }}>
+          <Typography sx={{ fontSize: 13 }}>{theme.emoji}</Typography>
           <Typography
-            variant="caption"
             sx={{
-              letterSpacing: 1.5,
-              fontWeight: 800,
+              letterSpacing: 1.2,
+              fontWeight: 700,
               color: theme.color,
               textTransform: "uppercase",
-              fontSize: 10,
+              fontSize: 9,
+              flex: 1,
             }}
           >
             {theme.label}
           </Typography>
           {streak >= 3 && (
             <LocalFireDepartment
-              sx={{
-                fontSize: 14,
-                color: "#FF5722",
-                ml: "auto",
-                animation: `${pulseScale} 2s infinite`,
-              }}
+              sx={{ fontSize: 12, color: "#E05A2B", animation: `${pulseScale} 3s infinite` }}
             />
           )}
         </Box>
-
-        <Box sx={{ display: "flex", alignItems: "baseline", gap: 1, mt: 1 }}>
+        <Box sx={{ display: "flex", alignItems: "baseline", gap: 0.75, mb: lakshyaTitle ? 0.75 : 0 }}>
           <Typography
             sx={{
               fontFamily: '"Fraunces", serif',
-              fontSize: 38,
-              fontWeight: 700,
+              fontSize: 28,
+              fontWeight: 600,
               color: textP,
               lineHeight: 1,
             }}
           >
-            {String(streak).padStart(2, "0")}
+            {streak}
           </Typography>
-          <Typography
-            variant="caption"
-            sx={{ color: "text.disabled", fontWeight: 600, letterSpacing: 1 }}
-          >
-            DAYS
+          <Typography sx={{ fontSize: 10, color: textS, fontWeight: 600, letterSpacing: 0.8 }}>
+            days
           </Typography>
         </Box>
+        {lakshyaTitle && (
+          <Typography
+            sx={{
+              fontSize: 9,
+              color: theme.color,
+              opacity: 0.8,
+              fontWeight: 500,
+              letterSpacing: 0.2,
+              lineHeight: 1.3,
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              display: "-webkit-box",
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: "vertical",
+            }}
+          >
+            → {lakshyaTitle}
+          </Typography>
+        )}
       </CardContent>
     </Card>
   );
@@ -598,6 +582,7 @@ export default function DashboardPage() {
   const [dayMap, setDayMap] = useState({});
   const [dynamicStreaks, setDynamicStreaks] = useState([]);
   const [lakshyas, setLakshyas] = useState([]);
+  const [todayAnshs, setTodayAnshs] = useState([]);
   const [selectedDate, setSelectedDate] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -607,7 +592,7 @@ export default function DashboardPage() {
   const cardBg = isDark ? "rgba(26,25,22,0.6)" : "rgba(255,255,255,0.7)";
 
   const load = useCallback(async () => {
-    if (!user) return;
+    if (!user) { setLoading(false); return; }
     setLoading(true);
     const { data: days } = await supabase
       .from("days")
@@ -620,26 +605,56 @@ export default function DashboardPage() {
     });
     setDayMap(map);
 
-    const { data: lData } = await supabase
-      .from("lakshyas")
-      .select("*, siddhis(*)")
-      .eq("user_id", user.id)
-      .eq("status", "active");
+    const [{ data: lData }, { data: anshData }, { data: vacData }] = await Promise.all([
+      supabase
+        .from("lakshyas")
+        .select("*, siddhis(*)")
+        .eq("user_id", user.id)
+        .eq("status", "active"),
+      supabase
+        .from("anshs")
+        .select("id, lakshya_id, status")
+        .eq("user_id", user.id),
+      supabase
+        .from("vacations")
+        .select("from_date, to_date")
+        .eq("user_id", user.id),
+    ]);
     setLakshyas(lData || []);
+    setTodayAnshs(anshData || []);
 
+    // Build a Set of every date string covered by any vacation range.
+    const vacationDateSet = new Set();
+    (vacData || []).forEach(({ from_date, to_date }) => {
+      let cur = dayjs(from_date);
+      const end = dayjs(to_date);
+      while (!cur.isAfter(end)) {
+        vacationDateSet.add(cur.format("YYYY-MM-DD"));
+        cur = cur.add(1, "day");
+      }
+    });
+
+    // AREA_HABIT_MAP — maps life pillar to the default habit task ID it tracks.
+    // These IDs match the locked task ids defined in DEFAULT_SACRED/CORE on TodayPage.
     const AREA_HABIT_MAP = {
-      spirit: "anushthanam",
-      music: "riyaz",
-      health: "walk",
-      career: "office",
+      spirit:  "anushthanam",
+      music:   "riyaz",
+      health:  "walk",
+      career:  "office",
       finance: "logs",
       reading: "reading",
     };
+    const activeLakshyas = lData || [];
     setDynamicStreaks(
-      Object.entries(AREA_HABIT_MAP).map(([area, habitId]) => ({
-        area,
-        count: calcStreak(map, habitId),
-      })),
+      Object.entries(AREA_HABIT_MAP).map(([area, habitId]) => {
+        const linked = activeLakshyas.find((l) => l.pillar === area);
+        return {
+          area,
+          habitId,
+          count: calcStreak(map, habitId, vacationDateSet),
+          lakshyaTitle: linked?.title || null,
+        };
+      }),
     );
     // Artifical delay for smooth aesthetic loading
     setTimeout(() => setLoading(false), 400);
@@ -890,7 +905,6 @@ export default function DashboardPage() {
           justifyContent: "center",
           alignItems: "center",
           minHeight: "100vh",
-          bgcolor: isDark ? "#0D0C0A" : "#FAF5EE",
         }}
       >
         <CircularProgress
@@ -920,11 +934,6 @@ export default function DashboardPage() {
         p: { xs: 2, md: 4 },
         pb: 10,
         minHeight: "100vh",
-        background: isDark
-          ? `radial-gradient(ellipse 90% 40% at 50% -5%, ${alpha(heroColor, 0.15)} 0%, #0D0C0A 70%)`
-          : `radial-gradient(ellipse 90% 40% at 50% -5%, ${alpha(heroColor, 0.15)} 0%, #F9F7F3 70%)`,
-        backgroundImage: `${isDark ? `radial-gradient(ellipse 90% 40% at 50% -5%, ${alpha(heroColor, 0.15)} 0%, #0D0C0A 70%), ` : `radial-gradient(ellipse 90% 40% at 50% -5%, ${alpha(heroColor, 0.15)} 0%, #F9F7F3 70%), `} ${ashramPattern}`,
-        backgroundBlendMode: "multiply",
         color: textP,
       }}
     >
@@ -935,38 +944,37 @@ export default function DashboardPage() {
             display: "flex",
             justifyContent: "space-between",
             alignItems: "flex-end",
-            mb: 5,
-            animation: `${fadeUp} 0.6s ease-out both`,
+            mb: 3,
+            animation: `${fadeUp} 0.5s ease both`,
           }}
         >
           <Box>
-            <Box
-              sx={{
-                display: "flex",
-                alignItems: "center",
-                gap: 1,
-                mb: 1,
-                color: heroColor,
-              }}
-            >
-              {greeting.icon}
-              <Typography
-                variant="overline"
-                sx={{ fontWeight: 800, letterSpacing: 2 }}
-              >
-                {greeting.text}
-              </Typography>
-            </Box>
             <Typography
               sx={{
-                fontFamily: '"Fraunces",serif',
-                fontSize: { xs: 32, md: 42 },
-                fontWeight: 600,
-                color: textP,
-                lineHeight: 1.1,
+                fontSize: 10,
+                letterSpacing: 2,
+                textTransform: "uppercase",
+                color: heroColor,
+                fontWeight: 700,
+                mb: 0.5,
+                display: "flex",
+                alignItems: "center",
+                gap: 0.75,
               }}
             >
-              Your Progress Architecture
+              <Box component="span" sx={{ fontSize: 14, lineHeight: 1 }}>{greeting.icon}</Box>
+              {greeting.text}
+            </Typography>
+            <Typography
+              sx={{
+                fontFamily: '"Lora","Fraunces",serif',
+                fontSize: { xs: 26, md: 32 },
+                fontWeight: 600,
+                color: textP,
+                lineHeight: 1.15,
+              }}
+            >
+              Progress
             </Typography>
           </Box>
           <ToggleButtonGroup
@@ -1004,12 +1012,13 @@ export default function DashboardPage() {
         </Box>
 
         {/* STREAKS GRID */}
-        <Grid container spacing={2} sx={{ mb: 4 }}>
+        <Grid container spacing={1.5} sx={{ mb: 3 }}>
           {dynamicStreaks.map((s, idx) => (
             <Grid item xs={6} sm={4} md={2} key={s.area}>
               <DynamicStreakCard
                 areaKey={s.area}
                 streak={s.count}
+                lakshyaTitle={s.lakshyaTitle}
                 isDark={isDark}
                 delay={0.1 * idx}
               />
@@ -1023,15 +1032,11 @@ export default function DashboardPage() {
           <Grid item xs={12} lg={8}>
             <Card
               sx={{
-                border: "1px solid",
-                borderColor: border,
-                borderRadius: 4,
+                border: `1px solid ${border}`,
+                borderRadius: 2.5,
                 background: cardBg,
-                backdropFilter: "blur(16px)",
-                boxShadow: isDark
-                  ? "0 16px 40px rgba(0,0,0,0.4)"
-                  : "0 16px 40px rgba(0,0,0,0.03)",
-                animation: `${fadeUp} 0.6s ease-out 0.4s both`,
+                boxShadow: "none",
+                animation: `${fadeUp} 0.5s ease 0.1s both`,
               }}
             >
               <CardContent sx={{ p: { xs: 3, sm: 4 } }}>
@@ -1056,8 +1061,8 @@ export default function DashboardPage() {
                     </Box>
                     <Typography
                       sx={{
-                        fontFamily: '"Fraunces", serif',
-                        fontSize: 22,
+                        fontFamily: '"Lora","Fraunces", serif',
+                        fontSize: 16,
                         fontWeight: 600,
                       }}
                     >
@@ -1098,16 +1103,12 @@ export default function DashboardPage() {
           <Grid item xs={12} lg={4}>
             <Card
               sx={{
-                border: "1px solid",
-                borderColor: border,
-                borderRadius: 4,
+                border: `1px solid ${border}`,
+                borderRadius: 2.5,
                 background: cardBg,
-                backdropFilter: "blur(16px)",
-                boxShadow: isDark
-                  ? "0 16px 40px rgba(0,0,0,0.4)"
-                  : "0 16px 40px rgba(0,0,0,0.03)",
+                boxShadow: "none",
                 height: "100%",
-                animation: `${fadeUp} 0.6s ease-out 0.5s both`,
+                animation: `${fadeUp} 0.5s ease 0.15s both`,
               }}
             >
               <CardContent sx={{ p: { xs: 3, sm: 4 } }}>
@@ -1164,15 +1165,25 @@ export default function DashboardPage() {
                     sx={{ display: "flex", flexDirection: "column", gap: 3 }}
                   >
                     {lakshyas.map((l, idx) => {
+                      const siddhis = l.siddhis || [];
+                      const activeSiddhis = siddhis.filter((s) => s.status !== "completed");
+                      const completedSiddhis = siddhis.filter((s) => s.status === "completed");
                       const avg =
-                        l.siddhis?.length > 0
+                        siddhis.length > 0
                           ? Math.round(
-                              l.siddhis.reduce(
+                              siddhis.reduce(
                                 (s, d) => s + (d.progress_percent || 0),
                                 0,
-                              ) / l.siddhis.length,
+                              ) / siddhis.length,
                             )
                           : 0;
+                      // Count active Anshs for this Lakshya from today's load
+                      const lakshyaAnshs = todayAnshs.filter((a) => a.lakshya_id === l.id);
+                      const doneAnshs = lakshyaAnshs.filter((a) => a.status === "completed").length;
+                      const pillarTheme = Object.values(AREA_THEMES).find(
+                        (t, i) => Object.keys(AREA_THEMES)[i] === l.pillar,
+                      ) || { color: heroColor, emoji: "🎯" };
+
                       return (
                         <Box
                           key={l.id}
@@ -1183,13 +1194,7 @@ export default function DashboardPage() {
                             animation: `${fadeUp} 0.4s ease-out ${0.6 + idx * 0.1}s both`,
                           }}
                         >
-                          {/* Circular Progress instead of flat bar */}
-                          <Box
-                            sx={{
-                              position: "relative",
-                              display: "inline-flex",
-                            }}
-                          >
+                          <Box sx={{ position: "relative", display: "inline-flex", flexShrink: 0 }}>
                             <CircularProgress
                               variant="determinate"
                               value={100}
@@ -1203,7 +1208,7 @@ export default function DashboardPage() {
                               size={44}
                               thickness={4}
                               sx={{
-                                color: heroColor,
+                                color: AREA_THEMES[l.pillar]?.color || heroColor,
                                 position: "absolute",
                                 left: 0,
                                 strokeLinecap: "round",
@@ -1211,10 +1216,7 @@ export default function DashboardPage() {
                             />
                             <Box
                               sx={{
-                                top: 0,
-                                left: 0,
-                                bottom: 0,
-                                right: 0,
+                                top: 0, left: 0, bottom: 0, right: 0,
                                 position: "absolute",
                                 display: "flex",
                                 alignItems: "center",
@@ -1223,38 +1225,64 @@ export default function DashboardPage() {
                             >
                               <Typography
                                 variant="caption"
-                                sx={{
-                                  fontSize: 10,
-                                  fontWeight: 800,
-                                  color: textP,
-                                }}
+                                sx={{ fontSize: 10, fontWeight: 800, color: textP }}
                               >
                                 {avg}%
                               </Typography>
                             </Box>
                           </Box>
-                          <Box sx={{ flex: 1 }}>
+
+                          <Box sx={{ flex: 1, minWidth: 0 }}>
                             <Typography
                               sx={{
-                                fontSize: 14,
+                                fontSize: 13,
                                 fontWeight: 700,
                                 color: textP,
-                                mb: 0.5,
+                                mb: 0.4,
+                                overflow: "hidden",
+                                textOverflow: "ellipsis",
+                                whiteSpace: "nowrap",
                               }}
                             >
                               {l.title}
                             </Typography>
-                            <Typography
-                              sx={{
-                                fontSize: 11,
-                                color: textS,
-                                fontWeight: 600,
-                                textTransform: "uppercase",
-                                letterSpacing: 1,
-                              }}
-                            >
-                              {l.siddhis?.length || 0} Pillars
-                            </Typography>
+                            {/* Siddhi progress */}
+                            <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
+                              {siddhis.length > 0 && (
+                                <Typography
+                                  sx={{ fontSize: 10, color: textS, fontWeight: 500 }}
+                                >
+                                  {completedSiddhis.length}/{siddhis.length} milestones
+                                </Typography>
+                              )}
+                              {lakshyaAnshs.length > 0 && (
+                                <Typography
+                                  sx={{
+                                    fontSize: 10,
+                                    color: AREA_THEMES[l.pillar]?.color || heroColor,
+                                    fontWeight: 600,
+                                  }}
+                                >
+                                  · {doneAnshs}/{lakshyaAnshs.length} anshs
+                                </Typography>
+                              )}
+                            </Box>
+                            {/* Active Siddhi name — first incomplete one */}
+                            {activeSiddhis[0] && (
+                              <Typography
+                                sx={{
+                                  fontSize: 9,
+                                  color: textS,
+                                  mt: 0.3,
+                                  overflow: "hidden",
+                                  textOverflow: "ellipsis",
+                                  whiteSpace: "nowrap",
+                                  fontStyle: "italic",
+                                }}
+                              >
+                                ↳ {activeSiddhis[0].title}
+                              </Typography>
+                            )}
                           </Box>
                         </Box>
                       );

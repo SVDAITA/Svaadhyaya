@@ -5,10 +5,8 @@ import {
   LakshyaSection,
   AreaJournal,
   WeeklyGoals,
-  AreaLog,
-  InsightCard,
 } from "../../components/shared/AreaComponents";
-import { useAreaData, useWeekCompletion } from "../../hooks/useAreaData";
+import { useAreaData } from "../../hooks/useAreaData";
 import { useThemeMode } from "../../hooks/useTheme";
 import { useAreaSubtitle } from "../../hooks/useAreaSubtitles";
 
@@ -145,7 +143,6 @@ export default function ArthaPage() {
   const { lakshyas, loading, reload } = useAreaData(AREA);
   const { mode } = useThemeMode();
   const isDark = mode === "dark";
-  const weekPct = useWeekCompletion(["finance_log"]);
   const subtitle = useAreaSubtitle(AREA);
 
   const activeLakshyas = lakshyas.filter((l) => l.status === "active").length;
@@ -153,10 +150,6 @@ export default function ArthaPage() {
     (acc, l) => acc + (l.siddhis?.length || 0),
     0,
   );
-
-  const bg = isDark
-    ? `radial-gradient(ellipse 90% 35% at 50% -5%, ${COLOR}08 0%, #0D0C0A 65%)`
-    : `radial-gradient(ellipse 90% 35% at 50% -5%, ${COLOR}10 0%, #F8FAFC 65%)`;
 
   if (loading)
     return (
@@ -166,7 +159,6 @@ export default function ArthaPage() {
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          background: bg,
         }}
       >
         <CircularProgress sx={{ color: COLOR }} />
@@ -180,7 +172,6 @@ export default function ArthaPage() {
         maxWidth: 900,
         mx: "auto",
         minHeight: "100vh",
-        background: bg,
         position: "relative",
         overflow: "hidden",
       }}
@@ -192,11 +183,10 @@ export default function ArthaPage() {
         emoji="💰"
         title="Artha"
         subtitle={subtitle}
-        quote="I respect money. I eliminate debt first, invest consistently, and build wealth without anxiety."
       />
 
       <Grid container spacing={2} sx={{ mb: 3 }}>
-        <Grid item xs={6} sm={4}>
+        <Grid item xs={6} sm={6}>
           <StatCard
             value={activeLakshyas}
             label="Active Visions"
@@ -204,19 +194,12 @@ export default function ArthaPage() {
             sub="Lakshyas"
           />
         </Grid>
-        <Grid item xs={6} sm={4}>
+        <Grid item xs={6} sm={6}>
           <StatCard
             value={totalSiddhis}
             label="Milestones Set"
             color={COLOR}
             sub="Siddhis"
-          />
-        </Grid>
-        <Grid item xs={6} sm={4}>
-          <StatCard
-            value={`${weekPct}%`}
-            label="Logging"
-            color={weekPct >= 80 ? "#2D7A4F" : COLOR}
           />
         </Grid>
       </Grid>
@@ -229,18 +212,7 @@ export default function ArthaPage() {
       />
       <AreaJournal area={AREA} color={COLOR} />
 
-      <Grid container spacing={2}>
-        <Grid item xs={12} md={6}>
-          <WeeklyGoals area={AREA} color={COLOR} />
-        </Grid>
-        <Grid item xs={12} md={6}>
-          <InsightCard
-            color={COLOR}
-            insight="The snowball is moving. NewBazaar closes Oct 2026, Axis Small closes Feb 2027. Every win adds leverage to the Axis Large Loan attack. May 2028 is the finish line."
-          />
-          <AreaLog area={AREA} color={COLOR} logTypes={LOG_TYPES} />
-        </Grid>
-      </Grid>
+      <WeeklyGoals area={AREA} color={COLOR} />
     </Box>
   );
 }

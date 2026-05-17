@@ -34,6 +34,8 @@ import {
   Checkbox,
   ListItemText,
   OutlinedInput,
+  Snackbar,
+  Alert,
 } from "@mui/material";
 import {
   Add,
@@ -121,6 +123,8 @@ export default function ReadingLogPage() {
   const [sessions, setSessions] = useState([]);
   const [journalEntries, setJournalEntries] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [snack, setSnack] = useState({ open: false, msg: "", severity: "success" });
+  const showSnack = (msg, severity = "success") => setSnack({ open: true, msg, severity });
 
   const TABLE_COLUMNS = [
     { id: "title", label: "Title" },
@@ -185,10 +189,6 @@ export default function ReadingLogPage() {
 
   // --- Themes & Backgrounds ---
   // A subtle "handmade paper" noise texture suitable for both themes
-
-  const bg = isDark
-    ? `radial-gradient(ellipse 90% 35% at 50% -5%, ${COLOR}12 0%, #0D0B09 65%)`
-    : `radial-gradient(ellipse 90% 35% at 50% -5%, ${COLOR}10 0%, #F8FAFC 65%)`;
 
   const textP = isDark ? "#F4F0EB" : "#2C2A28";
   const textS = isDark ? "#A39E98" : "#6E6862";
@@ -367,6 +367,7 @@ export default function ReadingLogPage() {
     });
     setNewJournal("");
     setSaving(false);
+    showSnack("Reflection preserved.");
     load(true);
   };
 
@@ -407,14 +408,14 @@ export default function ReadingLogPage() {
           .insert(payload);
 
         if (supabaseError) {
-          alert(`Database Error: ${supabaseError.message}`);
+          showSnack(`Import failed: ${supabaseError.message}`, "error");
           return;
         }
 
-        alert("Library imported successfully!");
+        showSnack("Library imported successfully!");
         load();
       } catch (err) {
-        alert("There was an issue processing the file logic.");
+        showSnack("Invalid JSON format — check the file structure.", "error");
       }
     };
     reader.readAsText(file);
@@ -455,7 +456,6 @@ export default function ReadingLogPage() {
           justifyContent: "center",
           alignItems: "center",
           minHeight: "100vh",
-          background: bg,
         }}
       >
         <CircularProgress sx={{ color: COLOR }} />
@@ -469,8 +469,6 @@ export default function ReadingLogPage() {
         maxWidth: 1280,
         mx: "auto",
         minHeight: "100vh",
-        background: bg,
-        backgroundAttachment: "fixed",
         animation: `${fadeIn} 0.8s ease-in`,
       }}
     >
@@ -1937,6 +1935,17 @@ export default function ReadingLogPage() {
           </Button>
         </DialogActions>
       </Dialog>
+
+      <Snackbar
+        open={snack.open}
+        autoHideDuration={3000}
+        onClose={() => setSnack((s) => ({ ...s, open: false }))}
+        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+      >
+        <Alert severity={snack.severity} onClose={() => setSnack((s) => ({ ...s, open: false }))} sx={{ borderRadius: 2 }}>
+          {snack.msg}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 }
