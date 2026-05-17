@@ -67,12 +67,12 @@ const ASHTA_SIDDHI_SCALE = [
 ];
 
 const AREA_THEMES = {
-  spirit: { label: "Anushthanam", color: "#C07830", emoji: "🪔" },
-  music: { label: "Nādam", color: "#7C4DAB", emoji: "🎵" },
-  health: { label: "Sharīram", color: "#2D7A4F", emoji: "💪" },
-  career: { label: "Vṛtti", color: "#1A5FB0", emoji: "🚀" },
-  finance: { label: "Artha", color: "#1A7A6E", emoji: "💰" },
-  reading: { label: "Vidyā", color: "#A0522D", emoji: "📖" },
+  spirit: { label: "Anushthanam", color: "#C07830", colorDark: "#D4A830", emoji: "🪔" },
+  music: { label: "Nādam", color: "#7C4DAB", colorDark: "#9B6CC4", emoji: "🎵" },
+  health: { label: "Sharīram", color: "#2D7A4F", colorDark: "#5EC98A", emoji: "💪" },
+  career: { label: "Vṛtti", color: "#1A5FB0", colorDark: "#6AAEE8", emoji: "🚀" },
+  finance: { label: "Artha", color: "#1A7A6E", colorDark: "#4DC4B5", emoji: "💰" },
+  reading: { label: "Vidyā", color: "#A0522D", colorDark: "#D4845A", emoji: "📖" },
 };
 
 const HABIT_LABELS = {
@@ -148,11 +148,8 @@ function getTimeGreeting() {
 // ── COMPONENTS ───────────────────────────────────────────────────────────────
 
 function DynamicStreakCard({ areaKey, streak, lakshyaTitle, isDark, delay }) {
-  const theme = AREA_THEMES[areaKey] || {
-    label: areaKey,
-    color: "#5C5A52",
-    emoji: "✨",
-  };
+  const theme = AREA_THEMES[areaKey] || { label: areaKey, color: "#5C5A52", colorDark: "#9C9A94", emoji: "✨" };
+  const safeColor = isDark ? (theme.colorDark || theme.color) : theme.color;
   const textP = isDark ? "#F0EDE8" : "#2C2C2C";
   const textS = isDark ? "#7A7874" : "#9C9A94";
 
@@ -192,7 +189,7 @@ function DynamicStreakCard({ areaKey, streak, lakshyaTitle, isDark, delay }) {
             sx={{
               letterSpacing: 1.2,
               fontWeight: 700,
-              color: theme.color,
+              color: safeColor,
               textTransform: "uppercase",
               fontSize: 9,
               flex: 1,
@@ -226,7 +223,7 @@ function DynamicStreakCard({ areaKey, streak, lakshyaTitle, isDark, delay }) {
           <Typography
             sx={{
               fontSize: 9,
-              color: theme.color,
+              color: safeColor,
               opacity: 0.8,
               fontWeight: 500,
               letterSpacing: 0.2,
@@ -1208,7 +1205,7 @@ export default function DashboardPage() {
                               size={44}
                               thickness={4}
                               sx={{
-                                color: AREA_THEMES[l.pillar]?.color || heroColor,
+                                color: (isDark ? AREA_THEMES[l.pillar]?.colorDark : AREA_THEMES[l.pillar]?.color) || heroColor,
                                 position: "absolute",
                                 left: 0,
                                 strokeLinecap: "round",
@@ -1259,7 +1256,7 @@ export default function DashboardPage() {
                                 <Typography
                                   sx={{
                                     fontSize: 10,
-                                    color: AREA_THEMES[l.pillar]?.color || heroColor,
+                                    color: (isDark ? AREA_THEMES[l.pillar]?.colorDark : AREA_THEMES[l.pillar]?.color) || heroColor,
                                     fontWeight: 600,
                                   }}
                                 >

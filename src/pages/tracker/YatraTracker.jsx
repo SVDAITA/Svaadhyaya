@@ -77,6 +77,7 @@ function formatINR(n) {
 }
 
 function TripCard({ trip, onDelete, isDark }) {
+  const safeColor = isDark ? "#6AAEE8" : COLOR;
   const border = isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.04)";
   const cardBg = isDark ? "#161616" : "#FFFFFF";
   const textP = isDark ? "#F5F5F5" : "#1A1A1A";
@@ -139,7 +140,7 @@ function TripCard({ trip, onDelete, isDark }) {
                 flexShrink: 0,
               }}
             >
-              <Place sx={{ fontSize: 24, color: COLOR }} />
+              <Place sx={{ fontSize: 24, color: safeColor }} />
             </Box>
             <Box>
               <Typography
@@ -278,7 +279,7 @@ function TripCard({ trip, onDelete, isDark }) {
               <Typography
                 sx={{
                   fontSize: 11,
-                  color: COLOR,
+                  color: safeColor,
                   textTransform: "uppercase",
                   letterSpacing: 0.5,
                   fontWeight: 700,
@@ -286,7 +287,7 @@ function TripCard({ trip, onDelete, isDark }) {
               >
                 Total
               </Typography>
-              <Typography sx={{ fontSize: 16, fontWeight: 800, color: COLOR }}>
+              <Typography sx={{ fontSize: 16, fontWeight: 800, color: safeColor }}>
                 {formatINR(totalCost)}
               </Typography>
             </Box>
@@ -333,6 +334,8 @@ export default function PravesaPage() {
     other: "",
   });
 
+  const resetForm = () => setForm({ destination: "", from_date: dayjs().format("YYYY-MM-DD"), to_date: dayjs().add(3, "day").format("YYYY-MM-DD"), trip_type: "", notes: "", rating: 0, transport: "", stay: "", food: "", other: "" });
+
   const [snack, setSnack] = useState({ open: false, msg: "", severity: "success" });
   const showSnack = (msg, severity = "success") => setSnack({ open: true, msg, severity });
 
@@ -340,6 +343,7 @@ export default function PravesaPage() {
   const cardBg = isDark ? "#161616" : "#FFFFFF";
   const textP = isDark ? "#F5F5F5" : "#1A1A1A";
   const textS = isDark ? "#A3A3A3" : "#6B6B6B";
+  const safeColor = isDark ? "#6AAEE8" : COLOR;
 
   const load = useCallback(async () => {
     if (!user) return;
@@ -428,7 +432,7 @@ export default function PravesaPage() {
           minHeight: "100vh",
         }}
       >
-        <CircularProgress sx={{ color: COLOR }} thickness={2} size={60} />
+        <CircularProgress sx={{ color: safeColor }} thickness={2} size={60} />
       </Box>
     );
 
@@ -458,7 +462,7 @@ export default function PravesaPage() {
               letterSpacing: 3,
               textTransform: "uppercase",
               fontSize: 11,
-              color: COLOR,
+              color: safeColor,
               fontWeight: 700,
               mb: 1,
             }}
@@ -512,7 +516,7 @@ export default function PravesaPage() {
           {
             label: "Total Trips",
             value: totalTrips,
-            color: COLOR,
+            color: safeColor,
             icon: <FlightTakeoff />,
           },
           {
@@ -712,7 +716,7 @@ export default function PravesaPage() {
       {/* Add trip dialog */}
       <Dialog
         open={addOpen}
-        onClose={() => setAddOpen(false)}
+        onClose={() => { setAddOpen(false); resetForm(); }}
         maxWidth="sm"
         fullWidth
         PaperProps={{
@@ -746,7 +750,7 @@ export default function PravesaPage() {
             Log a Journey
           </Typography>
           <IconButton
-            onClick={() => setAddOpen(false)}
+            onClick={() => { setAddOpen(false); resetForm(); }}
             size="small"
             sx={{ color: textS }}
           >
@@ -919,7 +923,7 @@ export default function PravesaPage() {
         </DialogContent>
         <DialogActions sx={{ p: 3, pt: 0 }}>
           <Button
-            onClick={() => setAddOpen(false)}
+            onClick={() => { setAddOpen(false); resetForm(); }}
             sx={{ color: textS, textTransform: "none", fontWeight: 600 }}
           >
             Cancel

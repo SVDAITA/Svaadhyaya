@@ -59,6 +59,7 @@ import { supabase } from "../../lib/supabase";
 import dayjs from "dayjs";
 
 const COLOR_EXCELLENT = "#2D7A4F";
+const COLOR_EXCELLENT_DARK = "#5EC98A";
 const COLOR_STANDARD = "#4A90E2";
 const COLOR_ALERT = "#C07830";
 const COLOR_CRITICAL = "#CF4E4E";
@@ -108,6 +109,7 @@ export default function ShariramHealthOS() {
   const [uploadOpen, setUploadOpen] = useState(false);
   const [targetsOpen, setTargetsOpen] = useState(false);
   const [targets, setTargets] = useState(DEFAULT_TARGETS);
+  const [targetsSnapshot, setTargetsSnapshot] = useState(null);
   const [compA, setCompA] = useState("");
   const [compB, setCompB] = useState("");
   const [snack, setSnack] = useState({ open: false, msg: "", severity: "success" });
@@ -219,7 +221,7 @@ export default function ShariramHealthOS() {
     if (id === "muscle_mass" && excellent !== null && value >= excellent) {
       status = {
         label: "Excellent",
-        color: isDark ? alpha(COLOR_EXCELLENT, 0.8) : COLOR_EXCELLENT,
+        color: isDark ? COLOR_EXCELLENT_DARK : COLOR_EXCELLENT,
         icon: <CheckCircle fontSize="small" />,
       };
     } else if (alertVal !== null && (meta.lowerIsBetter ? value >= alertVal : value < alertVal)) {
@@ -334,7 +336,7 @@ export default function ShariramHealthOS() {
           diff == 0
             ? "text.secondary"
             : isGood
-              ? COLOR_EXCELLENT
+              ? (isDark ? COLOR_EXCELLENT_DARK : COLOR_EXCELLENT)
               : COLOR_CRITICAL,
       };
     });
@@ -405,7 +407,7 @@ export default function ShariramHealthOS() {
             <Button
               variant="outlined"
               startIcon={<TrackChanges />}
-              onClick={() => setTargetsOpen(true)}
+              onClick={() => { setTargetsSnapshot(targets); setTargetsOpen(true); }}
               sx={{ borderRadius: 8, px: 2.5, py: 1.5 }}
             >
               Set Targets
@@ -485,24 +487,22 @@ export default function ShariramHealthOS() {
                     <Grid container spacing={4}>
                       {[
                         {
-                          label: "Fat Target",
-                          value: "-13.3kg",
+                          label: "Fat Alert",
+                          value: targets.visceral_fat?.alert ? `${targets.visceral_fat.alert}` : "—",
                           color: isDark ? alpha(COLOR_ALERT, 0.8) : COLOR_ALERT,
-                          desc: "Visceral fat reduction.",
+                          desc: "Visceral fat alert threshold.",
                         },
                         {
-                          label: "Muscle Target",
-                          value: "Maintain",
-                          color: isDark
-                            ? alpha(COLOR_EXCELLENT, 0.8)
-                            : COLOR_EXCELLENT,
+                          label: "Muscle Goal",
+                          value: targets.muscle_mass?.excellent ? `${targets.muscle_mass.excellent}kg` : "—",
+                          color: isDark ? COLOR_EXCELLENT_DARK : COLOR_EXCELLENT,
                           desc: "Preserve functional strength.",
                         },
                         {
                           label: "Weight Target",
-                          value: "80.0kg",
+                          value: targets.weight?.alert ? `${targets.weight.alert}kg` : "—",
                           color: theme.palette.primary.main,
-                          desc: "Long-term absolute goal.",
+                          desc: "Long-term weight goal.",
                         },
                       ].map((g, i) => (
                         <Grid item xs={12} sm={4} key={i}>
@@ -716,7 +716,7 @@ export default function ShariramHealthOS() {
                       type="monotone"
                       name="Muscle (kg)"
                       dataKey="muscle"
-                      stroke={COLOR_EXCELLENT}
+                      stroke={isDark ? COLOR_EXCELLENT_DARK : COLOR_EXCELLENT}
                       strokeWidth={3}
                       dot={{ r: 4 }}
                       activeDot={{ r: 6 }}
@@ -913,9 +913,7 @@ export default function ShariramHealthOS() {
                             ? isDark
                               ? alpha(COLOR_ALERT, 0.9)
                               : COLOR_ALERT
-                            : isDark
-                              ? alpha(COLOR_EXCELLENT, 0.9)
-                              : COLOR_EXCELLENT,
+                            : isDark ? COLOR_EXCELLENT_DARK : COLOR_EXCELLENT,
                       }}
                     >
                       {snapshots[date].metrics.visceral_fat || "-"}
@@ -924,9 +922,7 @@ export default function ShariramHealthOS() {
                       align="center"
                       sx={{
                         fontWeight: 600,
-                        color: isDark
-                          ? alpha(COLOR_EXCELLENT, 0.9)
-                          : COLOR_EXCELLENT,
+                        color: isDark ? COLOR_EXCELLENT_DARK : COLOR_EXCELLENT,
                       }}
                     >
                       {snapshots[date].metrics.muscle_mass || "-"} kg
@@ -996,7 +992,7 @@ export default function ShariramHealthOS() {
         {/* ── SET TARGETS DIALOG ── */}
         <Dialog
           open={targetsOpen}
-          onClose={() => setTargetsOpen(false)}
+          onClose={() => { if (targetsSnapshot) setTargets(targetsSnapshot); setTargetsOpen(false); }}
           maxWidth="sm"
           fullWidth
           PaperProps={{ sx: { borderRadius: 3 } }}
@@ -1039,7 +1035,7 @@ export default function ShariramHealthOS() {
             </Stack>
           </DialogContent>
           <DialogActions sx={{ p: 3, pt: 1 }}>
-            <Button onClick={() => setTargetsOpen(false)} color="inherit">Cancel</Button>
+            <Button onClick={() => { if (targetsSnapshot) setTargets(targetsSnapshot); setTargetsOpen(false); }} color="inherit">Cancel</Button>
             <Button variant="contained" onClick={() => saveTargets(targets)} sx={{ borderRadius: 2 }}>
               Save Targets
             </Button>

@@ -110,6 +110,7 @@ export default function ShariramPage() {
   const { lakshyas, loading, reload } = useAreaData(AREA);
   const { mode } = useThemeMode();
   const isDark = mode === "dark";
+  const safeColor = isDark ? "#5EC98A" : COLOR;
   const subtitle = useAreaSubtitle(AREA);
 
   const activeLakshyas = lakshyas.filter((l) => l.status === "active").length;
@@ -128,7 +129,7 @@ export default function ShariramPage() {
           justifyContent: "center",
         }}
       >
-        <CircularProgress sx={{ color: COLOR }} />
+        <CircularProgress sx={{ color: safeColor }} />
       </Box>
     );
 
@@ -146,7 +147,7 @@ export default function ShariramPage() {
       <ShariramBg isDark={isDark} />
 
       <AreaBanner
-        color={COLOR}
+        color={safeColor}
         emoji="💪"
         title="Sharīram"
         subtitle={subtitle}
@@ -157,7 +158,7 @@ export default function ShariramPage() {
           <StatCard
             value={activeLakshyas}
             label="Active Visions"
-            color={COLOR}
+            color={safeColor}
             sub="Lakshyas"
           />
         </Grid>
@@ -165,7 +166,7 @@ export default function ShariramPage() {
           <StatCard
             value={totalSiddhis}
             label="Milestones Set"
-            color={COLOR}
+            color={safeColor}
             sub="Siddhis"
           />
         </Grid>
@@ -173,13 +174,13 @@ export default function ShariramPage() {
 
       <LakshyaSection
         area={AREA}
-        color={COLOR}
+        color={safeColor}
         lakshyas={lakshyas}
         onUpdate={reload}
       />
-      <AreaJournal area={AREA} color={COLOR} />
+      <AreaJournal area={AREA} color={safeColor} />
 
-      <WeeklyGoals area={AREA} color={COLOR} />
+      <WeeklyGoals area={AREA} color={safeColor} />
     </Box>
   );
 }

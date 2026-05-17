@@ -46,6 +46,7 @@ import { keyframes } from "@mui/system";
 import dayjs from "dayjs";
 
 import { useAuth } from "../../hooks/useAuth";
+import { useThemeMode } from "../../hooks/useTheme";
 import { supabase } from "../../lib/supabase";
 
 export function MilestoneRow() {
@@ -289,6 +290,9 @@ export function StatCard({ value, label, color, sub }) {
 // ── LAKSHYA HIERARCHY (Lakshya -> Siddhi -> Ansh) ──────────────────────────────
 function SiddhiRow({ siddhi, lakshyaId, color, onUpdate }) {
   const { user } = useAuth();
+  const { mode } = useThemeMode();
+  const isDark = mode === "dark";
+  const GREEN_COMPLETE = isDark ? "#5EC98A" : GREEN_COMPLETE;
   const [editing, setEditing] = useState(false);
   const [progress, setProgress] = useState(siddhi.progress_percent || 0);
   const [spawningAnsh, setSpawningAnsh] = useState(false);
@@ -335,13 +339,13 @@ function SiddhiRow({ siddhi, lakshyaId, color, onUpdate }) {
       sx={{
         pl: 2,
         mb: 2,
-        borderLeft: `2px solid ${isComplete ? "#2D7A4F" : `${color}30`}`,
+        borderLeft: `2px solid ${isComplete ? GREEN_COMPLETE : `${color}30`}`,
         transition: "all 0.3s ease",
       }}
     >
       <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 0.75 }}>
         {isComplete ? (
-          <CheckCircle sx={{ fontSize: 16, color: "#2D7A4F", flexShrink: 0 }} />
+          <CheckCircle sx={{ fontSize: 16, color: GREEN_COMPLETE, flexShrink: 0 }} />
         ) : (
           <RadioButtonUnchecked
             sx={{ fontSize: 16, color: `${color}50`, flexShrink: 0 }}
@@ -411,7 +415,7 @@ function SiddhiRow({ siddhi, lakshyaId, color, onUpdate }) {
               bgcolor: "rgba(0,0,0,0.04)",
               "& .MuiLinearProgress-bar": {
                 background: isComplete
-                  ? "#2D7A4F"
+                  ? GREEN_COMPLETE
                   : `linear-gradient(90deg, ${color}80 0%, ${color} 100%)`,
                 borderRadius: 2,
               },

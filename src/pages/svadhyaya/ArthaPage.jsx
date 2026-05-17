@@ -143,6 +143,7 @@ export default function ArthaPage() {
   const { lakshyas, loading, reload } = useAreaData(AREA);
   const { mode } = useThemeMode();
   const isDark = mode === "dark";
+  const safeColor = isDark ? "#4DC4B5" : COLOR;
   const subtitle = useAreaSubtitle(AREA);
 
   const activeLakshyas = lakshyas.filter((l) => l.status === "active").length;
@@ -161,7 +162,7 @@ export default function ArthaPage() {
           justifyContent: "center",
         }}
       >
-        <CircularProgress sx={{ color: COLOR }} />
+        <CircularProgress sx={{ color: safeColor }} />
       </Box>
     );
 
@@ -179,7 +180,7 @@ export default function ArthaPage() {
       <ArthaBg isDark={isDark} />
 
       <AreaBanner
-        color={COLOR}
+        color={safeColor}
         emoji="💰"
         title="Artha"
         subtitle={subtitle}
@@ -190,7 +191,7 @@ export default function ArthaPage() {
           <StatCard
             value={activeLakshyas}
             label="Active Visions"
-            color={COLOR}
+            color={safeColor}
             sub="Lakshyas"
           />
         </Grid>
@@ -198,7 +199,7 @@ export default function ArthaPage() {
           <StatCard
             value={totalSiddhis}
             label="Milestones Set"
-            color={COLOR}
+            color={safeColor}
             sub="Siddhis"
           />
         </Grid>
@@ -206,13 +207,13 @@ export default function ArthaPage() {
 
       <LakshyaSection
         area={AREA}
-        color={COLOR}
+        color={safeColor}
         lakshyas={lakshyas}
         onUpdate={reload}
       />
-      <AreaJournal area={AREA} color={COLOR} />
+      <AreaJournal area={AREA} color={safeColor} />
 
-      <WeeklyGoals area={AREA} color={COLOR} />
+      <WeeklyGoals area={AREA} color={safeColor} />
     </Box>
   );
 }

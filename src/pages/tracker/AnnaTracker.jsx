@@ -140,6 +140,7 @@ export default function DietPage() {
   const { user } = useAuth();
   const { mode } = useThemeMode();
   const isDark = mode === "dark";
+  const safeColor = isDark ? "#9AC833" : COLOR;
 
   const [tab, setTab] = useState(0);
   const [checked, setChecked] = useState({});
@@ -312,7 +313,7 @@ export default function DietPage() {
           minHeight: "100vh",
         }}
       >
-        <CircularProgress sx={{ color: COLOR }} />
+        <CircularProgress sx={{ color: safeColor }} />
       </Box>
     );
 
@@ -360,14 +361,14 @@ export default function DietPage() {
         >
           <Box>
             <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
-              <Spa sx={{ color: COLOR, fontSize: 18 }} />
+              <Spa sx={{ color: safeColor, fontSize: 18 }} />
               <Typography
                 variant="caption"
                 sx={{
                   letterSpacing: 2,
                   textTransform: "uppercase",
                   fontSize: 11,
-                  color: COLOR,
+                  color: safeColor,
                   fontWeight: 700,
                 }}
               >
@@ -419,7 +420,7 @@ export default function DietPage() {
                 px: 2.5,
                 color: textS,
               },
-              "& .Mui-selected": { color: `${COLOR} !important` },
+              "& .Mui-selected": { color: `${safeColor} !important` },
               "& .MuiTabs-indicator": {
                 background: COLOR,
                 height: 3,
@@ -497,7 +498,7 @@ export default function DietPage() {
                     fontFamily: '"Fraunces",serif',
                     fontSize: { xs: 36, md: 48 },
                     fontWeight: 300,
-                    color: compliancePct >= 80 ? "#3A8050" : COLOR,
+                    color: compliancePct >= 80 ? (isDark ? "#5EC98A" : "#3A8050") : safeColor,
                     lineHeight: 1,
                   }}
                 >
@@ -565,7 +566,7 @@ export default function DietPage() {
                           }}
                         >
                           {done ? (
-                            <CheckCircle sx={{ fontSize: 26, color: COLOR }} />
+                            <CheckCircle sx={{ fontSize: 26, color: safeColor }} />
                           ) : (
                             <RadioButtonUnchecked
                               sx={{
@@ -627,7 +628,7 @@ export default function DietPage() {
                                   sx={{
                                     fontSize: 11,
                                     fontWeight: 600,
-                                    color: COLOR,
+                                    color: safeColor,
                                     background: `${COLOR}15`,
                                     px: 1,
                                     py: 0.25,
@@ -735,7 +736,7 @@ export default function DietPage() {
                     gap: 1,
                   }}
                 >
-                  <LocalFlorist sx={{ color: COLOR, fontSize: 18 }} /> Daily
+                  <LocalFlorist sx={{ color: safeColor, fontSize: 18 }} /> Daily
                   Reflections
                 </Typography>
                 <Button
@@ -749,7 +750,7 @@ export default function DietPage() {
                       <Save />
                     )
                   }
-                  sx={{ color: COLOR, textTransform: "none", fontWeight: 600 }}
+                  sx={{ color: safeColor, textTransform: "none", fontWeight: 600 }}
                 >
                   {savingNotes ? "Saving..." : "Save Notes"}
                 </Button>
@@ -827,7 +828,7 @@ export default function DietPage() {
               ) : (
                 <Box sx={{ textAlign: "center" }}>
                   <Typography sx={{ fontSize: 11, color: textS, textTransform: "uppercase", letterSpacing: 1 }}>Fasting</Typography>
-                  <Typography sx={{ fontSize: 16, fontWeight: 700, color: COLOR }}>{fastingWindow}</Typography>
+                  <Typography sx={{ fontSize: 16, fontWeight: 700, color: safeColor }}>{fastingWindow}</Typography>
                 </Box>
               )}
             <Button
@@ -837,7 +838,7 @@ export default function DietPage() {
               }
               sx={{
                 borderColor: COLOR,
-                color: editingMacros ? "#fff" : COLOR,
+                color: editingMacros ? "#fff" : safeColor,
                 background: editingMacros ? COLOR : "transparent",
                 textTransform: "none",
                 borderRadius: 3,
@@ -883,7 +884,7 @@ export default function DietPage() {
                     gap: 1,
                   }}
                 >
-                  <Bolt sx={{ color: COLOR }} /> Daily Energy
+                  <Bolt sx={{ color: safeColor }} /> Daily Energy
                 </Typography>
                 {editingMacros ? (
                   <TextField
@@ -897,7 +898,7 @@ export default function DietPage() {
                       input: {
                         fontSize: 40,
                         fontFamily: '"Fraunces",serif',
-                        color: COLOR,
+                        color: safeColor,
                         textAlign: "center",
                       },
                     }}
@@ -908,7 +909,7 @@ export default function DietPage() {
                       fontFamily: '"Fraunces",serif',
                       fontSize: 64,
                       fontWeight: 300,
-                      color: COLOR,
+                      color: safeColor,
                       lineHeight: 1,
                       textAlign: "center",
                     }}
@@ -1216,7 +1217,7 @@ export default function DietPage() {
               <Box
                 sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 1 }}
               >
-                <CloudUpload sx={{ color: COLOR }} />
+                <CloudUpload sx={{ color: safeColor }} />
                 <Typography
                   sx={{
                     fontSize: 18,

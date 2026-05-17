@@ -99,14 +99,14 @@ const DEFAULT_CORE = [
     id: "office",
     label: "Vritti",
     emoji: "🚀",
-    locked: false,
+    locked: true,
     deep: true,
   },
   {
     id: "vidya",
     label: "Vidya",
     emoji: "📚",
-    locked: false,
+    locked: true,
     deep: true,
   },
 ];
@@ -1729,11 +1729,11 @@ function TaskRow({
           background: checked
             ? item.emoji
               ? heroColor
-              : "#2D7A4F"
+              : isDark ? "#5EC98A" : "#2D7A4F"
             : isDark
               ? "#1F1E1B"
               : "#F0EDE8",
-          border: `1px solid ${checked ? (item.emoji ? heroColor : "#2D7A4F") : isDark ? "#3C3C3C" : "#D1D0CF"}`,
+          border: `1px solid ${checked ? (item.emoji ? heroColor : (isDark ? "#5EC98A" : "#2D7A4F")) : isDark ? "#3C3C3C" : "#D1D0CF"}`,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
@@ -1749,7 +1749,7 @@ function TaskRow({
           <CheckCircle sx={{ fontSize: 13, color: "#fff" }} />
         )}
         {!item.emoji && checked && (
-          <CheckCircle sx={{ fontSize: 14, color: "#2D7A4F" }} />
+          <CheckCircle sx={{ fontSize: 14, color: "#fff" }} />
         )}
         {!item.emoji && !checked && (
           <RadioButtonUnchecked
@@ -2559,7 +2559,7 @@ export default function TodayPage() {
                   />
                 ) : (
                   <>
-                    {allCore.map((item) => renderItem(item, "core"))}
+                    {allCore.map((item) => renderItem(item, item.locked ? null : "core"))}
                     {anshs.map((ansh) =>
                       renderItem(
                         {

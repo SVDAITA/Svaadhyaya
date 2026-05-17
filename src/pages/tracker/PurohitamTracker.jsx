@@ -49,14 +49,6 @@ import {
   AutoAwesome,
   Flag,
 } from "@mui/icons-material";
-import {
-  PieChart,
-  Pie,
-  Cell,
-  ResponsiveContainer,
-  Tooltip,
-  Legend,
-} from "recharts";
 import { useAuth } from "../../hooks/useAuth";
 import { useThemeMode } from "../../hooks/useTheme";
 import { supabase } from "../../lib/supabase";
@@ -993,7 +985,7 @@ function PurohitamTab({ user, isDark }) {
       {/* Booking dialog */}
       <Dialog
         open={bookingOpen}
-        onClose={() => setBookingOpen(false)}
+        onClose={() => { setBookingOpen(false); setEditBooking(null); setBForm(emptyBooking); }}
         maxWidth="xs"
         fullWidth
         PaperProps={{ sx: { borderRadius: 3 } }}
@@ -1063,7 +1055,7 @@ function PurohitamTab({ user, isDark }) {
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2.5 }}>
           <Button
-            onClick={() => setBookingOpen(false)}
+            onClick={() => { setBookingOpen(false); setEditBooking(null); setBForm(emptyBooking); }}
             color="inherit"
             sx={{ textTransform: "none" }}
           >
@@ -1094,7 +1086,7 @@ function PurohitamTab({ user, isDark }) {
       {/* Ritual template dialog */}
       <Dialog
         open={ritualOpen}
-        onClose={() => setRitualOpen(false)}
+        onClose={() => { setRitualOpen(false); setEditRitual(null); setRForm(emptyRitual); }}
         maxWidth="sm"
         fullWidth
         PaperProps={{ sx: { borderRadius: 3 } }}
@@ -1298,7 +1290,7 @@ function PurohitamTab({ user, isDark }) {
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2.5 }}>
           <Button
-            onClick={() => setRitualOpen(false)}
+            onClick={() => { setRitualOpen(false); setEditRitual(null); setRForm(emptyRitual); }}
             color="inherit"
             sx={{ textTransform: "none" }}
           >
@@ -1480,7 +1472,7 @@ function PurohitamTab({ user, isDark }) {
       {/* Learning add dialog */}
       <Dialog
         open={learnOpen}
-        onClose={() => setLearnOpen(false)}
+        onClose={() => { setLearnOpen(false); setLForm({ title: "", notes: "" }); }}
         maxWidth="xs"
         fullWidth
         PaperProps={{ sx: { borderRadius: 3 } }}
@@ -1520,7 +1512,7 @@ function PurohitamTab({ user, isDark }) {
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2.5 }}>
           <Button
-            onClick={() => setLearnOpen(false)}
+            onClick={() => { setLearnOpen(false); setLForm({ title: "", notes: "" }); }}
             color="inherit"
             sx={{ textTransform: "none" }}
           >
@@ -1590,6 +1582,7 @@ function AnushtanamTab({ user, isDark }) {
   const [editSeq, setEditSeq] = useState(null);
   const [japaOpen, setJapaOpen] = useState(false);
   const [goalOpen, setGoalOpen] = useState(false);
+  const [editGoal, setEditGoal] = useState(null);
 
   // Forms
   const emptySeq = {
@@ -1599,18 +1592,12 @@ function AnushtanamTab({ user, isDark }) {
     frequency: "daily",
     frequency_day: 0,
   };
+  const emptyGoal = { japa_name: "", target_count: "", deadline_years: "", notes: "" };
+  const emptyJapa = { japa_name: "", count: "", notes: "" };
+
   const [sForm, setSForm] = useState(emptySeq);
-  const [japaForm, setJapaForm] = useState({
-    japa_name: "",
-    count: "",
-    notes: "",
-  });
-  const [goalForm, setGoalForm] = useState({
-    japa_name: "",
-    target_count: "",
-    deadline_years: "",
-    notes: "",
-  });
+  const [japaForm, setJapaForm] = useState(emptyJapa);
+  const [goalForm, setGoalForm] = useState(emptyGoal);
   const [saving, setSaving] = useState(false);
   const today = dayjs().format("YYYY-MM-DD");
   const todayLabel = dayjs().format("dddd, D MMMM YYYY");
@@ -1650,8 +1637,6 @@ function AnushtanamTab({ user, isDark }) {
     setJapaLogs(japa.data || []);
     setJapaGoals(goals.data || []);
     setLoading(false);
-    console.log("GOALS RAW:", goals.data, "ERROR:", goals.error);
-    console.log("USER ID:", user.id);
   }, [user, today]);
 
   useEffect(() => {
@@ -1727,10 +1712,20 @@ function AnushtanamTab({ user, isDark }) {
 
   // ── Japa goal ──────────────────────────────────────────────────────
   const saveGoal = async () => {
-    if (!goalForm.target_count) return;
+    if (!goalForm.target_count || !goalForm.japa_name) return;
     setSaving(true);
-    await supabase.from("japa_goals").upsert(
-      {
+    if (editGoal) {
+      await supabase
+        .from("japa_goals")
+        .update({
+          japa_name: goalForm.japa_name,
+          target_count: Number(goalForm.target_count),
+          deadline_years: Number(goalForm.deadline_years),
+          notes: goalForm.notes || null,
+        })
+        .eq("id", editGoal.id);
+    } else {
+      await supabase.from("japa_goals").insert({
         user_id: user.id,
         japa_name: goalForm.japa_name,
         target_count: Number(goalForm.target_count),
@@ -1738,17 +1733,30 @@ function AnushtanamTab({ user, isDark }) {
         start_date: today,
         notes: goalForm.notes || null,
         is_active: true,
-      },
-      { onConflict: "user_id,japa_name" }, // ← tells it which columns are unique
-    );
+      });
+    }
     setGoalOpen(false);
+    setEditGoal(null);
+    setGoalForm(emptyGoal);
     setSaving(false);
-    setSnack("Mahasankalpam set");
+    setSnack(editGoal ? "Sankalpam updated" : "Mahasankalpam set");
     load();
+  };
+
+  const openEditGoal = (g) => {
+    setGoalForm({
+      japa_name: g.japa_name,
+      target_count: String(g.target_count),
+      deadline_years: String(g.deadline_years),
+      notes: g.notes || "",
+    });
+    setEditGoal(g);
+    setGoalOpen(true);
   };
 
   const deleteGoal = async (id) => {
     await supabase.from("japa_goals").update({ is_active: false }).eq("id", id);
+    setSnack("Goal removed");
     load();
   };
   const deleteJapaLog = async (id) => {
@@ -1757,7 +1765,6 @@ function AnushtanamTab({ user, isDark }) {
   };
 
   // ── Japa stats ─────────────────────────────────────────────────────
-  // const japaNames = [...new Set(japaLogs.map((l) => l.japa_name))];
   const filteredLogs = useMemo(
     () =>
       filterJapaByWindow(japaLogs, japaFilter).filter(
@@ -1770,23 +1777,6 @@ function AnushtanamTab({ user, isDark }) {
     .filter((l) => l.japa_name === selectedJapa)
     .reduce((s, l) => s + l.count, 0);
   const activeGoal = japaGoals.find((g) => g.japa_name === selectedJapa);
-  const goalPct = activeGoal
-    ? Math.min((allTimeTotal / activeGoal.target_count) * 100, 100)
-    : 0;
-
-  // Pie chart data
-  const pieData = activeGoal
-    ? [
-        { name: "Completed", value: allTimeTotal },
-        {
-          name: "Remaining",
-          value: Math.max(0, activeGoal.target_count - allTimeTotal),
-        },
-      ]
-    : [
-        { name: "Count", value: totalInWindow || 1 },
-        { name: "", value: 0 },
-      ];
 
   // Visible sequence items for today
   const visibleToday = sequence.filter(isVisibleToday);
@@ -2059,7 +2049,6 @@ function AnushtanamTab({ user, isDark }) {
 
         {/* Right — Japa Dashboard */}
         <Grid item xs={12} md={6.5}>
-          {/* Japa selector + filter */}
           <Card
             sx={{
               border: `1px solid ${border}`,
@@ -2070,475 +2059,183 @@ function AnushtanamTab({ user, isDark }) {
             }}
           >
             <CardContent sx={{ p: "16px 20px !important" }}>
-              <Box
-                sx={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  mb: 1.5,
-                  flexWrap: "wrap",
-                  gap: 1,
-                }}
-              >
+              {/* Header row */}
+              <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 1.5, flexWrap: "wrap", gap: 1 }}>
                 <SL color={INDIGO}>Japa Dashboard</SL>
                 <Box sx={{ display: "flex", gap: 1 }}>
                   <Button
                     size="small"
                     startIcon={<Add />}
+                    disabled={japaGoals.length === 0}
+                    title={japaGoals.length === 0 ? "Add a Japa goal first" : ""}
                     onClick={() => {
-                      setJapaForm({
-                        japa_name: selectedJapa,
-                        count: "",
-                        notes: "",
-                      });
+                      setJapaForm({ japa_name: selectedJapa || japaGoals[0]?.japa_name || "", count: "", notes: "" });
                       setJapaOpen(true);
                     }}
-                    sx={{
-                      fontSize: 11,
-                      color: INDIGO,
-                      border: `1px solid ${INDIGO}40`,
-                      borderRadius: 2,
-                      textTransform: "none",
-                      px: 1.25,
-                      py: 0.4,
-                    }}
+                    sx={{ fontSize: 11, color: INDIGO, border: `1px solid ${INDIGO}40`, borderRadius: 2, textTransform: "none", px: 1.25, py: 0.4 }}
                   >
                     Log Count
                   </Button>
                   <Button
                     size="small"
                     startIcon={<Flag />}
-                    onClick={() => {
-                      setGoalForm((p) => ({
-                        ...p,
-                        japa_name: selectedJapa || "",
-                      }));
-                      setGoalOpen(true);
-                    }}
-                    sx={{
-                      fontSize: 11,
-                      color: SACRED_GREEN,
-                      border: `1px solid ${SACRED_GREEN}40`,
-                      borderRadius: 2,
-                      textTransform: "none",
-                      px: 1.25,
-                      py: 0.4,
-                    }}
+                    onClick={() => { setGoalForm(emptyGoal); setEditGoal(null); setGoalOpen(true); }}
+                    sx={{ fontSize: 11, color: SACRED_GREEN, border: `1px solid ${SACRED_GREEN}40`, borderRadius: 2, textTransform: "none", px: 1.25, py: 0.4 }}
                   >
-                    Set Goal
+                    Add Goal
                   </Button>
                 </Box>
               </Box>
 
-              {/* Japa type selector */}
+              {/* Japa type selector — only when multiple goals */}
               {japaNames.length > 1 && (
-                <Box
-                  sx={{ display: "flex", gap: 0.75, flexWrap: "wrap", mb: 1.5 }}
-                >
+                <Box sx={{ display: "flex", gap: 0.75, flexWrap: "wrap", mb: 1.5 }}>
                   {japaNames.map((name) => (
-                    <Chip
-                      key={name}
-                      label={name}
-                      size="small"
-                      clickable
-                      onClick={() => setSelectedJapa(name)}
-                      sx={{
-                        fontSize: 11,
-                        background:
-                          selectedJapa === name ? INDIGO : "transparent",
-                        color: selectedJapa === name ? "#fff" : INDIGO,
-                        border: `1px solid ${INDIGO}40`,
-                      }}
+                    <Chip key={name} label={name} size="small" clickable onClick={() => setSelectedJapa(name)}
+                      sx={{ fontSize: 11, background: selectedJapa === name ? INDIGO : "transparent", color: selectedJapa === name ? "#fff" : INDIGO, border: `1px solid ${INDIGO}40` }}
                     />
                   ))}
                 </Box>
               )}
 
-              {/* Time filter */}
+              {/* Time filter pills */}
               <Box sx={{ display: "flex", gap: 0.5, flexWrap: "wrap", mb: 2 }}>
                 {JAPA_FILTER_OPTS.map((f) => (
-                  <Box
-                    key={f}
-                    onClick={() => setJapaFilter(f)}
-                    sx={{
-                      px: 1.25,
-                      py: 0.4,
-                      borderRadius: 10,
-                      cursor: "pointer",
-                      fontSize: 11,
-                      fontWeight: japaFilter === f ? 700 : 400,
-                      background: japaFilter === f ? INDIGO : "transparent",
-                      color: japaFilter === f ? "#fff" : textS,
-                      border: `1px solid ${japaFilter === f ? INDIGO : border}`,
-                      transition: "all 0.15s",
-                      userSelect: "none",
-                    }}
+                  <Box key={f} onClick={() => setJapaFilter(f)}
+                    sx={{ px: 1.25, py: 0.4, borderRadius: 10, cursor: "pointer", fontSize: 11, fontWeight: japaFilter === f ? 700 : 400, background: japaFilter === f ? INDIGO : "transparent", color: japaFilter === f ? "#fff" : textS, border: `1px solid ${japaFilter === f ? INDIGO : border}`, transition: "all 0.15s", userSelect: "none" }}
                   >
                     {f}
                   </Box>
                 ))}
               </Box>
 
-              {/* Pie + stats */}
-              <Grid container spacing={2} alignItems="center">
-                <Grid item xs={12} sm={5}>
-                  <Box sx={{ height: 180 }}>
-                    <ResponsiveContainer width="100%" height="100%">
-                      <PieChart>
-                        <Pie
-                          data={pieData}
-                          innerRadius={55}
-                          outerRadius={75}
-                          dataKey="value"
-                          startAngle={90}
-                          endAngle={-270}
-                        >
-                          <Cell fill={INDIGO} />
-                          <Cell fill={isDark ? "#1C1C3A" : "#E8E8F8"} />
-                        </Pie>
-                        <Tooltip
-                          formatter={(val, name) => [formatCount(val), name]}
-                        />
-                      </PieChart>
-                    </ResponsiveContainer>
-                  </Box>
-                </Grid>
-                <Grid item xs={12} sm={7}>
-                  <Box>
-                    <Typography
-                      sx={{
-                        fontFamily: '"Fraunces",serif',
-                        fontSize: 32,
-                        fontWeight: 300,
-                        color: INDIGO,
-                        lineHeight: 1,
-                      }}
-                    >
-                      {formatCount(totalInWindow)}
-                    </Typography>
-                    <Typography sx={{ fontSize: 12, color: textS, mb: 1 }}>
-                      {selectedJapa} · {japaFilter}
-                    </Typography>
-                    {activeGoal && (
-                      <Box>
-                        <Box
-                          sx={{
-                            display: "flex",
-                            justifyContent: "space-between",
-                            mb: 0.4,
-                          }}
-                        >
-                          <Typography sx={{ fontSize: 11, color: textS }}>
-                            Mahasankalpam
-                          </Typography>
-                          <Typography
-                            sx={{
-                              fontSize: 11,
-                              color: INDIGO,
-                              fontWeight: 700,
-                            }}
-                          >
-                            {goalPct.toFixed(2)}%
-                          </Typography>
-                        </Box>
-                        <LinearProgress
-                          variant="determinate"
-                          value={goalPct}
-                          sx={{
-                            height: 5,
-                            borderRadius: 3,
-                            bgcolor: `${INDIGO}15`,
-                            "& .MuiLinearProgress-bar": {
-                              background: INDIGO,
-                              borderRadius: 3,
-                            },
-                          }}
-                        />
-                        <Typography
-                          sx={{ fontSize: 10, color: textS, mt: 0.5 }}
-                        >
-                          {formatCount(allTimeTotal)} of{" "}
-                          {formatCount(activeGoal.target_count)} ·{" "}
-                          {activeGoal.deadline_years} years
-                        </Typography>
-                      </Box>
-                    )}
-                    <Box sx={{ mt: 1.5, display: "flex", gap: 1.5 }}>
-                      <Box
-                        sx={{
-                          px: 1.25,
-                          py: 0.75,
-                          borderRadius: 1.5,
-                          background: `${INDIGO}10`,
-                          border: `1px solid ${INDIGO}20`,
-                          flex: 1,
-                        }}
-                      >
-                        <Typography sx={{ fontSize: 10, color: textS }}>
-                          All time
-                        </Typography>
-                        <Typography
-                          sx={{ fontSize: 14, fontWeight: 700, color: INDIGO }}
-                        >
-                          {formatCount(allTimeTotal)}
-                        </Typography>
-                      </Box>
-                      <Box
-                        sx={{
-                          px: 1.25,
-                          py: 0.75,
-                          borderRadius: 1.5,
-                          background: `${SACRED_GREEN}10`,
-                          border: `1px solid ${SACRED_GREEN}20`,
-                          flex: 1,
-                        }}
-                      >
-                        <Typography sx={{ fontSize: 10, color: textS }}>
-                          Today
-                        </Typography>
-                        <Typography
-                          sx={{
-                            fontSize: 14,
-                            fontWeight: 700,
-                            color: SACRED_GREEN,
-                          }}
-                        >
-                          {formatCount(
-                            japaLogs.find(
-                              (l) =>
-                                l.japa_name === selectedJapa &&
-                                l.day_date === today,
-                            )?.count || 0,
-                          )}
-                        </Typography>
-                      </Box>
-                    </Box>
-                  </Box>
-                </Grid>
-              </Grid>
-
-              {/* Active goals */}
-              {/* Active goals — TABLE showing ALL goals */}
-              {japaGoals.length > 0 && (
-                <Box sx={{ mt: 2, pt: 2, borderTop: `1px solid ${border}` }}>
-                  <Typography
-                    sx={{
-                      fontSize: 10,
-                      fontWeight: 700,
-                      letterSpacing: 1.5,
-                      color: textS,
-                      textTransform: "uppercase",
-                      mb: 1,
-                    }}
-                  >
-                    All Mahasankalpam Goals
+              {/* Per-goal radial progress rings */}
+              {japaGoals.length === 0 ? (
+                <Box sx={{ py: 3, textAlign: "center" }}>
+                  <SelfImprovement sx={{ fontSize: 40, color: `${INDIGO}30`, mb: 1 }} />
+                  <Typography sx={{ fontSize: 13, color: textS }}>No Mahasankalpam set yet</Typography>
+                  <Typography sx={{ fontSize: 11, color: textS, fontStyle: "italic", mt: 0.5 }}>
+                    Add a goal above to start tracking your japa journey
                   </Typography>
-                  <TableContainer>
-                    <Table size="small">
-                      <TableHead>
+                </Box>
+              ) : (
+                <Box sx={{ display: "flex", gap: 1.5, flexWrap: "wrap", justifyContent: "center", mb: 2 }}>
+                  {japaGoals.map((g) => {
+                    const logged = japaLogs.filter((l) => l.japa_name === g.japa_name).reduce((s, l) => s + l.count, 0);
+                    const pct = Math.min((logged / g.target_count) * 100, 100);
+                    const r = 36;
+                    const circ = 2 * Math.PI * r;
+                    const dash = (pct / 100) * circ;
+                    const isSelected = selectedJapa === g.japa_name;
+                    return (
+                      <Box key={g.id} onClick={() => setSelectedJapa(g.japa_name)}
+                        sx={{ cursor: "pointer", textAlign: "center", p: 1.25, borderRadius: 2.5, border: `1.5px solid ${isSelected ? INDIGO : border}`, background: isSelected ? `${INDIGO}0D` : "transparent", transition: "all 0.2s", minWidth: 90 }}
+                      >
+                        <svg width="90" height="90" viewBox="0 0 90 90">
+                          <circle cx="45" cy="45" r={r} fill="none" stroke={isDark ? "#1C1C3A" : "#E8E8F8"} strokeWidth="6" />
+                          <circle cx="45" cy="45" r={r} fill="none" stroke={INDIGO} strokeWidth="6"
+                            strokeDasharray={`${dash} ${circ}`} strokeLinecap="round"
+                            transform="rotate(-90 45 45)" style={{ transition: "stroke-dasharray 0.6s ease" }}
+                          />
+                          <text x="45" y="42" textAnchor="middle" fontSize="12" fontWeight="700" fill={INDIGO} fontFamily="Fraunces,serif">{pct.toFixed(0)}%</text>
+                          <text x="45" y="56" textAnchor="middle" fontSize="8" fill={isDark ? "#8080AA" : "#5A5A7A"} fontFamily="sans-serif">{formatCount(logged)}</text>
+                        </svg>
+                        <Typography sx={{ fontSize: 10, fontWeight: 600, color: isSelected ? INDIGO : textS, mt: 0.25, maxWidth: 80, mx: "auto", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          {g.japa_name}
+                        </Typography>
+                      </Box>
+                    );
+                  })}
+                </Box>
+              )}
+
+              {/* Selected japa detail stats */}
+              {selectedJapa && activeGoal && (
+                <Box sx={{ display: "flex", gap: 1.5, mb: 2 }}>
+                  <Box sx={{ px: 1.25, py: 0.75, borderRadius: 1.5, background: `${INDIGO}10`, border: `1px solid ${INDIGO}20`, flex: 1 }}>
+                    <Typography sx={{ fontSize: 10, color: textS }}>{japaFilter}</Typography>
+                    <Typography sx={{ fontSize: 14, fontWeight: 700, color: INDIGO }}>{formatCount(totalInWindow)}</Typography>
+                  </Box>
+                  <Box sx={{ px: 1.25, py: 0.75, borderRadius: 1.5, background: `${INDIGO}10`, border: `1px solid ${INDIGO}20`, flex: 1 }}>
+                    <Typography sx={{ fontSize: 10, color: textS }}>All time</Typography>
+                    <Typography sx={{ fontSize: 14, fontWeight: 700, color: INDIGO }}>{formatCount(allTimeTotal)}</Typography>
+                  </Box>
+                  <Box sx={{ px: 1.25, py: 0.75, borderRadius: 1.5, background: `${SACRED_GREEN}10`, border: `1px solid ${SACRED_GREEN}20`, flex: 1 }}>
+                    <Typography sx={{ fontSize: 10, color: textS }}>Today</Typography>
+                    <Typography sx={{ fontSize: 14, fontWeight: 700, color: SACRED_GREEN }}>
+                      {formatCount(japaLogs.find((l) => l.japa_name === selectedJapa && l.day_date === today)?.count || 0)}
+                    </Typography>
+                  </Box>
+                </Box>
+              )}
+
+              {/* Mahasankalpam Goals Table — always visible */}
+              <Box sx={{ pt: 1.5, borderTop: `1px solid ${border}` }}>
+                <Typography sx={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.5, color: textS, textTransform: "uppercase", mb: 1 }}>
+                  Mahasankalpam Goals
+                </Typography>
+                <TableContainer>
+                  <Table size="small">
+                    <TableHead>
+                      <TableRow>
+                        {[["Goal", "left"], ["Target", "right"], ["Logged", "right"], ["Progress", "right"], ["Yrs", "right"], ["Started", "right"], ["", "right"]].map(([h, align]) => (
+                          <TableCell key={h} align={align} sx={{ fontSize: 10, color: textS, fontWeight: 700, borderColor: border, pb: 0.5, whiteSpace: "nowrap" }}>{h}</TableCell>
+                        ))}
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {japaGoals.length === 0 ? (
                         <TableRow>
-                          <TableCell
-                            sx={{
-                              fontSize: 10,
-                              color: textS,
-                              fontWeight: 700,
-                              borderColor: border,
-                              pb: 0.5,
-                            }}
-                          >
-                            Japa
+                          <TableCell colSpan={7} align="center" sx={{ borderColor: border, py: 3 }}>
+                            <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 0.75 }}>
+                              <AutoAwesome sx={{ fontSize: 28, color: `${INDIGO}35` }} />
+                              <Typography sx={{ fontSize: 12, color: textS }}>No goals added yet</Typography>
+                              <Typography sx={{ fontSize: 11, color: textS, fontStyle: "italic" }}>Click "Add Goal" to set your first Mahasankalpam</Typography>
+                            </Box>
                           </TableCell>
-                          <TableCell
-                            sx={{
-                              fontSize: 10,
-                              color: textS,
-                              fontWeight: 700,
-                              borderColor: border,
-                            }}
-                            align="right"
-                          >
-                            Target
-                          </TableCell>
-                          <TableCell
-                            sx={{
-                              fontSize: 10,
-                              color: textS,
-                              fontWeight: 700,
-                              borderColor: border,
-                            }}
-                            align="right"
-                          >
-                            Logged
-                          </TableCell>
-                          <TableCell
-                            sx={{
-                              fontSize: 10,
-                              color: textS,
-                              fontWeight: 700,
-                              borderColor: border,
-                            }}
-                            align="right"
-                          >
-                            Progress
-                          </TableCell>
-                          <TableCell
-                            sx={{
-                              fontSize: 10,
-                              color: textS,
-                              fontWeight: 700,
-                              borderColor: border,
-                            }}
-                            align="right"
-                          >
-                            Years
-                          </TableCell>
-                          <TableCell
-                            sx={{
-                              fontSize: 10,
-                              color: textS,
-                              fontWeight: 700,
-                              borderColor: border,
-                            }}
-                            align="right"
-                          >
-                            Started
-                          </TableCell>
-                          <TableCell sx={{ borderColor: border }} />
                         </TableRow>
-                      </TableHead>
-                      <TableBody>
-                        {japaGoals.map((g) => {
-                          const logged = japaLogs
-                            .filter((l) => l.japa_name === g.japa_name)
-                            .reduce((s, l) => s + l.count, 0);
-                          const pct = Math.min(
-                            (logged / g.target_count) * 100,
-                            100,
-                          );
+                      ) : (
+                        japaGoals.map((g) => {
+                          const logged = japaLogs.filter((l) => l.japa_name === g.japa_name).reduce((s, l) => s + l.count, 0);
+                          const pct = Math.min((logged / g.target_count) * 100, 100);
                           return (
-                            <TableRow key={g.id}>
-                              <TableCell
-                                sx={{
-                                  fontSize: 12,
-                                  color: textP,
-                                  borderColor: border,
-                                }}
-                              >
-                                <Box
-                                  sx={{
-                                    display: "flex",
-                                    alignItems: "center",
-                                    gap: 0.75,
-                                  }}
-                                >
-                                  <EmojiEvents
-                                    sx={{ fontSize: 13, color: INDIGO }}
-                                  />
+                            <TableRow key={g.id} sx={{ "&:last-child td": { border: 0 } }}>
+                              <TableCell sx={{ fontSize: 12, color: textP, borderColor: border }}>
+                                <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
+                                  <EmojiEvents sx={{ fontSize: 13, color: INDIGO }} />
                                   {g.japa_name}
                                 </Box>
                               </TableCell>
-                              <TableCell
-                                align="right"
-                                sx={{
-                                  fontSize: 11,
-                                  color: textS,
-                                  borderColor: border,
-                                }}
-                              >
-                                {formatCount(g.target_count)}
-                              </TableCell>
-                              <TableCell
-                                align="right"
-                                sx={{
-                                  fontSize: 11,
-                                  fontWeight: 700,
-                                  color: INDIGO,
-                                  borderColor: border,
-                                }}
-                              >
-                                {formatCount(logged)}
-                              </TableCell>
-                              <TableCell
-                                align="right"
-                                sx={{ borderColor: border, minWidth: 90 }}
-                              >
-                                <Box
-                                  sx={{
-                                    display: "flex",
-                                    alignItems: "center",
-                                    gap: 0.75,
-                                  }}
-                                >
-                                  <LinearProgress
-                                    variant="determinate"
-                                    value={pct}
-                                    sx={{
-                                      flex: 1,
-                                      height: 5,
-                                      borderRadius: 3,
-                                      bgcolor: `${INDIGO}15`,
-                                      "& .MuiLinearProgress-bar": {
-                                        background: INDIGO,
-                                        borderRadius: 3,
-                                      },
-                                    }}
+                              <TableCell align="right" sx={{ fontSize: 11, color: textS, borderColor: border, whiteSpace: "nowrap" }}>{formatCount(g.target_count)}</TableCell>
+                              <TableCell align="right" sx={{ fontSize: 11, fontWeight: 700, color: INDIGO, borderColor: border }}>{formatCount(logged)}</TableCell>
+                              <TableCell align="right" sx={{ borderColor: border, minWidth: 90 }}>
+                                <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
+                                  <LinearProgress variant="determinate" value={pct}
+                                    sx={{ flex: 1, height: 5, borderRadius: 3, bgcolor: `${INDIGO}15`, "& .MuiLinearProgress-bar": { background: INDIGO, borderRadius: 3 } }}
                                   />
-                                  <Typography
-                                    sx={{
-                                      fontSize: 10,
-                                      color: INDIGO,
-                                      fontWeight: 700,
-                                      minWidth: 34,
-                                    }}
-                                  >
-                                    {pct.toFixed(1)}%
-                                  </Typography>
+                                  <Typography sx={{ fontSize: 10, color: INDIGO, fontWeight: 700, minWidth: 34 }}>{pct.toFixed(1)}%</Typography>
                                 </Box>
                               </TableCell>
-                              <TableCell
-                                align="right"
-                                sx={{
-                                  fontSize: 11,
-                                  color: textS,
-                                  borderColor: border,
-                                }}
-                              >
-                                {g.deadline_years} yr
-                              </TableCell>
-                              <TableCell
-                                align="right"
-                                sx={{
-                                  fontSize: 11,
-                                  color: textS,
-                                  borderColor: border,
-                                }}
-                              >
-                                {dayjs(g.start_date).format("D MMM YY")}
-                              </TableCell>
-                              <TableCell
-                                align="right"
-                                sx={{ borderColor: border, p: 0.5 }}
-                              >
-                                <IconButton
-                                  size="small"
-                                  onClick={() => deleteGoal(g.id)}
-                                  sx={{
-                                    p: 0.3,
-                                    opacity: 0.4,
-                                    "&:hover": { opacity: 1, color: "#CF4E4E" },
-                                  }}
-                                >
-                                  <Delete sx={{ fontSize: 13 }} />
-                                </IconButton>
+                              <TableCell align="right" sx={{ fontSize: 11, color: textS, borderColor: border }}>{g.deadline_years}yr</TableCell>
+                              <TableCell align="right" sx={{ fontSize: 11, color: textS, borderColor: border, whiteSpace: "nowrap" }}>{dayjs(g.start_date).format("D MMM YY")}</TableCell>
+                              <TableCell align="right" sx={{ borderColor: border, p: 0.5 }}>
+                                <Box sx={{ display: "flex", gap: 0.25 }}>
+                                  <IconButton size="small" onClick={() => openEditGoal(g)} sx={{ p: 0.3, opacity: 0.45, "&:hover": { opacity: 1, color: INDIGO } }}>
+                                    <Edit sx={{ fontSize: 12 }} />
+                                  </IconButton>
+                                  <IconButton size="small" onClick={() => deleteGoal(g.id)} sx={{ p: 0.3, opacity: 0.35, "&:hover": { opacity: 1, color: "#CF4E4E" } }}>
+                                    <Delete sx={{ fontSize: 12 }} />
+                                  </IconButton>
+                                </Box>
                               </TableCell>
                             </TableRow>
                           );
-                        })}
-                      </TableBody>
-                    </Table>
-                  </TableContainer>
-                </Box>
-              )}
+                        })
+                      )}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              </Box>
             </CardContent>
           </Card>
 
@@ -2693,7 +2390,7 @@ function AnushtanamTab({ user, isDark }) {
       {/* Sequence item dialog */}
       <Dialog
         open={seqOpen}
-        onClose={() => setSeqOpen(false)}
+        onClose={() => { setSeqOpen(false); setEditSeq(null); setSForm(emptySeq); }}
         maxWidth="xs"
         fullWidth
         PaperProps={{ sx: { borderRadius: 3 } }}
@@ -2817,60 +2514,42 @@ function AnushtanamTab({ user, isDark }) {
       {/* Log japa dialog */}
       <Dialog
         open={japaOpen}
-        onClose={() => setJapaOpen(false)}
+        onClose={() => { setJapaOpen(false); setJapaForm(emptyJapa); }}
         maxWidth="xs"
         fullWidth
         PaperProps={{ sx: { borderRadius: 3 } }}
       >
-        <DialogTitle
-          sx={{
-            fontFamily: '"Fraunces",serif',
-            fontWeight: 400,
-            color: INDIGO,
-          }}
-        >
+        <DialogTitle sx={{ fontFamily: '"Fraunces",serif', fontWeight: 400, color: INDIGO }}>
           Log Japa Count
         </DialogTitle>
         <DialogContent>
-          <Box
-            sx={{ display: "flex", flexDirection: "column", gap: 2, mt: 0.5 }}
-          >
-            <TextField
-              fullWidth
-              label="Japa name"
-              value={japaForm.japa_name}
-              onChange={(e) =>
-                setJapaForm((p) => ({ ...p, japa_name: e.target.value }))
-              }
-              placeholder="e.g. Gayatri, Om Namah Shivaya, Mahamrityunjaya"
-              autoFocus
-            />
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 2, mt: 0.5 }}>
+            <FormControl fullWidth>
+              <InputLabel>Japa goal</InputLabel>
+              <Select
+                value={japaForm.japa_name}
+                onChange={(e) => setJapaForm((p) => ({ ...p, japa_name: e.target.value }))}
+                label="Japa goal"
+                autoFocus
+              >
+                {japaGoals.map((g) => (
+                  <MenuItem key={g.id} value={g.japa_name}>{g.japa_name}</MenuItem>
+                ))}
+              </Select>
+            </FormControl>
             <TextField
               fullWidth
               label="Count today"
               type="number"
               value={japaForm.count}
-              onChange={(e) =>
-                setJapaForm((p) => ({ ...p, count: e.target.value }))
-              }
+              onChange={(e) => setJapaForm((p) => ({ ...p, count: e.target.value }))}
               helperText="Today's count — existing entry for this Japa will be replaced"
             />
             <Box sx={{ display: "flex", gap: 0.75, flexWrap: "wrap" }}>
               {[108, 216, 324, 1008].map((n) => (
-                <Chip
-                  key={n}
-                  label={n}
-                  size="small"
-                  clickable
-                  onClick={() =>
-                    setJapaForm((p) => ({ ...p, count: String(n) }))
-                  }
-                  sx={{
-                    fontSize: 11,
-                    background: `${INDIGO}12`,
-                    color: INDIGO,
-                    cursor: "pointer",
-                  }}
+                <Chip key={n} label={n} size="small" clickable
+                  onClick={() => setJapaForm((p) => ({ ...p, count: String(n) }))}
+                  sx={{ fontSize: 11, background: `${INDIGO}12`, color: INDIGO, cursor: "pointer" }}
                 />
               ))}
             </Box>
@@ -2878,35 +2557,18 @@ function AnushtanamTab({ user, isDark }) {
               fullWidth
               label="Notes (optional)"
               value={japaForm.notes}
-              onChange={(e) =>
-                setJapaForm((p) => ({ ...p, notes: e.target.value }))
-              }
+              onChange={(e) => setJapaForm((p) => ({ ...p, notes: e.target.value }))}
             />
           </Box>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2.5 }}>
-          <Button
-            onClick={() => setJapaOpen(false)}
-            color="inherit"
-            sx={{ textTransform: "none" }}
-          >
+          <Button onClick={() => { setJapaOpen(false); setJapaForm(emptyJapa); }} color="inherit" sx={{ textTransform: "none" }}>
             Cancel
           </Button>
-          <Button
-            variant="contained"
-            onClick={saveJapa}
-            disabled={saving || !japaForm.count || !japaForm.japa_name}
-            sx={{
-              background: INDIGO,
-              boxShadow: "none",
-              textTransform: "none",
-            }}
+          <Button variant="contained" onClick={saveJapa} disabled={saving || !japaForm.count || !japaForm.japa_name}
+            sx={{ background: INDIGO, boxShadow: "none", textTransform: "none" }}
           >
-            {saving ? (
-              <CircularProgress size={18} color="inherit" />
-            ) : (
-              "Save Japa"
-            )}
+            {saving ? <CircularProgress size={18} color="inherit" /> : "Save Japa"}
           </Button>
         </DialogActions>
       </Dialog>
@@ -2914,66 +2576,43 @@ function AnushtanamTab({ user, isDark }) {
       {/* Mahasankalpam goal dialog */}
       <Dialog
         open={goalOpen}
-        onClose={() => setGoalOpen(false)}
+        onClose={() => { setGoalOpen(false); setEditGoal(null); setGoalForm(emptyGoal); }}
         maxWidth="xs"
         fullWidth
         PaperProps={{ sx: { borderRadius: 3 } }}
       >
-        <DialogTitle
-          sx={{
-            fontFamily: '"Fraunces",serif',
-            fontWeight: 400,
-            color: SACRED_GREEN,
-          }}
-        >
-          Set Mahasankalpam Goal
+        <DialogTitle sx={{ fontFamily: '"Fraunces",serif', fontWeight: 400, color: SACRED_GREEN }}>
+          {editGoal ? "Edit Mahasankalpam" : "New Mahasankalpam"}
         </DialogTitle>
         <DialogContent>
-          <Alert severity="info" sx={{ mb: 2, fontSize: 12 }}>
-            A long-term commitment to a count. Track progress across 50 years.
-          </Alert>
-          <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+          {!editGoal && (
+            <Alert severity="info" sx={{ mb: 2, fontSize: 12 }}>
+              A long-term commitment to a count. Track progress across years.
+            </Alert>
+          )}
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 2, mt: editGoal ? 0.5 : 0 }}>
             <TextField
               fullWidth
               label="Japa name"
               value={goalForm.japa_name}
-              onChange={(e) =>
-                setGoalForm((p) => ({ ...p, japa_name: e.target.value }))
-              }
+              onChange={(e) => setGoalForm((p) => ({ ...p, japa_name: e.target.value }))}
               autoFocus
+              placeholder="e.g. Gayatri, Om Namah Shivaya"
             />
             <TextField
               fullWidth
               label="Target count"
               type="number"
               value={goalForm.target_count}
-              onChange={(e) =>
-                setGoalForm((p) => ({ ...p, target_count: e.target.value }))
-              }
+              onChange={(e) => setGoalForm((p) => ({ ...p, target_count: e.target.value }))}
               helperText="e.g. 10000000 = 1 Crore"
             />
             <Box sx={{ display: "flex", gap: 0.75, flexWrap: "wrap" }}>
               {[100000, 1000000, 10000000, 100000000].map((n) => (
-                <Chip
-                  key={n}
-                  label={
-                    n >= 10000000
-                      ? `${n / 10000000}Cr`
-                      : n >= 100000
-                        ? `${n / 100000}L`
-                        : n
-                  }
-                  size="small"
-                  clickable
-                  onClick={() =>
-                    setGoalForm((p) => ({ ...p, target_count: String(n) }))
-                  }
-                  sx={{
-                    fontSize: 11,
-                    background: `${SACRED_GREEN}12`,
-                    color: SACRED_GREEN,
-                    cursor: "pointer",
-                  }}
+                <Chip key={n} size="small" clickable
+                  label={n >= 10000000 ? `${n / 10000000}Cr` : n >= 100000 ? `${n / 100000}L` : n}
+                  onClick={() => setGoalForm((p) => ({ ...p, target_count: String(n) }))}
+                  sx={{ fontSize: 11, background: `${SACRED_GREEN}12`, color: SACRED_GREEN, cursor: "pointer" }}
                 />
               ))}
             </Box>
@@ -2982,44 +2621,25 @@ function AnushtanamTab({ user, isDark }) {
               label="Time horizon (years)"
               type="number"
               value={goalForm.deadline_years}
-              onChange={(e) =>
-                setGoalForm((p) => ({ ...p, deadline_years: e.target.value }))
-              }
+              onChange={(e) => setGoalForm((p) => ({ ...p, deadline_years: e.target.value }))}
             />
             <TextField
               fullWidth
               label="Sankalpam notes (optional)"
               value={goalForm.notes}
-              onChange={(e) =>
-                setGoalForm((p) => ({ ...p, notes: e.target.value }))
-              }
+              onChange={(e) => setGoalForm((p) => ({ ...p, notes: e.target.value }))}
               placeholder="e.g. Dedicated to Sri Rama charana seva"
             />
           </Box>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2.5 }}>
-          <Button
-            onClick={() => setGoalOpen(false)}
-            color="inherit"
-            sx={{ textTransform: "none" }}
-          >
+          <Button onClick={() => { setGoalOpen(false); setEditGoal(null); setGoalForm(emptyGoal); }} color="inherit" sx={{ textTransform: "none" }}>
             Cancel
           </Button>
-          <Button
-            variant="contained"
-            onClick={saveGoal}
-            disabled={saving || !goalForm.target_count}
-            sx={{
-              background: SACRED_GREEN,
-              boxShadow: "none",
-              textTransform: "none",
-            }}
+          <Button variant="contained" onClick={saveGoal} disabled={saving || !goalForm.target_count || !goalForm.japa_name}
+            sx={{ background: SACRED_GREEN, boxShadow: "none", textTransform: "none" }}
           >
-            {saving ? (
-              <CircularProgress size={18} color="inherit" />
-            ) : (
-              "Set Sankalpam"
-            )}
+            {saving ? <CircularProgress size={18} color="inherit" /> : editGoal ? "Update" : "Set Sankalpam"}
           </Button>
         </DialogActions>
       </Dialog>
@@ -3053,6 +2673,10 @@ export default function PurohitamTracker() {
 
   const bg = tab === 0 ? bgSaffron : bgIndigo;
   const accent = tab === 0 ? SAFFRON : INDIGO;
+  // In dark mode INDIGO (#3B3A8A) is invisible against dark bg — use a bright variant
+  const accentText = isDark
+    ? tab === 0 ? "#E8A050" : "#8888DD"
+    : accent;
   const textP = isDark ? "#F0EDE8" : "#2C2C2C";
   const textS = isDark ? "#9C9A94" : "#5F5F5F";
 
@@ -3085,8 +2709,8 @@ export default function PurohitamTracker() {
               letterSpacing: 2,
               textTransform: "uppercase",
               fontSize: 10,
-              color: accent,
-              fontWeight: 600,
+              color: accentText,
+              fontWeight: 700,
             }}
           >
             Sacred Practice
@@ -3114,22 +2738,14 @@ export default function PurohitamTracker() {
         <Box
           sx={{
             display: "flex",
-            border: `1px solid ${accent}30`,
+            border: `1px solid ${isDark ? "rgba(255,255,255,0.12)" : `${accent}40`}`,
             borderRadius: 2,
             overflow: "hidden",
           }}
         >
           {[
-            {
-              icon: <HistoryEdu sx={{ fontSize: 16 }} />,
-              label: "Purohitam",
-              color: SAFFRON,
-            },
-            {
-              icon: <SelfImprovement sx={{ fontSize: 16 }} />,
-              label: "Anushtanam",
-              color: INDIGO,
-            },
+            { icon: <HistoryEdu sx={{ fontSize: 16 }} />, label: "Purohitam", color: SAFFRON },
+            { icon: <SelfImprovement sx={{ fontSize: 16 }} />, label: "Anushtanam", color: INDIGO },
           ].map((t, i) => (
             <Box
               key={i}
@@ -3142,11 +2758,12 @@ export default function PurohitamTracker() {
                 py: 1,
                 cursor: "pointer",
                 fontSize: 13,
-                fontWeight: tab === i ? 700 : 400,
-                background: tab === i ? `${t.color}18` : "transparent",
-                color: tab === i ? t.color : textS,
-                borderRight: i === 0 ? `1px solid ${accent}20` : "none",
+                fontWeight: tab === i ? 700 : 500,
+                background: tab === i ? t.color : "transparent",
+                color: tab === i ? "#fff" : textS,
+                borderRight: i === 0 ? `1px solid ${isDark ? "rgba(255,255,255,0.1)" : `${accent}20`}` : "none",
                 transition: "all 0.2s",
+                userSelect: "none",
               }}
             >
               {t.icon}

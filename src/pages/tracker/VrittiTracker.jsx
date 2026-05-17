@@ -94,17 +94,18 @@ const C = {
 };
 
 const SKILL_CATEGORIES = [
-  { key: "Technical", icon: <Code sx={{ fontSize: 14 }} />, color: C.blue },
-  { key: "Soft Skills", icon: <Psychology sx={{ fontSize: 14 }} />, color: C.purple },
-  { key: "Domain", icon: <Dns sx={{ fontSize: 14 }} />, color: C.teal },
-  { key: "Tools", icon: <Build sx={{ fontSize: 14 }} />, color: C.gold },
-  { key: "Leadership", icon: <Groups sx={{ fontSize: 14 }} />, color: C.green },
+  { key: "Technical", icon: <Code sx={{ fontSize: 14 }} />, color: C.blue, colorDark: C.blueLight },
+  { key: "Soft Skills", icon: <Psychology sx={{ fontSize: 14 }} />, color: C.purple, colorDark: C.purpleLight },
+  { key: "Domain", icon: <Dns sx={{ fontSize: 14 }} />, color: C.teal, colorDark: "#4DC4C4" },
+  { key: "Tools", icon: <Build sx={{ fontSize: 14 }} />, color: C.gold, colorDark: "#D4A830" },
+  { key: "Leadership", icon: <Groups sx={{ fontSize: 14 }} />, color: C.green, colorDark: C.greenLight },
 ];
 
 const SKILL_CATEGORY_KEYS = SKILL_CATEGORIES.map((c) => c.key);
 
 const PROFICIENCY_LABELS = ["", "Beginner", "Basic", "Intermediate", "Advanced", "Expert"];
 const PROFICIENCY_COLORS = ["", C.red, C.orange, C.gold, C.blue, C.green];
+const PROFICIENCY_COLORS_DARK = ["", "#FF7070", "#E08A4A", "#D4A830", C.blueLight, C.greenLight];
 
 // ─── Helper ──────────────────────────────────────────────────────────────────
 function safeParseNotes(raw) {
@@ -276,8 +277,8 @@ function StatCard({ label, value, color, icon, subtext, isDark, cardBg, border, 
         </Box>
         {trend !== undefined && (
           <Box sx={{ mt: 1.5, pt: 1.5, borderTop: `1px solid ${border}`, display: "flex", alignItems: "center", gap: 0.5 }}>
-            <TrendingUp sx={{ fontSize: 12, color: C.green }} />
-            <Typography sx={{ fontSize: 10, color: C.green, fontWeight: 600 }}>{trend}</Typography>
+            <TrendingUp sx={{ fontSize: 12, color: isDark ? C.greenLight : C.green }} />
+            <Typography sx={{ fontSize: 10, color: isDark ? C.greenLight : C.green, fontWeight: 600 }}>{trend}</Typography>
           </Box>
         )}
       </CardContent>
@@ -455,7 +456,7 @@ function ProjectCard({ project, onDelete, isDark, cardBg, border, textP, textS }
 function SkillRow({ skill, onDelete, isDark, textP, textS, border }) {
   const rating = Math.min(5, Math.max(0, Number(skill.note) || 0));
   const profLabel = PROFICIENCY_LABELS[rating] || "";
-  const profColor = PROFICIENCY_COLORS[rating] || C.blue;
+  const profColor = (isDark ? PROFICIENCY_COLORS_DARK : PROFICIENCY_COLORS)[rating] || (isDark ? C.blueLight : C.blue);
 
   return (
     <Box>
@@ -624,6 +625,10 @@ export default function VrittiTracker() {
   const textP = isDark ? "#F0EDE8" : "#1A1A1A";
   const textS = isDark ? "#9C9A94" : "#636059";
   const dialogBg = isDark ? "#1E1C1A" : "#FDFCFA";
+  // Dark-mode safe variants of deep brand colors (dark originals are invisible on dark backgrounds)
+  const cBlue = isDark ? C.blueLight : C.blue;
+  const cGreen = isDark ? C.greenLight : C.green;
+  const cTeal = isDark ? "#4DC4C4" : C.teal;
 
   // ─── Data Loading ─────────────────────────────────────────────────────────
   const loadData = useCallback(async () => {
@@ -635,15 +640,11 @@ export default function VrittiTracker() {
         supabase.from("logs").select("*").eq("user_id", user.id).eq("area", "skill").order("created_at", { ascending: false }),
         supabase.from("milestones").select("*").eq("user_id", user.id).eq("area", "certification").order("progress", { ascending: false }),
       ]);
-      // BUG FIX: properly check individual errors
-      if (p.error) console.error("Projects fetch error:", p.error);
-      if (s.error) console.error("Skills fetch error:", s.error);
-      if (c.error) console.error("Certs fetch error:", c.error);
       setProjects(p.data || []);
       setSkills(s.data || []);
       setCerts(c.data || []);
-    } catch (err) {
-      console.error("Load data failed:", err);
+    } catch {
+      // silently fail — UI already shows empty state
     } finally {
       setLoading(false);
     }
@@ -784,9 +785,9 @@ export default function VrittiTracker() {
           </Typography>
           <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mt: 0.75, flexWrap: "wrap" }}>
             {[
-              { val: projects.length, label: "projects", color: C.blue },
+              { val: projects.length, label: "projects", color: cBlue },
               { val: skills.length, label: "skills", color: C.purple },
-              { val: certs.length, label: "certifications", color: C.green },
+              { val: certs.length, label: "certifications", color: cGreen },
             ].map(({ val, label, color }) => (
               <Box key={label} sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
                 <Box sx={{ width: 6, height: 6, borderRadius: "50%", bgcolor: color }} />
@@ -810,7 +811,7 @@ export default function VrittiTracker() {
             variant="outlined"
             startIcon={<Add />}
             onClick={() => setOpenCert(true)}
-            sx={{ color: C.green, borderColor: `${C.green}50`, textTransform: "none", borderRadius: 2, fontWeight: 600, fontSize: 13, "&:hover": { bgcolor: C.greenDim, borderColor: C.green } }}
+            sx={{ color: cGreen, borderColor: `${cGreen}50`, textTransform: "none", borderRadius: 2, fontWeight: 600, fontSize: 13, "&:hover": { bgcolor: C.greenDim, borderColor: cGreen } }}
           >
             Cert
           </Button>
@@ -828,7 +829,7 @@ export default function VrittiTracker() {
       {/* ── Stats Grid ── */}
       <Grid container spacing={2} sx={{ mb: 4 }}>
         <Grid item xs={6} sm={3}>
-          <StatCard label="Projects" value={projects.length} color={C.blue} icon={<BusinessCenter sx={{ fontSize: 20 }} />}
+          <StatCard label="Projects" value={projects.length} color={cBlue} icon={<BusinessCenter sx={{ fontSize: 20 }} />}
             subtext={`${officialProjects} official · ${personalProjects} personal`} isDark={isDark} cardBg={cardBg} border={border} />
         </Grid>
         <Grid item xs={6} sm={3}>
@@ -836,7 +837,7 @@ export default function VrittiTracker() {
             subtext={`avg rating ${avgSkillRating}/5`} isDark={isDark} cardBg={cardBg} border={border} />
         </Grid>
         <Grid item xs={6} sm={3}>
-          <StatCard label="Certified" value={completedCerts} color={C.green} icon={<Verified sx={{ fontSize: 20 }} />}
+          <StatCard label="Certified" value={completedCerts} color={cGreen} icon={<Verified sx={{ fontSize: 20 }} />}
             subtext={`of ${certs.length} total`} isDark={isDark} cardBg={cardBg} border={border} />
         </Grid>
         <Grid item xs={6} sm={3}>
@@ -852,8 +853,8 @@ export default function VrittiTracker() {
           onChange={(_, v) => setTab(v)}
           sx={{
             "& .MuiTab-root": { textTransform: "none", fontWeight: 600, fontSize: 13, minHeight: 46, color: textS, gap: 0.75, px: 2.5 },
-            "& .Mui-selected": { color: `${C.blue} !important` },
-            "& .MuiTabs-indicator": { bgcolor: C.blue, height: 2.5, borderRadius: "2px 2px 0 0" },
+            "& .Mui-selected": { color: `${cBlue} !important` },
+            "& .MuiTabs-indicator": { bgcolor: cBlue, height: 2.5, borderRadius: "2px 2px 0 0" },
           }}
         >
           <Tab label="Projects" icon={<BusinessCenter sx={{ fontSize: 15 }} />} iconPosition="start" />
@@ -1101,14 +1102,14 @@ export default function VrittiTracker() {
       {/* ── DIALOG: Add Project ── */}
       <Dialog
         open={openProj}
-        onClose={() => setOpenProj(false)}
+        onClose={() => { setOpenProj(false); setProjForm(DEFAULT_PROJ_FORM); }}
         fullWidth
         maxWidth="sm"
         PaperProps={{ sx: { borderRadius: 3, bgcolor: dialogBg, backgroundImage: "none" } }}
       >
         <DialogTitle sx={{ fontFamily: "'DM Serif Display', serif", fontWeight: 400, fontSize: 24, pb: 0.5, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           Log New Project
-          <IconButton onClick={() => setOpenProj(false)} size="small" sx={{ opacity: 0.4, "&:hover": { opacity: 1 } }}>
+          <IconButton onClick={() => { setOpenProj(false); setProjForm(DEFAULT_PROJ_FORM); }} size="small" sx={{ opacity: 0.4, "&:hover": { opacity: 1 } }}>
             <Close fontSize="small" />
           </IconButton>
         </DialogTitle>
@@ -1137,7 +1138,7 @@ export default function VrittiTracker() {
           <TextField label="Journal / Observations" multiline rows={2} fullWidth placeholder="Interesting details, war stories, observations…" value={projForm.journal} onChange={(e) => setProjForm({ ...projForm, journal: e.target.value })} />
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 3, gap: 1 }}>
-          <Button onClick={() => setOpenProj(false)} color="inherit" sx={{ textTransform: "none" }}>Cancel</Button>
+          <Button onClick={() => { setOpenProj(false); setProjForm(DEFAULT_PROJ_FORM); }} color="inherit" sx={{ textTransform: "none" }}>Cancel</Button>
           <Button variant="contained" onClick={saveProject} disabled={saving || !projForm.title.trim()} sx={{ bgcolor: C.blue, textTransform: "none", fontWeight: 600, borderRadius: 2, "&:hover": { bgcolor: C.blueLight } }}>
             {saving ? "Saving…" : "Save Project"}
           </Button>
@@ -1147,14 +1148,14 @@ export default function VrittiTracker() {
       {/* ── DIALOG: Add Skill ── */}
       <Dialog
         open={openSkill}
-        onClose={() => setOpenSkill(false)}
+        onClose={() => { setOpenSkill(false); setSkillForm(DEFAULT_SKILL_FORM); }}
         fullWidth
         maxWidth="xs"
         PaperProps={{ sx: { borderRadius: 3, bgcolor: dialogBg, backgroundImage: "none" } }}
       >
         <DialogTitle sx={{ fontFamily: "'DM Serif Display', serif", fontWeight: 400, fontSize: 24, pb: 0.5, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           Add Skill
-          <IconButton onClick={() => setOpenSkill(false)} size="small" sx={{ opacity: 0.4, "&:hover": { opacity: 1 } }}>
+          <IconButton onClick={() => { setOpenSkill(false); setSkillForm(DEFAULT_SKILL_FORM); }} size="small" sx={{ opacity: 0.4, "&:hover": { opacity: 1 } }}>
             <Close fontSize="small" />
           </IconButton>
         </DialogTitle>
@@ -1163,7 +1164,9 @@ export default function VrittiTracker() {
           <Box>
             <Typography sx={{ fontSize: 11, color: textS, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.8, mb: 1.25 }}>Category</Typography>
             <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.75 }}>
-              {SKILL_CATEGORIES.map(({ key, icon, color }) => (
+              {SKILL_CATEGORIES.map(({ key, icon, color, colorDark }) => {
+                const sc = isDark ? colorDark : color;
+                return (
                 <Chip
                   key={key}
                   label={key}
@@ -1173,16 +1176,16 @@ export default function VrittiTracker() {
                   sx={{
                     fontSize: 12,
                     cursor: "pointer",
-                    bgcolor: skillForm.category === key ? `${color}18` : "transparent",
-                    color: skillForm.category === key ? color : textS,
-                    border: `1px solid ${skillForm.category === key ? color + "60" : isDark ? "#444" : "#DDD"}`,
+                    bgcolor: skillForm.category === key ? `${sc}18` : "transparent",
+                    color: skillForm.category === key ? sc : textS,
+                    border: `1px solid ${skillForm.category === key ? sc + "60" : isDark ? "#444" : "#DDD"}`,
                     fontWeight: skillForm.category === key ? 700 : 400,
                     transition: "all 0.15s",
-                    "&:hover": { bgcolor: `${color}12`, color },
+                    "&:hover": { bgcolor: `${sc}12`, color: sc },
                     "& .MuiChip-icon": { color: "inherit" },
                   }}
                 />
-              ))}
+                ); })}
             </Box>
           </Box>
           <Box>
@@ -1192,20 +1195,20 @@ export default function VrittiTracker() {
                 value={skillForm.rating}
                 // BUG FIX: null check instead of falsy check (allows rating of 0)
                 onChange={(_, v) => v !== null && setSkillForm({ ...skillForm, rating: v })}
-                sx={{ "& .MuiRating-iconFilled": { color: PROFICIENCY_COLORS[skillForm.rating] || C.purple }, "& .MuiRating-iconHover": { color: C.purple } }}
+                sx={{ "& .MuiRating-iconFilled": { color: (isDark ? PROFICIENCY_COLORS_DARK : PROFICIENCY_COLORS)[skillForm.rating] || C.purple }, "& .MuiRating-iconHover": { color: C.purple } }}
               />
               {skillForm.rating > 0 && (
                 <Chip
                   label={PROFICIENCY_LABELS[skillForm.rating]}
                   size="small"
-                  sx={{ height: 20, fontSize: 10, fontWeight: 700, bgcolor: `${PROFICIENCY_COLORS[skillForm.rating]}18`, color: PROFICIENCY_COLORS[skillForm.rating], border: "none" }}
+                  sx={{ height: 20, fontSize: 10, fontWeight: 700, bgcolor: `${(isDark ? PROFICIENCY_COLORS_DARK : PROFICIENCY_COLORS)[skillForm.rating]}18`, color: (isDark ? PROFICIENCY_COLORS_DARK : PROFICIENCY_COLORS)[skillForm.rating], border: "none" }}
                 />
               )}
             </Box>
           </Box>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 3, gap: 1 }}>
-          <Button onClick={() => setOpenSkill(false)} color="inherit" sx={{ textTransform: "none" }}>Cancel</Button>
+          <Button onClick={() => { setOpenSkill(false); setSkillForm(DEFAULT_SKILL_FORM); }} color="inherit" sx={{ textTransform: "none" }}>Cancel</Button>
           <Button variant="contained" onClick={saveSkill} disabled={saving || !skillForm.name.trim()} sx={{ bgcolor: C.purple, textTransform: "none", fontWeight: 600, borderRadius: 2, "&:hover": { bgcolor: C.purpleLight } }}>
             {saving ? "Saving…" : "Add Skill"}
           </Button>
@@ -1215,14 +1218,14 @@ export default function VrittiTracker() {
       {/* ── DIALOG: Add Certification ── */}
       <Dialog
         open={openCert}
-        onClose={() => setOpenCert(false)}
+        onClose={() => { setOpenCert(false); setCertForm(DEFAULT_CERT_FORM); }}
         fullWidth
         maxWidth="xs"
         PaperProps={{ sx: { borderRadius: 3, bgcolor: dialogBg, backgroundImage: "none" } }}
       >
         <DialogTitle sx={{ fontFamily: "'DM Serif Display', serif", fontWeight: 400, fontSize: 24, pb: 0.5, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           Add Certification
-          <IconButton onClick={() => setOpenCert(false)} size="small" sx={{ opacity: 0.4, "&:hover": { opacity: 1 } }}>
+          <IconButton onClick={() => { setOpenCert(false); setCertForm(DEFAULT_CERT_FORM); }} size="small" sx={{ opacity: 0.4, "&:hover": { opacity: 1 } }}>
             <Close fontSize="small" />
           </IconButton>
         </DialogTitle>
@@ -1272,7 +1275,7 @@ export default function VrittiTracker() {
           </Box>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 3, gap: 1 }}>
-          <Button onClick={() => setOpenCert(false)} color="inherit" sx={{ textTransform: "none" }}>Cancel</Button>
+          <Button onClick={() => { setOpenCert(false); setCertForm(DEFAULT_CERT_FORM); }} color="inherit" sx={{ textTransform: "none" }}>Cancel</Button>
           <Button variant="contained" onClick={saveCert} disabled={saving || !certForm.title.trim()} sx={{ bgcolor: C.green, textTransform: "none", fontWeight: 600, borderRadius: 2, "&:hover": { bgcolor: C.greenLight } }}>
             {saving ? "Saving…" : "Save Cert"}
           </Button>

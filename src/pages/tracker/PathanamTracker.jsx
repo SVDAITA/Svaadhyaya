@@ -76,10 +76,10 @@ const fadeIn = keyframes`
 const COLOR = "#A0522D"; // Primary Hero Color (Sienna / Earthy)
 const LANG_OPTIONS = ["Telugu", "English", "Sanskrit", "Hindi", "Other"];
 const STATUS_OPTIONS = [
-  { value: "reading", label: "Reading", color: "#2D7A4F" },
-  { value: "completed", label: "Completed", color: COLOR },
-  { value: "paused", label: "Paused", color: "#C07830" },
-  { value: "queued", label: "In Queue", color: "#8E8C86" },
+  { value: "reading", label: "Reading", color: "#2D7A4F", colorDark: "#5EC98A" },
+  { value: "completed", label: "Completed", color: COLOR, colorDark: "#D4845A" },
+  { value: "paused", label: "Paused", color: "#C07830", colorDark: "#D4A830" },
+  { value: "queued", label: "In Queue", color: "#8E8C86", colorDark: "#B0AEA8" },
 ];
 
 function TabPanel({ value, index, children }) {
@@ -88,8 +88,9 @@ function TabPanel({ value, index, children }) {
   ) : null;
 }
 
-function StatusChip({ status }) {
+function StatusChip({ status, isDark }) {
   const s = STATUS_OPTIONS.find((o) => o.value === status) || STATUS_OPTIONS[3];
+  const c = isDark ? s.colorDark : s.color;
   return (
     <Chip
       label={s.label}
@@ -98,8 +99,8 @@ function StatusChip({ status }) {
         fontSize: 11,
         height: 22,
         borderRadius: "6px",
-        background: `${s.color}15`,
-        color: s.color,
+        background: `${c}15`,
+        color: c,
         fontWeight: 700,
         letterSpacing: 0.5,
       }}
@@ -1276,7 +1277,7 @@ export default function ReadingLogPage() {
                     )}
                     {visibleCols.includes("status") && (
                       <TableCell>
-                        <StatusChip status={book.status} />
+                        <StatusChip status={book.status} isDark={isDark} />
                       </TableCell>
                     )}
                     {visibleCols.includes("condition") && (
@@ -1561,7 +1562,7 @@ export default function ReadingLogPage() {
       {/* 1. Add/Edit Book Dialog */}
       <Dialog
         open={addOpen}
-        onClose={() => setAddOpen(false)}
+        onClose={() => { setAddOpen(false); resetForm(); setEditBook(null); }}
         maxWidth="md"
         fullWidth
         PaperProps={{
@@ -1756,7 +1757,7 @@ export default function ReadingLogPage() {
         </DialogContent>
         <DialogActions sx={{ px: 4, py: 3 }}>
           <Button
-            onClick={() => setAddOpen(false)}
+            onClick={() => { setAddOpen(false); resetForm(); setEditBook(null); }}
             color="inherit"
             sx={{ textTransform: "none", fontWeight: 600 }}
           >
@@ -1787,7 +1788,7 @@ export default function ReadingLogPage() {
       {/* 2. Daily Log Progress Dialog */}
       <Dialog
         open={sessionOpen}
-        onClose={() => setSessionOpen(false)}
+        onClose={() => { setSessionOpen(false); setSessionForm({ pages_read: "", summary: "" }); }}
         maxWidth="xs"
         fullWidth
         PaperProps={{
@@ -1851,7 +1852,7 @@ export default function ReadingLogPage() {
         </DialogContent>
         <DialogActions sx={{ p: 3, pt: 2 }}>
           <Button
-            onClick={() => setSessionOpen(false)}
+            onClick={() => { setSessionOpen(false); setSessionForm({ pages_read: "", summary: "" }); }}
             color="inherit"
             sx={{ textTransform: "none", fontWeight: 600 }}
           >

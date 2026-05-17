@@ -397,17 +397,17 @@ export default function AppLayout() {
             width: 42,
             height: 42,
             borderRadius: "50%",
-            background: isDark ? `${heroColor}28` : `${heroColor}15`,
-            border: `1px solid ${isDark ? `${heroColor}70` : `${heroColor}50`}`,
+            background: isDark ? `${heroColor}45` : `${heroColor}15`,
+            border: `1.5px solid ${isDark ? `${heroColor}AA` : `${heroColor}50`}`,
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
             flexShrink: 0,
-            boxShadow: isDark ? `0 0 20px ${heroColor}40` : `0 0 15px ${heroColor}25`,
+            boxShadow: isDark ? `0 0 22px ${heroColor}60` : `0 0 15px ${heroColor}25`,
             mx: collapsed ? "auto" : 0,
           }}
         >
-          <MandalaSVG size={24} color={heroColor} boost={isDark ? 2 : 1} />
+          <MandalaSVG size={24} color={heroColor} boost={isDark ? 3 : 1} />
         </Box>
 
         {!collapsed && (
@@ -655,7 +655,7 @@ export default function AppLayout() {
                   gap: 1.5,
                 }}
               >
-                <MandalaSVG size={20} color={heroColor} boost={isDark ? 2 : 1} />
+                <MandalaSVG size={20} color={heroColor} boost={isDark ? 3 : 1} />
                 <Box>
                   <Typography
                     sx={{
