@@ -386,6 +386,7 @@ export default function FinanceOSPage() {
   });
   const [importStatus, setImportStatus] = useState({ type: "", message: "" });
   const [importTarget, setImportTarget] = useState("loans");
+  const [arthaDeleteConfirm, setArthaDeleteConfirm] = useState({ open: false, label: "", onConfirm: null });
 
   // ── DATA FETCHING ─────────────────────────────────────────────────────────
   const fetchTrendData = useCallback(async (window = "6M") => {
@@ -535,34 +536,46 @@ export default function FinanceOSPage() {
     }
   };
 
-  const deleteSpend = async (id) => {
-    setSpends((prev) => prev.filter((s) => s.id !== id));
-    const { error } = await supabase.from("finance_logs").delete().eq("id", id);
-    if (error) { showToast("Failed to delete entry.", "error"); await loadDashboardData(); }
+  const askDelete = (label, onConfirm) => setArthaDeleteConfirm({ open: true, label, onConfirm });
+
+  const deleteSpend = async (id, label = "this entry") => {
+    askDelete(label, async () => {
+      setSpends((prev) => prev.filter((s) => s.id !== id));
+      const { error } = await supabase.from("finance_logs").delete().eq("id", id);
+      if (error) { showToast("Failed to delete entry.", "error"); await loadDashboardData(); }
+    });
   };
-  const deleteInvestment = async (id) => {
-    setInvestments((prev) => prev.filter((inv) => inv.id !== id));
-    const { error } = await supabase.from("investments").delete().eq("id", id);
-    if (error) { showToast("Failed to delete investment.", "error"); await loadDashboardData(); }
+  const deleteInvestment = async (id, label = "this investment") => {
+    askDelete(label, async () => {
+      setInvestments((prev) => prev.filter((inv) => inv.id !== id));
+      const { error } = await supabase.from("investments").delete().eq("id", id);
+      if (error) { showToast("Failed to delete investment.", "error"); await loadDashboardData(); }
+    });
   };
-  const deleteLoan = async (id) => {
-    setLoans((prev) => prev.filter((loan) => loan.id !== id));
-    const { error } = await supabase.from("loans").delete().eq("id", id);
-    if (error) { showToast("Failed to delete loan.", "error"); await loadDashboardData(); }
+  const deleteLoan = async (id, label = "this loan") => {
+    askDelete(label, async () => {
+      setLoans((prev) => prev.filter((loan) => loan.id !== id));
+      const { error } = await supabase.from("loans").delete().eq("id", id);
+      if (error) { showToast("Failed to delete loan.", "error"); await loadDashboardData(); }
+    });
   };
-  const deleteGoal = async (id) => {
-    setGoals((prev) => prev.filter((g) => g.id !== id));
-    const { error } = await supabase.from("savings_goals").delete().eq("id", id);
-    if (error) { showToast("Failed to delete goal.", "error"); await loadDashboardData(); }
+  const deleteGoal = async (id, label = "this goal") => {
+    askDelete(label, async () => {
+      setGoals((prev) => prev.filter((g) => g.id !== id));
+      const { error } = await supabase.from("savings_goals").delete().eq("id", id);
+      if (error) { showToast("Failed to delete goal.", "error"); await loadDashboardData(); }
+    });
   };
 
   const deleteBudget = async (category) => {
     const existing = budgets.find((b) => b.category === category);
     if (!existing) return;
-    const { error } = await supabase.from("budgets").delete().eq("id", existing.id);
-    if (error) { showToast("Failed to remove envelope.", "error"); return; }
-    showToast("Envelope removed.");
-    await loadDashboardData();
+    askDelete(`${category} envelope`, async () => {
+      const { error } = await supabase.from("budgets").delete().eq("id", existing.id);
+      if (error) { showToast("Failed to remove envelope.", "error"); return; }
+      showToast("Envelope removed.");
+      await loadDashboardData();
+    });
   };
 
   const saveBudgetLimit = async () => {
@@ -1439,7 +1452,7 @@ export default function FinanceOSPage() {
                             <TableCell>
                               <IconButton
                                 size="small"
-                                onClick={() => deleteSpend(s.id)}
+                                onClick={() => deleteSpend(s.id, s.category || "this entry")}
                                 sx={{
                                   color: "text.disabled",
                                   "&:hover": {
@@ -1985,7 +1998,7 @@ export default function FinanceOSPage() {
                             </Typography>
                             <IconButton
                               size="small"
-                              onClick={() => deleteLoan(loan.id)}
+                              onClick={() => deleteLoan(loan.id, loan.label || "this loan")}
                               sx={{
                                 color: "text.disabled",
                                 "&:hover": {
@@ -2226,7 +2239,7 @@ export default function FinanceOSPage() {
                               />
                               <IconButton
                                 size="small"
-                                onClick={() => deleteGoal(g.id)}
+                                onClick={() => deleteGoal(g.id, g.name || "this goal")}
                                 sx={{
                                   "&:hover": {
                                     color: RED,
@@ -2447,7 +2460,7 @@ export default function FinanceOSPage() {
                         </Box>
                         <IconButton
                           size="small"
-                          onClick={() => deleteInvestment(f.id)}
+                          onClick={() => deleteInvestment(f.id, f.name || "this investment")}
                           sx={{
                             ml: 1,
                             color: "text.disabled",
@@ -3180,6 +3193,39 @@ export default function FinanceOSPage() {
             ) : (
               "Set Focus"
             )}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* ── DELETE CONFIRM ── */}
+      <Dialog
+        open={arthaDeleteConfirm.open}
+        onClose={() => setArthaDeleteConfirm({ open: false, label: "", onConfirm: null })}
+        PaperProps={{ sx: { borderRadius: 3, p: 1, maxWidth: 360 } }}
+      >
+        <DialogTitle sx={{ fontWeight: 600, fontSize: 18 }}>Delete?</DialogTitle>
+        <DialogContent>
+          <Typography sx={{ fontSize: 14, color: "text.secondary" }}>
+            Remove <strong>"{arthaDeleteConfirm.label}"</strong>? This cannot be undone.
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2.5, gap: 1 }}>
+          <Button
+            onClick={() => setArthaDeleteConfirm({ open: false, label: "", onConfirm: null })}
+            sx={{ color: "text.secondary", textTransform: "none", borderRadius: 2 }}
+          >
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            onClick={() => {
+              const fn = arthaDeleteConfirm.onConfirm;
+              setArthaDeleteConfirm({ open: false, label: "", onConfirm: null });
+              if (fn) fn();
+            }}
+            sx={{ bgcolor: RED, color: "#fff", textTransform: "none", fontWeight: 700, borderRadius: 2, "&:hover": { bgcolor: "#b91c1c" } }}
+          >
+            Delete
           </Button>
         </DialogActions>
       </Dialog>

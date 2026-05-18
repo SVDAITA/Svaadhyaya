@@ -186,8 +186,9 @@ export default function ReadingLogPage() {
     summary: "",
   });
   const [newJournal, setNewJournal] = useState("");
+  const [journalSearch, setJournalSearch] = useState("");
   const [journalPage, setJournalPage] = useState(1);
-  const JOURNAL_PER_PAGE = 8;
+  const JOURNAL_PER_PAGE = 12;
   const [booksPage, setBooksPage] = useState(1);
   const BOOKS_PER_PAGE = 15;
 
@@ -1461,13 +1462,37 @@ export default function ReadingLogPage() {
             </CardContent>
           </Card>
 
-          {journalEntries.length === 0 ? (
+          {/* Search bar */}
+          <TextField
+            fullWidth
+            size="small"
+            placeholder="Search reflections…"
+            value={journalSearch}
+            onChange={(e) => { setJournalSearch(e.target.value); setJournalPage(1); }}
+            InputProps={{
+              startAdornment: (
+                <Search sx={{ fontSize: 18, color: textS, mr: 0.75 }} />
+              ),
+              sx: { borderRadius: 2, fontSize: 13 },
+            }}
+            sx={{ mb: 2.5 }}
+          />
+
+          {(() => {
+            const filtered = journalSearch.trim()
+              ? journalEntries.filter((e) =>
+                  e.content?.toLowerCase().includes(journalSearch.toLowerCase())
+                )
+              : journalEntries;
+            const totalPages = Math.ceil(filtered.length / JOURNAL_PER_PAGE);
+            const paged = filtered.slice((journalPage - 1) * JOURNAL_PER_PAGE, journalPage * JOURNAL_PER_PAGE);
+            return filtered.length === 0 ? (
             <Typography
               textAlign="center"
               color={textS}
-              sx={{ fontStyle: "italic", opacity: 0.7 }}
+              sx={{ fontStyle: "italic", opacity: 0.7, py: 4 }}
             >
-              No reflections yet. Begin your philosophical documentation.
+              {journalSearch ? "No reflections match your search." : "No reflections yet. Begin your philosophical documentation."}
             </Typography>
           ) : (
             <>
@@ -1477,15 +1502,14 @@ export default function ReadingLogPage() {
                   alignItems: "center",
                   justifyContent: "space-between",
                   mb: 2,
-                  ml: 2,
                 }}
               >
                 <Typography sx={{ fontSize: 12, color: textS }}>
-                  {journalEntries.length} reflection{journalEntries.length !== 1 ? "s" : ""}
+                  {filtered.length} reflection{filtered.length !== 1 ? "s" : ""}{journalSearch ? " found" : ""}
                 </Typography>
-                {journalEntries.length > JOURNAL_PER_PAGE && (
+                {filtered.length > JOURNAL_PER_PAGE && (
                   <Pagination
-                    count={Math.ceil(journalEntries.length / JOURNAL_PER_PAGE)}
+                    count={totalPages}
                     page={journalPage}
                     onChange={(_, p) => setJournalPage(p)}
                     size="small"
@@ -1499,68 +1523,58 @@ export default function ReadingLogPage() {
                   />
                 )}
               </Box>
-              <Box sx={{ display: "flex", flexDirection: "column", gap: 4, ml: 2 }}>
-                {journalEntries
-                  .slice((journalPage - 1) * JOURNAL_PER_PAGE, journalPage * JOURNAL_PER_PAGE)
-                  .map((entry) => (
+              <Grid container spacing={2}>
+                {paged.map((entry) => (
+                  <Grid item xs={12} sm={6} key={entry.id}>
                     <Box
-                      key={entry.id}
                       sx={{
-                        pl: 4,
-                        borderLeft: `2px solid ${COLOR}40`,
-                        position: "relative",
+                        p: 2,
+                        borderRadius: 2,
+                        border: `1px solid ${isDark ? "rgba(255,255,255,0.08)" : "#E0DDD8"}`,
+                        background: isDark ? "rgba(255,255,255,0.03)" : "#FDFCFA",
+                        height: "100%",
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 1,
+                        transition: "box-shadow 0.2s",
+                        "&:hover": { boxShadow: `0 4px 16px ${COLOR}18` },
                       }}
                     >
-                      <Box
-                        sx={{
-                          position: "absolute",
-                          left: -7,
-                          top: 6,
-                          width: 12,
-                          height: 12,
-                          borderRadius: "50%",
-                          background: COLOR,
-                          border: `3px solid ${isDark ? "#1A1916" : "#FCFBF9"}`,
-                        }}
-                      />
-                      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", mb: 1 }}>
-                        <Typography
-                          sx={{
-                            fontSize: 13,
-                            color: COLOR,
-                            fontWeight: 700,
-                            letterSpacing: 1,
-                            textTransform: "uppercase",
-                          }}
-                        >
-                          {dayjs(entry.entry_date).format("MMMM D, YYYY")}
+                      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <Typography sx={{ fontSize: 11, color: COLOR, fontWeight: 700, letterSpacing: 0.8, textTransform: "uppercase" }}>
+                          {dayjs(entry.entry_date).format("MMM D, YYYY")}
                         </Typography>
                         <IconButton
                           size="small"
                           onClick={() => setJournalToDelete(entry)}
-                          sx={{ p: 0.4, opacity: 0.3, "&:hover": { opacity: 1, color: "#CF4E4E" }, mt: -0.5 }}
+                          sx={{ p: 0.4, opacity: 0.25, "&:hover": { opacity: 1, color: "#CF4E4E" } }}
                         >
-                          <Delete sx={{ fontSize: 14 }} />
+                          <Delete sx={{ fontSize: 13 }} />
                         </IconButton>
                       </Box>
                       <Typography
                         sx={{
-                          fontSize: 16,
+                          fontSize: 13,
                           color: textP,
-                          whiteSpace: "pre-wrap",
-                          lineHeight: 1.7,
+                          lineHeight: 1.65,
                           fontFamily: '"Lora", serif',
+                          display: "-webkit-box",
+                          WebkitLineClamp: 6,
+                          WebkitBoxOrient: "vertical",
+                          overflow: "hidden",
+                          flex: 1,
                         }}
                       >
                         {entry.content}
                       </Typography>
                     </Box>
-                  ))}
-              </Box>
-              {journalEntries.length > JOURNAL_PER_PAGE && (
+                  </Grid>
+                ))}
+              </Grid>
+              {filtered.length > JOURNAL_PER_PAGE && (
                 <Box sx={{ display: "flex", justifyContent: "center", mt: 4 }}>
                   <Pagination
-                    count={Math.ceil(journalEntries.length / JOURNAL_PER_PAGE)}
+                    count={totalPages}
                     page={journalPage}
                     onChange={(_, p) => { setJournalPage(p); window.scrollTo({ top: 0, behavior: "smooth" }); }}
                     size="small"
@@ -1575,7 +1589,8 @@ export default function ReadingLogPage() {
                 </Box>
               )}
             </>
-          )}
+          );
+          })()}
         </Box>
       </TabPanel>
 

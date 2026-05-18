@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import MandalaSVG from "../../components/shared/MandalaSVG";
 import {
   Box,
@@ -49,6 +49,7 @@ import { useAuth } from "../../hooks/useAuth";
 import { useThemeMode } from "../../hooks/useTheme";
 import { supabase } from "../../lib/supabase";
 import { usePanchang } from "../../hooks/usePanchang";
+import { getAllQuotes } from "../../lib/quotes";
 import dayjs from "dayjs";
 import { ASHTA_SIDDHI_SCALE } from "../../components/shared/AreaComponents";
 
@@ -2025,6 +2026,14 @@ export default function TodayPage() {
   const [undoSnack, setUndoSnack] = useState(false);
   const [errSnack, setErrSnack] = useState(false);
   const [dismissMorning, setDismissMorning] = useState(false);
+  const [deleteTaskConfirm, setDeleteTaskConfirm] = useState({ open: false, section: null, id: null, label: "" });
+
+  // Pick a stable daily quote (changes once per day)
+  const dailyQuote = useMemo(() => {
+    const quotes = getAllQuotes();
+    const dayIndex = dayjs().diff(dayjs("2024-01-01"), "day");
+    return quotes[((dayIndex % quotes.length) + quotes.length) % quotes.length];
+  }, []);
 
   const isWeekend = isWeekendDay();
   const isDisrupted = dayType === "disrupted";
@@ -2298,7 +2307,16 @@ export default function TodayPage() {
     setAddTaskFor(null);
   };
 
-  const handleDeleteTask = async (section, id) => {
+  const handleDeleteTask = (section, id) => {
+    const ansh = anshs.find((a) => a.id === id);
+    const customArr = section === "sacred" ? customSacred : section === "core" ? customCore : customEvening;
+    const task = ansh || customArr.find((t) => t.id === id);
+    setDeleteTaskConfirm({ open: true, section, id, label: task?.title || task?.label || "this task" });
+  };
+
+  const confirmDeleteTask = async () => {
+    const { section, id } = deleteTaskConfirm;
+    setDeleteTaskConfirm({ open: false, section: null, id: null, label: "" });
     if (anshs.some((a) => a.id === id)) {
       const { error } = await supabase.from("anshs").delete().eq("id", id);
       if (!error) setAnshs((prev) => prev.filter((a) => a.id !== id));
@@ -2453,6 +2471,43 @@ export default function TodayPage() {
           </Box>
         </Box>
       </Box>
+
+      {/* ── DAILY QUOTE ── */}
+      {dailyQuote && (
+        <Box
+          sx={{
+            mb: 2.5,
+            px: 2,
+            py: 1.5,
+            borderLeft: `3px solid ${heroColor}60`,
+            background: `${heroColor}08`,
+            borderRadius: "0 8px 8px 0",
+          }}
+        >
+          <Typography
+            sx={{
+              fontSize: 13,
+              fontFamily: '"Lora", serif',
+              fontStyle: "italic",
+              color: textP,
+              lineHeight: 1.6,
+              mb: dailyQuote.translation ? 0.4 : 0,
+            }}
+          >
+            "{dailyQuote.text}"
+          </Typography>
+          {dailyQuote.translation && (
+            <Typography sx={{ fontSize: 12, color: isDark ? "#9C9A94" : "#6B6962", mb: 0.3 }}>
+              {dailyQuote.translation}
+            </Typography>
+          )}
+          {dailyQuote.source && (
+            <Typography sx={{ fontSize: 10, color: heroColor, fontWeight: 600, letterSpacing: 0.5, textTransform: "uppercase" }}>
+              — {dailyQuote.source}
+            </Typography>
+          )}
+        </Box>
+      )}
 
       {/* ── DISRUPTION BANNER ── */}
       {isDisrupted && (
@@ -2930,6 +2985,40 @@ export default function TodayPage() {
         heroColor={heroColor}
         isDark={isDark}
       />
+      {/* ── TASK DELETE CONFIRM ── */}
+      <Dialog
+        open={deleteTaskConfirm.open}
+        onClose={() => setDeleteTaskConfirm({ open: false, section: null, id: null, label: "" })}
+        PaperProps={{ sx: { borderRadius: 3, p: 1, maxWidth: 360 } }}
+      >
+        <DialogTitle sx={{ fontFamily: '"Fraunces", serif', fontWeight: 400, fontSize: 20, color: textP }}>
+          Remove task?
+        </DialogTitle>
+        <DialogContent>
+          <Typography sx={{ fontSize: 14, color: isDark ? "#9C9A94" : "#6B6962" }}>
+            Remove <strong>"{deleteTaskConfirm.label}"</strong> from today's list?{" "}
+            {anshs.some((a) => a.id === deleteTaskConfirm.id)
+              ? "This is a permanent ansh — it will be deleted from the system entirely."
+              : "This is a custom task for today only."}
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2.5, gap: 1 }}>
+          <Button
+            onClick={() => setDeleteTaskConfirm({ open: false, section: null, id: null, label: "" })}
+            sx={{ color: isDark ? "#9C9A94" : "#6B6962", textTransform: "none", borderRadius: 2 }}
+          >
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            onClick={confirmDeleteTask}
+            sx={{ bgcolor: "#CF4E4E", color: "#fff", textTransform: "none", fontWeight: 700, borderRadius: 2, "&:hover": { bgcolor: "#B03030" } }}
+          >
+            Remove
+          </Button>
+        </DialogActions>
+      </Dialog>
+
       <Snackbar
         open={errSnack}
         autoHideDuration={5000}

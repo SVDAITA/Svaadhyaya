@@ -15,6 +15,7 @@ import {
   ToggleButtonGroup,
   keyframes,
   alpha,
+  LinearProgress,
 } from "@mui/material";
 import {
   Close,
@@ -790,6 +791,7 @@ export default function DashboardPage() {
   const [dynamicStreaks, setDynamicStreaks] = useState([]);
   const [lakshyas, setLakshyas] = useState([]);
   const [todayAnshs, setTodayAnshs] = useState([]);
+  const [weeklyGoals, setWeeklyGoals] = useState([]);
   const [selectedDate, setSelectedDate] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -813,7 +815,8 @@ export default function DashboardPage() {
       });
       setDayMap(map);
 
-      const [{ data: lData }, { data: anshData }, { data: vacData }] = await Promise.all([
+      const weekStart = dayjs().startOf("week").format("YYYY-MM-DD");
+      const [{ data: lData }, { data: anshData }, { data: vacData }, { data: wgData }] = await Promise.all([
         supabase
           .from("lakshyas")
           .select("*, siddhis(*)")
@@ -827,9 +830,16 @@ export default function DashboardPage() {
           .from("vacations")
           .select("from_date, to_date")
           .eq("user_id", user.id),
+        supabase
+          .from("weekly_goals")
+          .select("*")
+          .eq("user_id", user.id)
+          .eq("week_start", weekStart)
+          .order("created_at"),
       ]);
       setLakshyas(lData || []);
       setTodayAnshs(anshData || []);
+      setWeeklyGoals(wgData || []);
 
       // Build a Set of every date string covered by any vacation range.
       const vacationDateSet = new Set();
@@ -1237,6 +1247,104 @@ export default function DashboardPage() {
             </Grid>
           ))}
         </Grid>
+
+        {/* THIS WEEK'S FOCUS */}
+        {weeklyGoals.length > 0 && (() => {
+          // Group by area
+          const byArea = {};
+          weeklyGoals.forEach((g) => {
+            if (!byArea[g.area]) byArea[g.area] = [];
+            byArea[g.area].push(g);
+          });
+          const areas = Object.keys(byArea);
+          const totalGoals = weeklyGoals.length;
+          const doneGoals = weeklyGoals.filter((g) => g.done).length;
+          const pct = totalGoals > 0 ? Math.round((doneGoals / totalGoals) * 100) : 0;
+          return (
+            <Card
+              sx={{
+                border: `1px solid ${border}`,
+                borderRadius: 2.5,
+                background: cardBg,
+                boxShadow: "none",
+                mb: 3,
+                animation: `${fadeUp} 0.4s ease 0.05s both`,
+              }}
+            >
+              <CardContent sx={{ p: { xs: 2.5, sm: 3 } }}>
+                <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2, flexWrap: "wrap", gap: 1 }}>
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+                    <Box sx={{ p: 0.75, borderRadius: 1.5, background: alpha(heroColor, 0.12), color: heroColor }}>
+                      <Insights sx={{ fontSize: 18 }} />
+                    </Box>
+                    <Typography sx={{ fontFamily: '"Fraunces", serif', fontSize: 18, fontWeight: 600 }}>
+                      This Week's Focus
+                    </Typography>
+                  </Box>
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                    <Typography sx={{ fontSize: 12, color: textS }}>
+                      {doneGoals}/{totalGoals} done
+                    </Typography>
+                    <Box sx={{ width: 80 }}>
+                      <LinearProgress
+                        variant="determinate"
+                        value={pct}
+                        sx={{
+                          height: 5,
+                          borderRadius: 4,
+                          bgcolor: alpha(heroColor, 0.12),
+                          "& .MuiLinearProgress-bar": { background: heroColor, borderRadius: 4 },
+                        }}
+                      />
+                    </Box>
+                    <Typography sx={{ fontSize: 12, color: heroColor, fontWeight: 700, minWidth: 32 }}>
+                      {pct}%
+                    </Typography>
+                  </Box>
+                </Box>
+                <Grid container spacing={1.5}>
+                  {areas.map((area) => {
+                    const theme = AREA_THEMES[area];
+                    const aColor = isDark ? theme?.colorDark : theme?.color;
+                    return (
+                      <Grid item xs={12} sm={6} md={4} key={area}>
+                        <Box
+                          sx={{
+                            p: 1.5,
+                            borderRadius: 2,
+                            border: `1px solid ${alpha(aColor || heroColor, 0.2)}`,
+                            background: alpha(aColor || heroColor, 0.04),
+                          }}
+                        >
+                          <Typography sx={{ fontSize: 11, fontWeight: 700, color: aColor || heroColor, letterSpacing: 0.6, textTransform: "uppercase", mb: 1 }}>
+                            {theme?.emoji} {theme?.label || area}
+                          </Typography>
+                          <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
+                            {byArea[area].map((g) => (
+                              <Typography
+                                key={g.id}
+                                sx={{
+                                  fontSize: 12,
+                                  color: g.done ? textS : textP,
+                                  textDecoration: g.done ? "line-through" : "none",
+                                  opacity: g.done ? 0.55 : 1,
+                                  lineHeight: 1.5,
+                                  "&::before": { content: '"·  "', color: aColor || heroColor },
+                                }}
+                              >
+                                {g.title}
+                              </Typography>
+                            ))}
+                          </Box>
+                        </Box>
+                      </Grid>
+                    );
+                  })}
+                </Grid>
+              </CardContent>
+            </Card>
+          );
+        })()}
 
         {/* MAIN METRICS */}
         <Grid container spacing={3}>

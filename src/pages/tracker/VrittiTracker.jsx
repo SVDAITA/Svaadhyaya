@@ -716,7 +716,7 @@ export default function VrittiTracker() {
       user_id: user.id,
       area: "certification",
       title: certForm.title.trim(),
-      issuer: certForm.issuer,
+      notes: JSON.stringify({ issuer: certForm.issuer?.trim() || "" }),
       progress: safeProgress,
     });
     if (error) {
@@ -1024,6 +1024,7 @@ export default function VrittiTracker() {
               {certs.map((c) => {
                 const done = c.progress === 100;
                 const certColor = done ? C.green : c.progress > 50 ? C.blue : C.gold;
+                const certMeta = safeParseNotes(c.notes);
                 return (
                   <Grid item xs={12} sm={6} key={c.id}>
                     <Card
@@ -1047,10 +1048,10 @@ export default function VrittiTracker() {
                             <Typography sx={{ fontSize: 14, fontWeight: 700, color: textP, lineHeight: 1.3, fontFamily: "'DM Serif Display', serif" }}>
                               {c.title}
                             </Typography>
-                            {c.issuer && (
+                            {certMeta.issuer && (
                               <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, mt: 0.4 }}>
                                 <BookmarkBorder sx={{ fontSize: 11, color: textS }} />
-                                <Typography sx={{ fontSize: 11, color: textS }}>{c.issuer}</Typography>
+                                <Typography sx={{ fontSize: 11, color: textS }}>{certMeta.issuer}</Typography>
                               </Box>
                             )}
                             {done && (
