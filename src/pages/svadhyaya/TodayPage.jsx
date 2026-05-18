@@ -2241,7 +2241,7 @@ export default function TodayPage() {
     setUndoSnack(false);
   };
 
-  const handleAddTask = ({
+  const handleAddTask = async ({
     label,
     lakshya_id,
     lakshyaTitle,
@@ -2249,6 +2249,22 @@ export default function TodayPage() {
     siddhiTitle,
     deep,
   }) => {
+    // If a Siddhi is linked, create a proper ansh record in the DB
+    if (siddhi_id && lakshya_id && user) {
+      const { data, error } = await supabase.from("anshs").insert({
+        user_id: user.id,
+        lakshya_id,
+        siddhi_id,
+        title: label,
+        status: "active",
+      }).select("*, siddhi:siddhis(title), lakshya:lakshyas(title)").single();
+      if (!error && data) {
+        setAnshs((prev) => [...prev, data]);
+      }
+      setAddTaskFor(null);
+      return;
+    }
+
     const DEFAULT_SECTION_EMOJI = {
       sacred: "⭐",
       core: "🎯",
@@ -2282,7 +2298,12 @@ export default function TodayPage() {
     setAddTaskFor(null);
   };
 
-  const handleDeleteTask = (section, id) => {
+  const handleDeleteTask = async (section, id) => {
+    if (anshs.some((a) => a.id === id)) {
+      const { error } = await supabase.from("anshs").delete().eq("id", id);
+      if (!error) setAnshs((prev) => prev.filter((a) => a.id !== id));
+      return;
+    }
     if (section === "sacred") {
       const n = customSacred.filter((t) => t.id !== id);
       setCustomSacred(n);
@@ -2842,44 +2863,6 @@ export default function TodayPage() {
           >
             {dayClosed ? "✓ Day Closed — Rest Well" : "Close Day"}
           </Button>
-          <Box
-            onClick={() => setShowDisrupt(true)}
-            sx={{
-              border: `1.5px dashed ${heroColor}50`,
-              borderRadius: 2,
-              py: 1.25,
-              px: 2,
-              cursor: "pointer",
-              textAlign: "center",
-              transition: "all 0.15s",
-              "&:hover": {
-                background: `${heroColor}06`,
-                borderColor: heroColor,
-              },
-            }}
-          >
-            <Box
-              sx={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: 1,
-              }}
-            >
-              <MandalaSVG size={14} color={heroColor} />
-              <Typography
-                sx={{
-                  fontSize: 12,
-                  fontWeight: 700,
-                  color: heroColor,
-                  letterSpacing: 1,
-                  textTransform: "uppercase",
-                }}
-              >
-                Life Happened — Handle Disruption
-              </Typography>
-            </Box>
-          </Box>
         </Box>
       </Box>
 

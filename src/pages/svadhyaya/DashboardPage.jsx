@@ -73,7 +73,7 @@ const AREA_THEMES = {
 
 const HABIT_LABELS = {
   anushthanam: "Anushthanam",
-  riyaz: "Naada Saadhana",
+  saadhana: "Naada Saadhana",
   walk: "Vyaayamam",
   reading: "Pustaka Pathanam",
   office: "Office Work",
@@ -846,7 +846,7 @@ export default function DashboardPage() {
       // These IDs match the locked task ids defined in DEFAULT_SACRED/CORE on TodayPage.
       const AREA_HABIT_MAP = {
         spirit:  "anushthanam",
-        music:   "riyaz",
+        music:   "saadhana",
         health:  "walk",
         career:  "office",
         finance: "logs",

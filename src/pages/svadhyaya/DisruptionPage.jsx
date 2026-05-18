@@ -39,7 +39,7 @@ dayjs.extend(isBetween);
 // User data (required flag, minimum text) lives in Supabase — not here.
 const SYSTEM_SACRED_TASKS = [
   { id: "anushthanam",   label: "Anushthanam",          emoji: "🪔" },
-  { id: "riyaz",         label: "Naada Saadhana",        emoji: "🎵" },
+  { id: "saadhana",      label: "Naada Saadhana",        emoji: "🎵" },
   { id: "walk",          label: "Vyaayamam",             emoji: "🏃" },
   { id: "reading",       label: "Pustaka Pathanam",      emoji: "📖" },
   { id: "eat_healthy",   label: "Eat healthy (80% full)", emoji: "🥗" },
@@ -269,7 +269,7 @@ export default function DisruptionPage() {
           user_id: user.id,
           day_date: dayjs().format("YYYY-MM-DD"),
           disrupted: true,
-          disruption_mode: "holiday",
+          disruption_mode: "disrupted",
           disruption_reason: reason,
           disruption_note: note || null,
         },

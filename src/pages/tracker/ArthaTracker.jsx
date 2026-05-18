@@ -567,7 +567,11 @@ export default function FinanceOSPage() {
 
   const saveBudgetLimit = async () => {
     /* Logic Preserved */
-    if (!budgetForm.category || !budgetForm.limit_amt || !user) return;
+    if (!budgetForm.limit_amt || Number(budgetForm.limit_amt) <= 0) {
+      showToast("Please enter a valid monthly limit amount", "error");
+      return;
+    }
+    if (!user) return;
     setSaving(true);
     try {
       const existing = budgets.find((b) => b.category === budgetForm.category);

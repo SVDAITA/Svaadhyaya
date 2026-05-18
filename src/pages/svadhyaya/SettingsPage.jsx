@@ -52,7 +52,7 @@ const SETTINGS_DATE = "2000-01-01";
 
 const SYSTEM_SACRED_TASKS = [
   { id: "anushthanam",   label: "Anushthanam",           emoji: "🪔" },
-  { id: "riyaz",         label: "Naada Saadhana",         emoji: "🎵" },
+  { id: "saadhana",      label: "Naada Saadhana",         emoji: "🎵" },
   { id: "walk",          label: "Vyaayamam",              emoji: "🏃" },
   { id: "reading",       label: "Pustaka Pathanam",       emoji: "📖" },
   { id: "eat_healthy",   label: "Eat healthy (80% full)", emoji: "🥗" },

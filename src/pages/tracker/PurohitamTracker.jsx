@@ -1803,7 +1803,7 @@ function AnushtanamTab({ user, isDark }) {
           .eq("id", editGoal.id);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from("japa_goals").insert({
+        const { error } = await supabase.from("japa_goals").upsert({
           user_id: user.id,
           japa_name: goalForm.japa_name.trim(),
           target_count: targetCount,
@@ -1811,7 +1811,7 @@ function AnushtanamTab({ user, isDark }) {
           start_date: today,
           notes: goalForm.notes || null,
           is_active: true,
-        });
+        }, { onConflict: "user_id,japa_name" });
         if (error) throw error;
       }
       setGoalOpen(false);
