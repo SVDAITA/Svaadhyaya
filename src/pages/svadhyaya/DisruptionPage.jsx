@@ -229,7 +229,7 @@ export default function DisruptionPage() {
       .select("disruption_baselines")
       .eq("user_id", user.id)
       .eq("day_date", SETTINGS_DATE)
-      .single();
+      .maybeSingle();
     if (data?.disruption_baselines) {
       setBaselines(data.disruption_baselines);
     }

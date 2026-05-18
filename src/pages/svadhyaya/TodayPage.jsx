@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import MandalaSVG from "../../components/shared/MandalaSVG";
 import {
   Box,
@@ -20,6 +20,8 @@ import {
   FormControl,
   InputLabel,
   Switch,
+  Slide,
+  useMediaQuery,
 } from "@mui/material";
 import {
   CheckCircle,
@@ -292,7 +294,8 @@ function PanchangamCard({ data, loading, heroColor, isDark }) {
                   fontFamily: '"Lora","Fraunces",serif',
                 }}
               >
-                {dayjs().format("dddd, D MMMM YYYY")}
+                {data?.varam ? `${data.varam} · ` : ""}
+                {dayjs().format("D MMMM YYYY")}
               </Typography>
             </Box>
           </Box>
@@ -536,7 +539,7 @@ function AddTaskDialog({
   const names = {
     sacred: "Sacred Foundation",
     core: "Core Task",
-    evening: "Evening Rite",
+    evening: "Wind Down",
   };
 
   const handleLakshyaChange = (id) => {
@@ -1437,6 +1440,11 @@ function EveningFlowModal({
 }
 
 // ── SUNSET DIALOG ──────────────────────────────────────────────────────────────
+// eslint-disable-next-line react/display-name
+const SlideUp = React.forwardRef(function SlideUp(props, ref) {
+  return <Slide direction="up" ref={ref} {...props} />;
+});
+
 function SunsetDialog({
   open,
   onConfirm,
@@ -1445,6 +1453,7 @@ function SunsetDialog({
   isDark,
   resonanceScore,
 }) {
+  const isMobile = useMediaQuery("(max-width:600px)");
   const bg = isDark ? "#1A1916" : "#FCFBF9";
   const border = isDark ? "rgba(255,255,255,0.08)" : "#D1D0CF";
   const textP = isDark ? "#F0EDE8" : "#2C2C2C";
@@ -1460,14 +1469,25 @@ function SunsetDialog({
       onClose={onClose}
       maxWidth="xs"
       fullWidth
+      TransitionComponent={isMobile ? SlideUp : undefined}
       PaperProps={{
         sx: {
-          borderRadius: 3,
+          borderRadius: isMobile ? "20px 20px 0 0" : 3,
           border: `1px solid ${border}`,
           boxShadow: "none",
           background: bg,
+          ...(isMobile && {
+            position: "fixed",
+            bottom: 0,
+            left: 0,
+            right: 0,
+            m: 0,
+            width: "100%",
+            maxWidth: "100% !important",
+          }),
         },
       }}
+      sx={isMobile ? { alignItems: "flex-end" } : {}}
     >
       <DialogContent sx={{ p: "32px 28px !important", textAlign: "center" }}>
         <Typography sx={{ fontSize: 40, mb: 1 }}>
@@ -2027,7 +2047,7 @@ export default function TodayPage() {
       .select("*")
       .eq("user_id", user.id)
       .eq("day_date", today)
-      .single();
+      .maybeSingle();
 
     if (dayData) {
       setHabits(dayData.habits || {});
@@ -2073,7 +2093,7 @@ export default function TodayPage() {
       .select("task_lakshya_links")
       .eq("user_id", user.id)
       .eq("day_date", "2000-01-01")
-      .single();
+      .maybeSingle();
     if (settingsRow?.task_lakshya_links) {
       setTaskLakshyaLinks(settingsRow.task_lakshya_links);
     }
@@ -2207,9 +2227,15 @@ export default function TodayPage() {
     siddhiTitle,
     deep,
   }) => {
+    const DEFAULT_SECTION_EMOJI = {
+      sacred: "⭐",
+      core: "🎯",
+      evening: "🌙",
+    };
     const item = {
       id: `custom_${Date.now()}`,
       label,
+      emoji: DEFAULT_SECTION_EMOJI[addTaskFor] || "📌",
       lakshya_id: lakshya_id || null,
       lakshyaTitle: lakshyaTitle || null,
       siddhi_id: siddhi_id || null,
@@ -2620,97 +2646,57 @@ export default function TodayPage() {
               />
             </CardContent>
           </Card>
-          <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 2 }}>
-            <Card
-              sx={{
-                border: `1px solid ${border}`,
-                borderRadius: 2,
-                background: cardBg,
-                boxShadow: "none",
-              }}
-            >
-              <CardContent sx={{ px: 2, py: "14px !important" }}>
-                <SectionHeader
-                  label="Sāyam Sandhyā"
+          <Card
+            sx={{
+              border: `1px solid ${border}`,
+              borderRadius: 2,
+              background: cardBg,
+              boxShadow: "none",
+            }}
+          >
+            <CardContent sx={{ px: 2, py: "14px !important" }}>
+              <SectionHeader
+                label="Wind Down"
+                heroColor={heroColor}
+                isDark={isDark}
+                onAdd={() => setAddTaskFor("evening")}
+              />
+              {allEvening.length === 0 ? (
+                <EmptyState
+                  message="No evening habits"
                   heroColor={heroColor}
                   isDark={isDark}
                   onAdd={() => setAddTaskFor("evening")}
                 />
-                {allEvening.length === 0 ? (
-                  <EmptyState
-                    message="No evening habits"
-                    heroColor={heroColor}
-                    isDark={isDark}
-                    onAdd={() => setAddTaskFor("evening")}
-                  />
-                ) : (
-                  allEvening.map((item) => renderItem(item, "evening"))
-                )}
-              </CardContent>
-            </Card>
-            <Card
-              sx={{
-                border: `1px solid ${border}`,
-                borderRadius: 2,
-                background: cardBg,
-                boxShadow: "none",
-                display: "flex",
-                flexDirection: "column",
-              }}
-            >
-              <CardContent
-                sx={{
-                  px: 2,
-                  py: "18px !important",
-                  textAlign: "center",
-                  flex: 1,
-                  display: "flex",
-                  flexDirection: "column",
-                  justifyContent: "center",
-                }}
-              >
-                <Typography sx={{ fontSize: 36, mb: 1, lineHeight: 1 }}>
-                  {ASHTA_SIDDHI_SCALE.find(
-                    (s) => s.value === Math.ceil(resonanceScore / (100 / 8)),
-                  )?.emoji || "🌱"}
-                </Typography>
-                <Typography
-                  sx={{
-                    fontFamily: '"Lora","Fraunces",serif',
-                    fontSize: 16,
-                    fontWeight: 600,
-                    color: textP,
-                    mb: 0.5,
-                  }}
-                >
-                  {dayClosed ? "Day Complete" : "Sandhyā Sādhanā"}
-                </Typography>
-                <Typography sx={{ fontSize: 11, color: "#9C9A94", mb: "auto" }}>
-                  {dayClosed ? "Rest well." : "Capture wins & disconnect."}
-                </Typography>
-                <Button
-                  variant="contained"
-                  fullWidth
-                  onClick={() => setShowSunset(true)}
-                  disabled={dayClosed}
-                  sx={{
-                    mt: 2,
-                    py: 1.2,
-                    borderRadius: 1.5,
-                    fontSize: 11,
-                    fontWeight: 700,
-                    letterSpacing: 0.8,
-                    textTransform: "uppercase",
-                    background: heroColor,
-                    "&:hover": { background: heroColor, opacity: 0.88 },
-                    boxShadow: "none",
-                  }}
-                >
-                  {dayClosed ? "✓ Rest Well" : "Begin Sunset"}
-                </Button>
-              </CardContent>
-            </Card>
-          </Box>
+              ) : (
+                allEvening.map((item) => renderItem(item, "evening"))
+              )}
+            </CardContent>
+          </Card>
+          <Button
+            variant="contained"
+            fullWidth
+            onClick={() => setShowSunset(true)}
+            disabled={dayClosed}
+            sx={{
+              py: 1.4,
+              borderRadius: 2,
+              fontSize: 12,
+              fontWeight: 700,
+              letterSpacing: 1,
+              textTransform: "uppercase",
+              background: dayClosed
+                ? isDark
+                  ? "rgba(255,255,255,0.08)"
+                  : "rgba(0,0,0,0.06)"
+                : heroColor,
+              color: dayClosed ? (isDark ? "#9C9A94" : "#64748b") : "#fff",
+              "&:hover": { background: heroColor, opacity: 0.88 },
+              boxShadow: "none",
+            }}
+          >
+            {dayClosed ? "✓ Day Closed — Rest Well" : "Close Day"}
+          </Button>
           <Box
             onClick={() => setShowDisrupt(true)}
             sx={{

@@ -1044,7 +1044,20 @@ export default function SettingsPage() {
 
           {/* ── GUIDE TAB ── */}
           <TabPanel value={tab} index={5}>
-            <Box sx={{ maxWidth: 560 }}>
+            <Box
+              sx={{
+                maxWidth: 560,
+                maxHeight: { xs: "calc(100vh - 260px)", md: 560 },
+                overflowY: "auto",
+                pr: 1,
+                "&::-webkit-scrollbar": { width: 4 },
+                "&::-webkit-scrollbar-thumb": {
+                  borderRadius: 4,
+                  background: isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.15)",
+                },
+                "&::-webkit-scrollbar-track": { background: "transparent" },
+              }}
+            >
               <Typography sx={{ fontSize: 12, color: textS, mb: 4, lineHeight: 1.8 }}>
                 Everything you need to get the most out of Svaadhyaya.
               </Typography>

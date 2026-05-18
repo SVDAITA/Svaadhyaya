@@ -89,6 +89,17 @@ const HABIT_LABELS = {
 const SIDDHI_WEIGHTS = { 1: 1, 2: 2, 3: 4, 4: 7, 5: 12, 6: 18, 7: 25, 8: 35 };
 const MAX_EXPECTED_MASS = 120;
 
+// Vedic weekday names (0 = Sunday)
+const VARA_NAMES = [
+  "Ravivāra",
+  "Somavāra",
+  "Maṅgalavāra",
+  "Budhavāra",
+  "Guruvāra",
+  "Śukravāra",
+  "Śanivāra",
+];
+
 function calculateDailyMass(dayData) {
   if (!dayData?.habits) return 0;
   const habits = dayData.habits;
@@ -254,12 +265,12 @@ function DayDialog({ date, dayData, onClose, heroColor, isDark }) {
   const textP = isDark ? "#F0EDE8" : "#2C2C2C";
   const textS = isDark ? "#7A7874" : "#9C9A94";
 
-  const completedData = Object.values(habitsData).filter((d) => d?.hours);
+  const completedData = done.map((k) => habitsData[k]).filter((d) => d?.hours);
   const avgSatisf =
-    completedData.length > 0
+    done.length > 0
       ? Math.round(
-          completedData.reduce((s, d) => s + (d.satisfaction || 4), 0) /
-            completedData.length,
+          done.reduce((s, k) => s + (habitsData[k]?.satisfaction || 4), 0) /
+            done.length,
         )
       : null;
   const currentSiddhi = ASHTA_SIDDHI_SCALE.find((s) => s.value === avgSatisf);
@@ -294,22 +305,18 @@ function DayDialog({ date, dayData, onClose, heroColor, isDark }) {
           <Typography
             sx={{
               fontFamily: '"Fraunces",serif',
-              fontSize: 24,
+              fontSize: 22,
               fontWeight: 600,
               color: textP,
+              lineHeight: 1.2,
             }}
           >
-            {dayjs(date).format("dddd")}
+            {VARA_NAMES[dayjs(date).day()]}
           </Typography>
           <Typography
-            sx={{
-              fontSize: 13,
-              color: heroColor,
-              fontWeight: 600,
-              letterSpacing: 0.5,
-            }}
+            sx={{ fontSize: 12, color: textS, fontWeight: 500, mb: 0.25 }}
           >
-            {dayjs(date).format("D MMMM YYYY")}
+            {dayjs(date).format("dddd, D MMMM YYYY")}
           </Typography>
         </Box>
         <IconButton

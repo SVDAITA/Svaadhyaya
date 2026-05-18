@@ -113,15 +113,18 @@ export function usePanchang() {
   const [error, setError]     = useState(null)
 
   useEffect(() => {
-    const today = dayjs().format('YYYY-MM-DD')
-
-    const fetch = async () => {
+    const fetchForDate = async (dateStr) => {
       try {
         const cached = JSON.parse(localStorage.getItem(CACHE_KEY) || '{}')
-        if (cached.date === today && cached.data) {
+        if (cached.date === dateStr && cached.data) {
           setData(cached.data)
           setLoading(false)
           return
+        }
+
+        // Clear stale cache from a previous day
+        if (cached.date && cached.date !== dateStr) {
+          localStorage.removeItem(CACHE_KEY)
         }
 
         const { data: response, error: invokeError } = await supabase.functions.invoke('get-panchang', {
@@ -133,7 +136,7 @@ export function usePanchang() {
 
         const normalized = normalizeResponse(response)
         setData(normalized)
-        localStorage.setItem(CACHE_KEY, JSON.stringify({ date: today, data: normalized }))
+        localStorage.setItem(CACHE_KEY, JSON.stringify({ date: dateStr, data: normalized }))
       } catch (err) {
         console.error('Panchang error:', err.message)
         setError(err.message)
@@ -142,7 +145,23 @@ export function usePanchang() {
       }
     }
 
-    fetch()
+    const today = dayjs().format('YYYY-MM-DD')
+    fetchForDate(today)
+
+    // Re-fetch when the tab becomes visible — catches midnight crossovers
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        const currentDay = dayjs().format('YYYY-MM-DD')
+        const cached = JSON.parse(localStorage.getItem(CACHE_KEY) || '{}')
+        if (cached.date !== currentDay) {
+          setLoading(true)
+          fetchForDate(currentDay)
+        }
+      }
+    }
+
+    document.addEventListener('visibilitychange', handleVisibility)
+    return () => document.removeEventListener('visibilitychange', handleVisibility)
   }, [])
 
   return { data, loading, error }

@@ -1452,7 +1452,7 @@ export function AreaJournal({ area, color }) {
         .select("content, updated_at")
         .eq("user_id", user.id)
         .eq("area", area)
-        .single();
+        .maybeSingle();
       if (data) {
         setContent(data.content || "");
         setLastSaved(data.updated_at);
