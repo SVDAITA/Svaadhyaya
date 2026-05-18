@@ -134,6 +134,7 @@ export default function VidyaPage() {
   const { lakshyas, loading, reload } = useAreaData(AREA);
   const { mode } = useThemeMode();
   const isDark = mode === "dark";
+  const safeColor = isDark ? "#D4845A" : COLOR;
   const subtitle = useAreaSubtitle(AREA);
 
   const activeLakshyas = lakshyas.filter((l) => l.status === "active").length;
@@ -152,7 +153,7 @@ export default function VidyaPage() {
           justifyContent: "center",
         }}
       >
-        <CircularProgress sx={{ color: COLOR }} />
+        <CircularProgress sx={{ color: safeColor }} />
       </Box>
     );
 
@@ -169,14 +170,14 @@ export default function VidyaPage() {
     >
       <VidyaBg isDark={isDark} />
 
-      <AreaBanner color={COLOR} emoji="📖" title="Vidya" subtitle={subtitle} />
+      <AreaBanner color={safeColor} emoji="📖" title="Vidya" subtitle={subtitle} />
 
       <Grid container spacing={2} sx={{ mb: 3 }}>
         <Grid item xs={6} sm={6}>
           <StatCard
             value={activeLakshyas}
             label="Active Visions"
-            color={COLOR}
+            color={safeColor}
             sub="Education Lakshyas"
           />
         </Grid>
@@ -184,7 +185,7 @@ export default function VidyaPage() {
           <StatCard
             value={totalSiddhis}
             label="Milestones Set"
-            color={COLOR}
+            color={safeColor}
             sub="Siddhis"
           />
         </Grid>
@@ -192,13 +193,13 @@ export default function VidyaPage() {
 
       <LakshyaSection
         area={AREA}
-        color={COLOR}
+        color={safeColor}
         lakshyas={lakshyas}
         onUpdate={reload}
       />
-      <AreaJournal area={AREA} color={COLOR} />
+      <AreaJournal area={AREA} color={safeColor} />
 
-      <WeeklyGoals area={AREA} color={COLOR} />
+      <WeeklyGoals area={AREA} color={safeColor} />
     </Box>
   );
 }

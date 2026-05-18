@@ -268,17 +268,21 @@ export default function SettingsPage() {
 
   const loadSettings = async () => {
     if (!user) return;
-    const [{ data: profile }, { data: settingsRow }] = await Promise.all([
-      supabase.from("user_profiles").select("*").eq("user_id", user.id).maybeSingle(),
-      supabase.from("days").select("disruption_baselines").eq("user_id", user.id).eq("day_date", SETTINGS_DATE).maybeSingle(),
-    ]);
-    if (profile?.full_name) {
-      const parts = profile.full_name.trim().split(" ");
-      setFirstName(parts[0] || "");
-      setLastName(parts.slice(1).join(" ") || "");
+    try {
+      const [{ data: profile }, { data: settingsRow }] = await Promise.all([
+        supabase.from("user_profiles").select("*").eq("user_id", user.id).maybeSingle(),
+        supabase.from("days").select("disruption_baselines").eq("user_id", user.id).eq("day_date", SETTINGS_DATE).maybeSingle(),
+      ]);
+      if (profile?.full_name) {
+        const parts = profile.full_name.trim().split(" ");
+        setFirstName(parts[0] || "");
+        setLastName(parts.slice(1).join(" ") || "");
+      }
+      if (profile?.mantra) setMantra(profile.mantra);
+      if (settingsRow?.disruption_baselines) setBaselines(settingsRow.disruption_baselines);
+    } catch (err) {
+      console.error("SettingsPage loadSettings error:", err.message);
     }
-    if (profile?.mantra) setMantra(profile.mantra);
-    if (settingsRow?.disruption_baselines) setBaselines(settingsRow.disruption_baselines);
   };
 
   const saveDisruptionBaselines = async () => {

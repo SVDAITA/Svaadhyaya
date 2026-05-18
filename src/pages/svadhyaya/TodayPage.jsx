@@ -35,7 +35,6 @@ import {
   WavingHand,
   BeachAccess,
   Close,
-  AccessTime,
   SentimentSatisfiedAlt,
   Delete,
   AutoAwesome,
@@ -2018,6 +2017,7 @@ export default function TodayPage() {
   const [addTaskFor, setAddTaskFor] = useState(null);
   const [completionItem, setCompletionItem] = useState(null);
   const [undoSnack, setUndoSnack] = useState(false);
+  const [errSnack, setErrSnack] = useState(false);
   const [dismissMorning, setDismissMorning] = useState(false);
 
   const isGrace = dayType === "holiday" || dayType === "vacation";
@@ -2042,63 +2042,68 @@ export default function TodayPage() {
       setLoading(false);
       return;
     }
-    const { data: dayData } = await supabase
-      .from("days")
-      .select("*")
-      .eq("user_id", user.id)
-      .eq("day_date", today)
-      .maybeSingle();
+    try {
+      const { data: dayData } = await supabase
+        .from("days")
+        .select("*")
+        .eq("user_id", user.id)
+        .eq("day_date", today)
+        .maybeSingle();
 
-    if (dayData) {
-      setHabits(dayData.habits || {});
-      setHabitsData(dayData.habits_data || {});
-      setDayType(dayData.disruption_mode || "working");
-      setOneThing(dayData.one_thing || "");
-      setWins(dayData.wins?.length ? dayData.wins : ["", "", ""]);
-      setTomorrowTasks(
-        dayData.tomorrow_tasks?.length ? dayData.tomorrow_tasks : ["", "", ""],
+      if (dayData) {
+        setHabits(dayData.habits || {});
+        setHabitsData(dayData.habits_data || {});
+        setDayType(dayData.disruption_mode || "working");
+        setOneThing(dayData.one_thing || "");
+        setWins(dayData.wins?.length ? dayData.wins : ["", "", ""]);
+        setTomorrowTasks(
+          dayData.tomorrow_tasks?.length ? dayData.tomorrow_tasks : ["", "", ""],
+        );
+        setDayClosed(!!dayData.last_close);
+        setMorningDone(!!dayData.morning_flow_done);
+        setCustomSacred(dayData.custom_sacred || []);
+        setCustomCore(dayData.custom_core || []);
+        setCustomEvening(dayData.custom_evening || []);
+      }
+
+      await supabase.from("days").upsert(
+        {
+          user_id: user.id,
+          day_date: today,
+          first_open: new Date().toISOString(),
+        },
+        { onConflict: "user_id,day_date", ignoreDuplicates: true },
       );
-      setDayClosed(!!dayData.last_close);
-      setMorningDone(!!dayData.morning_flow_done);
-      setCustomSacred(dayData.custom_sacred || []);
-      setCustomCore(dayData.custom_core || []);
-      setCustomEvening(dayData.custom_evening || []);
+
+      const { data: allLakshyas } = await supabase
+        .from("lakshyas")
+        .select("id, title, pillar, siddhis(id, title, status)")
+        .eq("user_id", user.id)
+        .eq("status", "active")
+        .order("created_at");
+      setLakshyas(allLakshyas || []);
+
+      const { data: anshData } = await supabase
+        .from("anshs")
+        .select("*, siddhi:siddhis(title), lakshya:lakshyas(title)")
+        .eq("user_id", user.id)
+        .eq("status", "active");
+      if (anshData) setAnshs(anshData);
+
+      const { data: settingsRow } = await supabase
+        .from("days")
+        .select("task_lakshya_links")
+        .eq("user_id", user.id)
+        .eq("day_date", "2000-01-01")
+        .maybeSingle();
+      if (settingsRow?.task_lakshya_links) {
+        setTaskLakshyaLinks(settingsRow.task_lakshya_links);
+      }
+    } catch (err) {
+      console.error("TodayPage load error:", err.message);
+    } finally {
+      setLoading(false);
     }
-
-    await supabase.from("days").upsert(
-      {
-        user_id: user.id,
-        day_date: today,
-        first_open: new Date().toISOString(),
-      },
-      { onConflict: "user_id,day_date", ignoreDuplicates: true },
-    );
-
-    const { data: allLakshyas } = await supabase
-      .from("lakshyas")
-      .select("id, title, pillar, siddhis(id, title, status)")
-      .eq("user_id", user.id)
-      .eq("status", "active")
-      .order("created_at");
-    setLakshyas(allLakshyas || []);
-    const { data: anshData } = await supabase
-      .from("anshs")
-      .select("*, siddhi:siddhis(title), lakshya:lakshyas(title)")
-      .eq("user_id", user.id)
-      .eq("status", "active");
-    if (anshData) setAnshs(anshData);
-
-    const { data: settingsRow } = await supabase
-      .from("days")
-      .select("task_lakshya_links")
-      .eq("user_id", user.id)
-      .eq("day_date", "2000-01-01")
-      .maybeSingle();
-    if (settingsRow?.task_lakshya_links) {
-      setTaskLakshyaLinks(settingsRow.task_lakshya_links);
-    }
-
-    setLoading(false);
   }, [user, today]);
 
   useEffect(() => {
@@ -2107,12 +2112,16 @@ export default function TodayPage() {
 
   const sync = async (patch) => {
     setSyncing(true);
-    await supabase
+    const { error: syncErr } = await supabase
       .from("days")
       .upsert(
         { user_id: user.id, day_date: today, ...patch },
         { onConflict: "user_id,day_date" },
       );
+    if (syncErr) {
+      console.error("sync error:", syncErr.message);
+      setErrSnack(true);
+    }
     setTimeout(() => setSyncing(false), 700);
   };
 
@@ -2801,6 +2810,16 @@ export default function TodayPage() {
         onClose={() => setLinkingTask(null)}
         heroColor={heroColor}
         isDark={isDark}
+      />
+      <Snackbar
+        open={errSnack}
+        autoHideDuration={5000}
+        onClose={() => setErrSnack(false)}
+        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+        message="⚠️ Save failed — check your connection"
+        ContentProps={{
+          sx: { background: "#7F1D1D", borderRadius: 2, fontSize: 13 },
+        }}
       />
       <Snackbar
         open={undoSnack}

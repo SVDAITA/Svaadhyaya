@@ -118,15 +118,18 @@ export default function ShariramHealthOS() {
   const fetchLogs = useCallback(async () => {
     if (!user) return;
     setLoading(true);
-    const [logsRes, settingsRes] = await Promise.all([
-      supabase.from("health_logs").select("*").eq("user_id", user.id).order("date", { ascending: false }),
-      supabase.from("days").select("habits").eq("user_id", user.id).eq("day_date", "2000-01-01").maybeSingle(),
-    ]);
-    if (!logsRes.error) setLogs(logsRes.data || []);
-    if (settingsRes.data?.habits?.health_targets) {
-      setTargets({ ...DEFAULT_TARGETS, ...settingsRes.data.habits.health_targets });
+    try {
+      const [logsRes, settingsRes] = await Promise.all([
+        supabase.from("health_logs").select("*").eq("user_id", user.id).order("date", { ascending: false }),
+        supabase.from("days").select("habits").eq("user_id", user.id).eq("day_date", "2000-01-01").maybeSingle(),
+      ]);
+      if (!logsRes.error) setLogs(logsRes.data || []);
+      if (settingsRes.data?.habits?.health_targets) {
+        setTargets({ ...DEFAULT_TARGETS, ...settingsRes.data.habits.health_targets });
+      }
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }, [user]);
 
   const saveTargets = async (newTargets) => {

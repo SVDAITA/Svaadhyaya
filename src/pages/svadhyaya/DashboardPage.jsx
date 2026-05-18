@@ -7,11 +7,9 @@ import {
   Grid,
   CircularProgress,
   Dialog,
-  DialogTitle,
   DialogContent,
   IconButton,
   Chip,
-  Divider,
   Tooltip,
   ToggleButton,
   ToggleButtonGroup,
@@ -20,7 +18,6 @@ import {
 } from "@mui/material";
 import {
   Close,
-  AccessTime,
   CalendarMonth,
   ViewWeek,
   ChevronLeft,
@@ -36,7 +33,6 @@ import { useAuth } from "../../hooks/useAuth";
 import { useThemeMode } from "../../hooks/useTheme";
 import { supabase } from "../../lib/supabase";
 import dayjs from "dayjs";
-import { SectionLabel } from "../../components/shared/AreaComponents";
 
 // ── ANIMATIONS & STYLING ────────────────────────────────────────────────────
 const fadeUp = keyframes`
@@ -254,252 +250,451 @@ function DynamicStreakCard({ areaKey, streak, lakshyaTitle, isDark, delay }) {
   );
 }
 
+// Emoji + full label for every known habit key
+const HABIT_META = {
+  anushthanam:    { emoji: "🪔", label: "Anushthanam" },
+  saadhana:       { emoji: "🎵", label: "Naada Saadhana" },
+  riyaz:          { emoji: "🎵", label: "Naada Saadhana" },
+  walk:           { emoji: "🏃", label: "Vyaayamam" },
+  reading:        { emoji: "📖", label: "Pustaka Pathanam" },
+  eat_healthy:    { emoji: "🥗", label: "Eat Healthy" },
+  sleep_healthy:  { emoji: "🌙", label: "Sleep Healthy" },
+  office:         { emoji: "🚀", label: "Vṛtti" },
+  vidya:          { emoji: "📚", label: "Vidyā" },
+  academics:      { emoji: "📚", label: "Academics" },
+  saayam_sandhya: { emoji: "🪔", label: "Sāyam Sandhyā" },
+  dinner_before_8:{ emoji: "🍽️", label: "Dinner before 8" },
+  next_day_prep:  { emoji: "📋", label: "Preparing for Next Day" },
+  tomorrow_prep:  { emoji: "📋", label: "Preparing for Next Day" },
+  update_trackers:{ emoji: "📊", label: "Update Trackers" },
+  logs:           { emoji: "📊", label: "Svaadhyaya Sync" },
+  gratitude:      { emoji: "🌸", label: "Evening Gratitude" },
+};
+
+const DISRUPTION_META = {
+  holiday:  { label: "Grace Mode",  emoji: "🌊", color: "#C07830" },
+  vacation: { label: "Vacation",    emoji: "🏖️", color: "#7C4DAB" },
+  working:  { label: "Full Day",    emoji: "⚡", color: null },
+};
+
 function DayDialog({ date, dayData, onClose, heroColor, isDark }) {
   if (!date) return null;
-  const habits = dayData?.habits || {};
-  const habitsData = dayData?.habits_data || {};
-  const done = Object.entries(habits)
-    .filter(([, v]) => v)
-    .map(([k]) => k);
-  const mass = calculateDailyMass(dayData);
-  const textP = isDark ? "#F0EDE8" : "#2C2C2C";
-  const textS = isDark ? "#7A7874" : "#9C9A94";
 
-  const completedData = done.map((k) => habitsData[k]).filter((d) => d?.hours);
+  const habits    = dayData?.habits      || {};
+  const habitsData= dayData?.habits_data || {};
+  const done = Object.entries(habits).filter(([, v]) => v).map(([k]) => k);
+  const total= Object.keys(habits).length;
+  const mass = calculateDailyMass(dayData);
+  const massPct  = Math.min(100, Math.round((mass / MAX_EXPECTED_MASS) * 100));
+  const disruption= dayData?.disruption_mode || "working";
+  const isClosed = !!dayData?.last_close;
+  const oneThing = dayData?.one_thing || "";
+  const wins     = (dayData?.wins || []).filter(Boolean);
+
+  const deepWorkHrs = done
+    .map((k) => habitsData[k]?.hours || 0)
+    .reduce((a, b) => a + b, 0);
+
   const avgSatisf =
     done.length > 0
       ? Math.round(
-          done.reduce((s, k) => s + (habitsData[k]?.satisfaction || 4), 0) /
-            done.length,
+          done.reduce((s, k) => s + (habitsData[k]?.satisfaction || 4), 0) / done.length,
         )
       : null;
   const currentSiddhi = ASHTA_SIDDHI_SCALE.find((s) => s.value === avgSatisf);
+  const disruptMeta   = DISRUPTION_META[disruption] || DISRUPTION_META.working;
+
+  const textP  = isDark ? "#F0EDE8" : "#2C2C2C";
+  const textS  = isDark ? "#7A7874" : "#9C9A94";
+  const cardBg = isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.03)";
+  const divCol = isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)";
 
   return (
     <Dialog
       open={!!date}
       onClose={onClose}
-      maxWidth="xs"
+      maxWidth="sm"
       fullWidth
       PaperProps={{
         sx: {
           borderRadius: 4,
-          border: "1px solid",
-          borderColor: isDark ? alpha(heroColor, 0.2) : alpha(heroColor, 0.2),
-          background: isDark ? "#121110" : "#FCFBF9",
+          border: `1px solid ${alpha(heroColor, 0.2)}`,
+          background: isDark ? "#0F0E0C" : "#FDFCF9",
           backgroundImage: ashramPattern,
-          boxShadow: `0 24px 64px ${alpha(heroColor, isDark ? 0.2 : 0.1)}`,
+          boxShadow: `0 28px 72px ${alpha(heroColor, isDark ? 0.25 : 0.12)}`,
         },
       }}
     >
-      <DialogTitle
+      {/* ── HEADER ── */}
+      <Box
         sx={{
-          p: 3,
-          pb: 1,
+          px: 3,
+          pt: 3,
+          pb: 2,
           display: "flex",
-          alignItems: "center",
+          alignItems: "flex-start",
           justifyContent: "space-between",
+          borderBottom: `1px solid ${divCol}`,
         }}
       >
         <Box>
           <Typography
             sx={{
               fontFamily: '"Fraunces",serif',
-              fontSize: 22,
-              fontWeight: 600,
+              fontSize: 24,
+              fontWeight: 700,
               color: textP,
-              lineHeight: 1.2,
+              lineHeight: 1.1,
+              mb: 0.25,
             }}
           >
             {VARA_NAMES[dayjs(date).day()]}
           </Typography>
-          <Typography
-            sx={{ fontSize: 12, color: textS, fontWeight: 500, mb: 0.25 }}
-          >
+          <Typography sx={{ fontSize: 12.5, color: textS, fontWeight: 500, mb: 1.25 }}>
             {dayjs(date).format("dddd, D MMMM YYYY")}
           </Typography>
+          <Box sx={{ display: "flex", gap: 0.75, flexWrap: "wrap" }}>
+            {isClosed && (
+              <Chip
+                label="Day Closed"
+                size="small"
+                sx={{
+                  height: 20,
+                  fontSize: 10,
+                  fontWeight: 700,
+                  letterSpacing: 0.4,
+                  background: alpha(heroColor, 0.12),
+                  color: heroColor,
+                  border: `1px solid ${alpha(heroColor, 0.3)}`,
+                }}
+              />
+            )}
+            {disruption !== "working" && (
+              <Chip
+                label={`${disruptMeta.emoji} ${disruptMeta.label}`}
+                size="small"
+                sx={{
+                  height: 20,
+                  fontSize: 10,
+                  fontWeight: 700,
+                  background: alpha(disruptMeta.color, 0.1),
+                  color: disruptMeta.color,
+                  border: `1px solid ${alpha(disruptMeta.color, 0.25)}`,
+                }}
+              />
+            )}
+            {done.length === 0 && (
+              <Chip
+                label="No practice"
+                size="small"
+                sx={{
+                  height: 20,
+                  fontSize: 10,
+                  color: textS,
+                  background: cardBg,
+                  border: `1px solid ${divCol}`,
+                }}
+              />
+            )}
+          </Box>
         </Box>
         <IconButton
           onClick={onClose}
+          size="small"
           sx={{
             color: textS,
-            bgcolor: alpha(textS, 0.1),
-            "&:hover": { bgcolor: alpha(textS, 0.2) },
+            bgcolor: alpha(textS, 0.08),
+            mt: 0.5,
+            "&:hover": { bgcolor: alpha(textS, 0.15) },
           }}
         >
-          <Close fontSize="small" />
+          <Close sx={{ fontSize: 16 }} />
         </IconButton>
-      </DialogTitle>
-      <DialogContent sx={{ p: 3, pt: 1 }}>
+      </Box>
+
+      <DialogContent sx={{ p: 3, pt: 2.5 }}>
+
+        {/* ── RESONANCE MASS HERO ── */}
         <Box
           sx={{
-            mb: 3,
-            p: 3,
+            mb: 2.5,
+            p: "20px 24px",
             borderRadius: 3,
-            background: `linear-gradient(135deg, ${alpha(heroColor, 0.1)} 0%, ${alpha(heroColor, 0.02)} 100%)`,
-            border: `1px solid ${alpha(heroColor, 0.2)}`,
-            textAlign: "center",
+            background: `linear-gradient(135deg, ${alpha(heroColor, isDark ? 0.14 : 0.08)} 0%, transparent 100%)`,
+            border: `1px solid ${alpha(heroColor, 0.18)}`,
             position: "relative",
             overflow: "hidden",
           }}
         >
-          <Typography
-            variant="caption"
-            sx={{
-              textTransform: "uppercase",
-              letterSpacing: 2.5,
-              color: heroColor,
-              fontWeight: 800,
-              display: "block",
-              mb: 0.5,
-            }}
-          >
-            Resonance Mass
-          </Typography>
-          <Typography
-            sx={{
-              fontFamily: '"Fraunces", serif',
-              fontSize: 42,
-              fontWeight: 700,
-              color: textP,
-              lineHeight: 1,
-            }}
-          >
-            {mass}
-          </Typography>
-        </Box>
-
-        <Grid container spacing={2} sx={{ mb: 3 }}>
-          <Grid item xs={6}>
-            <Box
-              sx={{
-                p: 2,
-                borderRadius: 2,
-                border: "1px solid",
-                borderColor: isDark
-                  ? "rgba(255,255,255,0.08)"
-                  : "rgba(0,0,0,0.08)",
-                textAlign: "center",
-                background: alpha(textS, 0.03),
-              }}
-            >
-              <AccessTime sx={{ fontSize: 18, color: textS, mb: 0.5 }} />
-              <Typography
-                sx={{
-                  fontSize: 10,
-                  color: textS,
-                  textTransform: "uppercase",
-                  fontWeight: 700,
-                  letterSpacing: 1,
-                }}
-              >
-                Work
-              </Typography>
-              <Typography sx={{ fontSize: 16, fontWeight: 600, color: textP }}>
-                {completedData
-                  .reduce((s, d) => s + (d.hours || 0), 0)
-                  .toFixed(1)}
-                h
-              </Typography>
-            </Box>
-          </Grid>
-          <Grid item xs={6}>
-            <Box
-              sx={{
-                p: 2,
-                borderRadius: 2,
-                border: "1px solid",
-                borderColor: isDark
-                  ? "rgba(255,255,255,0.08)"
-                  : "rgba(0,0,0,0.08)",
-                textAlign: "center",
-                background: alpha(textS, 0.03),
-              }}
-            >
-              <Typography sx={{ fontSize: 18, mb: 0.5 }}>
-                {currentSiddhi?.emoji || "—"}
-              </Typography>
-              <Typography
-                sx={{
-                  fontSize: 10,
-                  color: textS,
-                  textTransform: "uppercase",
-                  fontWeight: 700,
-                  letterSpacing: 1,
-                }}
-              >
-                Avg Level
-              </Typography>
-              <Typography sx={{ fontSize: 14, fontWeight: 600, color: textP }}>
-                {currentSiddhi?.name || "N/A"}
-              </Typography>
-            </Box>
-          </Grid>
-        </Grid>
-
-        <SectionLabel>Activities</SectionLabel>
-        <Box sx={{ mt: 1 }}>
-          {done.length === 0 ? (
+          <Box sx={{ display: "flex", alignItems: "baseline", gap: 1.5, mb: 1 }}>
             <Typography
-              variant="body2"
               sx={{
-                fontStyle: "italic",
-                color: "text.disabled",
-                p: 2,
-                textAlign: "center",
-                bgcolor: alpha(textS, 0.05),
-                borderRadius: 2,
+                fontFamily: '"Fraunces",serif',
+                fontSize: 52,
+                fontWeight: 700,
+                color: textP,
+                lineHeight: 1,
               }}
             >
-              No practice recorded.
+              {mass}
             </Typography>
-          ) : (
-            done.map((k) => (
-              <Box
-                key={k}
-                sx={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 1.5,
-                  py: 1.5,
-                  borderBottom: "1px solid",
-                  borderColor: isDark
-                    ? "rgba(255,255,255,0.05)"
-                    : "rgba(0,0,0,0.05)",
-                }}
+            <Box>
+              <Typography
+                sx={{ fontSize: 11, color: heroColor, fontWeight: 800, letterSpacing: 1.5, textTransform: "uppercase" }}
               >
-                <Box
-                  sx={{
-                    width: 6,
-                    height: 6,
-                    borderRadius: "50%",
-                    background: heroColor,
-                    boxShadow: `0 0 8px ${heroColor}`,
-                  }}
-                />
-                <Typography
-                  sx={{ fontSize: 14, color: textP, flex: 1, fontWeight: 500 }}
-                >
-                  {HABIT_LABELS[k] || k}
-                </Typography>
-                {habitsData[k]?.satisfaction && (
-                  <Chip
-                    label={`${ASHTA_SIDDHI_SCALE.find((s) => s.value === habitsData[k].satisfaction)?.emoji} Level ${habitsData[k].satisfaction}`}
-                    size="small"
-                    sx={{
-                      height: 24,
-                      fontSize: 11,
-                      fontWeight: 600,
-                      background: alpha(heroColor, 0.1),
-                      color: textP,
-                      border: `1px solid ${alpha(heroColor, 0.2)}`,
-                    }}
-                  />
-                )}
-              </Box>
-            ))
+                Resonance Mass
+              </Typography>
+              <Typography sx={{ fontSize: 12, color: textS }}>
+                out of {MAX_EXPECTED_MASS}
+              </Typography>
+            </Box>
+          </Box>
+
+          {/* Progress bar */}
+          <Box
+            sx={{
+              height: 5,
+              borderRadius: 3,
+              background: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)",
+              overflow: "hidden",
+              mb: 1,
+            }}
+          >
+            <Box
+              sx={{
+                height: "100%",
+                width: `${massPct}%`,
+                borderRadius: 3,
+                background: `linear-gradient(90deg, ${heroColor}, ${alpha(heroColor, 0.6)})`,
+                transition: "width 0.6s ease",
+              }}
+            />
+          </Box>
+
+          {/* Siddhi rank */}
+          {currentSiddhi && (
+            <Typography sx={{ fontSize: 12, color: textS }}>
+              {currentSiddhi.emoji}{" "}
+              <span style={{ color: textP, fontWeight: 600 }}>{currentSiddhi.name}</span>
+              {" · "}{currentSiddhi.label}
+              {" · "}{massPct}% of peak
+            </Typography>
+          )}
+          {done.length === 0 && (
+            <Typography sx={{ fontSize: 12, color: textS, fontStyle: "italic" }}>
+              No practices recorded for this day
+            </Typography>
           )}
         </Box>
+
+        {/* ── STATS ROW ── */}
+        {done.length > 0 && (
+          <Grid container spacing={1.5} sx={{ mb: 2.5 }}>
+            {[
+              {
+                icon: "✅",
+                label: "Habits Done",
+                value: total > 0 ? `${done.length} / ${total}` : `${done.length}`,
+              },
+              {
+                icon: "⏱️",
+                label: "Deep Work",
+                value: deepWorkHrs > 0 ? `${deepWorkHrs.toFixed(1)}h` : "—",
+              },
+              {
+                icon: currentSiddhi?.emoji || "💡",
+                label: "Avg Quality",
+                value: currentSiddhi ? `${currentSiddhi.name} (${avgSatisf})` : "—",
+              },
+            ].map(({ icon, label, value }) => (
+              <Grid item xs={4} key={label}>
+                <Box
+                  sx={{
+                    p: "10px 12px",
+                    borderRadius: 2,
+                    border: `1px solid ${divCol}`,
+                    background: cardBg,
+                    textAlign: "center",
+                  }}
+                >
+                  <Typography sx={{ fontSize: 16, lineHeight: 1, mb: 0.5 }}>{icon}</Typography>
+                  <Typography sx={{ fontSize: 9, color: textS, textTransform: "uppercase", letterSpacing: 1, fontWeight: 700, mb: 0.25 }}>
+                    {label}
+                  </Typography>
+                  <Typography sx={{ fontSize: 12, fontWeight: 600, color: textP, lineHeight: 1.2 }}>
+                    {value}
+                  </Typography>
+                </Box>
+              </Grid>
+            ))}
+          </Grid>
+        )}
+
+        {/* ── ONE INTENTION ── */}
+        {oneThing && (
+          <Box
+            sx={{
+              mb: 2.5,
+              p: "14px 18px",
+              borderRadius: 2.5,
+              border: `1px solid ${divCol}`,
+              background: cardBg,
+              borderLeft: `3px solid ${heroColor}`,
+            }}
+          >
+            <Typography
+              sx={{ fontSize: 9, color: heroColor, fontWeight: 800, letterSpacing: 1.5, textTransform: "uppercase", mb: 0.75 }}
+            >
+              One Intention
+            </Typography>
+            <Typography
+              sx={{
+                fontSize: 14,
+                color: textP,
+                fontFamily: '"Lora","Fraunces",serif',
+                fontStyle: "italic",
+                lineHeight: 1.6,
+              }}
+            >
+              "{oneThing}"
+            </Typography>
+          </Box>
+        )}
+
+        {/* ── WINS ── */}
+        {wins.length > 0 && (
+          <Box sx={{ mb: 2.5 }}>
+            <Typography
+              sx={{
+                fontSize: 9, color: textS, fontWeight: 800, letterSpacing: 1.5,
+                textTransform: "uppercase", mb: 1,
+              }}
+            >
+              Three Wins
+            </Typography>
+            {wins.map((w, i) => (
+              <Box
+                key={i}
+                sx={{
+                  display: "flex",
+                  gap: 1.25,
+                  alignItems: "flex-start",
+                  mb: 0.75,
+                  p: "8px 12px",
+                  borderRadius: 1.5,
+                  background: cardBg,
+                  border: `1px solid ${divCol}`,
+                }}
+              >
+                <Typography sx={{ fontSize: 11, color: heroColor, fontWeight: 800, mt: 0.1, flexShrink: 0 }}>
+                  {i + 1}.
+                </Typography>
+                <Typography sx={{ fontSize: 13, color: textP, lineHeight: 1.5 }}>{w}</Typography>
+              </Box>
+            ))}
+          </Box>
+        )}
+
+        {/* ── PRACTICES ── */}
+        <Typography
+          sx={{
+            fontSize: 9, color: textS, fontWeight: 800, letterSpacing: 1.5,
+            textTransform: "uppercase", mb: 1,
+          }}
+        >
+          Practices {done.length > 0 ? `(${done.length})` : ""}
+        </Typography>
+
+        {done.length === 0 ? (
+          <Box
+            sx={{
+              py: 3,
+              textAlign: "center",
+              border: `1px dashed ${divCol}`,
+              borderRadius: 2,
+            }}
+          >
+            <Typography sx={{ fontSize: 28, mb: 0.5 }}>🌑</Typography>
+            <Typography sx={{ fontSize: 13, color: textS, fontStyle: "italic" }}>
+              No practices were recorded this day.
+            </Typography>
+          </Box>
+        ) : (
+          <Box
+            sx={{
+              border: `1px solid ${divCol}`,
+              borderRadius: 2.5,
+              overflow: "hidden",
+            }}
+          >
+            {done.map((k, idx) => {
+              const meta = HABIT_META[k];
+              const sat  = habitsData[k]?.satisfaction;
+              const hrs  = habitsData[k]?.hours;
+              const siddhiEntry = ASHTA_SIDDHI_SCALE.find((s) => s.value === sat);
+              return (
+                <Box
+                  key={k}
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 1.5,
+                    px: 2,
+                    py: 1.25,
+                    borderBottom: idx < done.length - 1 ? `1px solid ${divCol}` : "none",
+                    background: idx % 2 === 0 ? "transparent" : alpha(textS, 0.02),
+                  }}
+                >
+                  {/* Emoji */}
+                  <Typography sx={{ fontSize: 16, flexShrink: 0, width: 24, textAlign: "center" }}>
+                    {meta?.emoji || "✦"}
+                  </Typography>
+
+                  {/* Label */}
+                  <Typography sx={{ fontSize: 13, color: textP, fontWeight: 500, flex: 1 }}>
+                    {meta?.label || HABIT_LABELS[k] || k}
+                  </Typography>
+
+                  {/* Hours badge */}
+                  {hrs > 0 && (
+                    <Typography
+                      sx={{
+                        fontSize: 11,
+                        color: textS,
+                        fontWeight: 600,
+                        background: cardBg,
+                        border: `1px solid ${divCol}`,
+                        borderRadius: 1,
+                        px: 0.75,
+                        py: 0.25,
+                        flexShrink: 0,
+                      }}
+                    >
+                      {hrs}h
+                    </Typography>
+                  )}
+
+                  {/* Satisfaction chip */}
+                  {siddhiEntry && (
+                    <Chip
+                      label={`${siddhiEntry.emoji} ${siddhiEntry.name}`}
+                      size="small"
+                      sx={{
+                        height: 22,
+                        fontSize: 10,
+                        fontWeight: 600,
+                        background: alpha(heroColor, 0.1),
+                        color: textP,
+                        border: `1px solid ${alpha(heroColor, 0.2)}`,
+                        flexShrink: 0,
+                      }}
+                    />
+                  )}
+                </Box>
+              );
+            })}
+          </Box>
+        )}
       </DialogContent>
     </Dialog>
   );
@@ -598,70 +793,75 @@ export default function DashboardPage() {
   const load = useCallback(async () => {
     if (!user) { setLoading(false); return; }
     setLoading(true);
-    const { data: days } = await supabase
-      .from("days")
-      .select("*")
-      .eq("user_id", user.id)
-      .order("day_date");
-    const map = {};
-    days?.forEach((d) => {
-      map[d.day_date] = d;
-    });
-    setDayMap(map);
-
-    const [{ data: lData }, { data: anshData }, { data: vacData }] = await Promise.all([
-      supabase
-        .from("lakshyas")
-        .select("*, siddhis(*)")
+    try {
+      const { data: days } = await supabase
+        .from("days")
+        .select("*")
         .eq("user_id", user.id)
-        .eq("status", "active"),
-      supabase
-        .from("anshs")
-        .select("id, lakshya_id, status")
-        .eq("user_id", user.id),
-      supabase
-        .from("vacations")
-        .select("from_date, to_date")
-        .eq("user_id", user.id),
-    ]);
-    setLakshyas(lData || []);
-    setTodayAnshs(anshData || []);
+        .order("day_date");
+      const map = {};
+      days?.forEach((d) => {
+        map[d.day_date] = d;
+      });
+      setDayMap(map);
 
-    // Build a Set of every date string covered by any vacation range.
-    const vacationDateSet = new Set();
-    (vacData || []).forEach(({ from_date, to_date }) => {
-      let cur = dayjs(from_date);
-      const end = dayjs(to_date);
-      while (!cur.isAfter(end)) {
-        vacationDateSet.add(cur.format("YYYY-MM-DD"));
-        cur = cur.add(1, "day");
-      }
-    });
+      const [{ data: lData }, { data: anshData }, { data: vacData }] = await Promise.all([
+        supabase
+          .from("lakshyas")
+          .select("*, siddhis(*)")
+          .eq("user_id", user.id)
+          .eq("status", "active"),
+        supabase
+          .from("anshs")
+          .select("id, lakshya_id, status")
+          .eq("user_id", user.id),
+        supabase
+          .from("vacations")
+          .select("from_date, to_date")
+          .eq("user_id", user.id),
+      ]);
+      setLakshyas(lData || []);
+      setTodayAnshs(anshData || []);
 
-    // AREA_HABIT_MAP — maps life pillar to the default habit task ID it tracks.
-    // These IDs match the locked task ids defined in DEFAULT_SACRED/CORE on TodayPage.
-    const AREA_HABIT_MAP = {
-      spirit:  "anushthanam",
-      music:   "riyaz",
-      health:  "walk",
-      career:  "office",
-      finance: "logs",
-      reading: "reading",
-    };
-    const activeLakshyas = lData || [];
-    setDynamicStreaks(
-      Object.entries(AREA_HABIT_MAP).map(([area, habitId]) => {
-        const linked = activeLakshyas.find((l) => l.pillar === area);
-        return {
-          area,
-          habitId,
-          count: calcStreak(map, habitId, vacationDateSet),
-          lakshyaTitle: linked?.title || null,
-        };
-      }),
-    );
-    // Artifical delay for smooth aesthetic loading
-    setTimeout(() => setLoading(false), 400);
+      // Build a Set of every date string covered by any vacation range.
+      const vacationDateSet = new Set();
+      (vacData || []).forEach(({ from_date, to_date }) => {
+        let cur = dayjs(from_date);
+        const end = dayjs(to_date);
+        while (!cur.isAfter(end)) {
+          vacationDateSet.add(cur.format("YYYY-MM-DD"));
+          cur = cur.add(1, "day");
+        }
+      });
+
+      // AREA_HABIT_MAP — maps life pillar to the default habit task ID it tracks.
+      // These IDs match the locked task ids defined in DEFAULT_SACRED/CORE on TodayPage.
+      const AREA_HABIT_MAP = {
+        spirit:  "anushthanam",
+        music:   "riyaz",
+        health:  "walk",
+        career:  "office",
+        finance: "logs",
+        reading: "reading",
+      };
+      const activeLakshyas = lData || [];
+      setDynamicStreaks(
+        Object.entries(AREA_HABIT_MAP).map(([area, habitId]) => {
+          const linked = activeLakshyas.find((l) => l.pillar === area);
+          return {
+            area,
+            habitId,
+            count: calcStreak(map, habitId, vacationDateSet),
+            lakshyaTitle: linked?.title || null,
+          };
+        }),
+      );
+      // Artificial delay for smooth aesthetic loading
+      setTimeout(() => setLoading(false), 400);
+    } catch (err) {
+      console.error("DashboardPage load error:", err.message);
+      setLoading(false);
+    }
   }, [user]);
 
   useEffect(() => {

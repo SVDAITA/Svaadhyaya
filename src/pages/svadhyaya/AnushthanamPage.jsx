@@ -143,6 +143,7 @@ export default function AnushthanamPage() {
   const { lakshyas, loading, reload } = useAreaData(AREA);
   const { mode } = useThemeMode();
   const isDark = mode === "dark";
+  const safeColor = isDark ? "#D4A830" : COLOR;
   const subtitle = useAreaSubtitle(AREA);
 
   const activeLakshyas = lakshyas.filter((l) => l.status === "active").length;
@@ -161,7 +162,7 @@ export default function AnushthanamPage() {
           justifyContent: "center",
         }}
       >
-        <CircularProgress sx={{ color: COLOR }} />
+        <CircularProgress sx={{ color: safeColor }} />
       </Box>
     );
 
@@ -179,7 +180,7 @@ export default function AnushthanamPage() {
       <AnushthanamBg isDark={isDark} />
 
       <AreaBanner
-        color={COLOR}
+        color={safeColor}
         emoji="🪔"
         title="Anushthanam"
         subtitle={subtitle}
@@ -190,7 +191,7 @@ export default function AnushthanamPage() {
           <StatCard
             value={activeLakshyas}
             label="Active Visions"
-            color={COLOR}
+            color={safeColor}
             sub="Lakshyas"
           />
         </Grid>
@@ -198,7 +199,7 @@ export default function AnushthanamPage() {
           <StatCard
             value={totalSiddhis}
             label="Milestones Set"
-            color={COLOR}
+            color={safeColor}
             sub="Siddhis"
           />
         </Grid>
@@ -206,13 +207,13 @@ export default function AnushthanamPage() {
 
       <LakshyaSection
         area={AREA}
-        color={COLOR}
+        color={safeColor}
         lakshyas={lakshyas}
         onUpdate={reload}
       />
-      <AreaJournal area={AREA} color={COLOR} />
+      <AreaJournal area={AREA} color={safeColor} />
 
-      <WeeklyGoals area={AREA} color={COLOR} />
+      <WeeklyGoals area={AREA} color={safeColor} />
     </Box>
   );
 }

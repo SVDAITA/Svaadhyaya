@@ -171,36 +171,37 @@ export default function DietPage() {
   const load = useCallback(async () => {
     if (!user) return;
     setLoading(true);
+    try {
+      const { data: dayData } = await supabase
+        .from("days")
+        .select("habits, journal")
+        .eq("user_id", user.id)
+        .eq("day_date", todayDate)
+        .maybeSingle();
 
-    const { data: dayData } = await supabase
-      .from("days")
-      .select("habits, journal")
-      .eq("user_id", user.id)
-      .eq("day_date", todayDate)
-      .maybeSingle();
+      if (dayData) {
+        const dietHabits = {};
+        Object.entries(dayData.habits || {}).forEach(([k, v]) => {
+          if (k.startsWith("diet_") || k.startsWith("groc_")) dietHabits[k] = v;
+        });
+        setChecked(dietHabits);
+        setNotes(dayData.journal || "");
+      }
 
-    if (dayData) {
-      const dietHabits = {};
-      Object.entries(dayData.habits || {}).forEach(([k, v]) => {
-        if (k.startsWith("diet_") || k.startsWith("groc_")) dietHabits[k] = v;
-      });
-      setChecked(dietHabits);
-      setNotes(dayData.journal || "");
+      const { data: settingsData } = await supabase
+        .from("days")
+        .select("habits")
+        .eq("user_id", user.id)
+        .eq("day_date", "2000-01-01")
+        .maybeSingle();
+
+      if (settingsData?.habits?.weekly_plan)
+        setWeeklyPlan(settingsData.habits.weekly_plan);
+      if (settingsData?.habits?.macros) setMacros(settingsData.habits.macros);
+      if (settingsData?.habits?.fasting_window) setFastingWindow(settingsData.habits.fasting_window);
+    } finally {
+      setLoading(false);
     }
-
-    const { data: settingsData } = await supabase
-      .from("days")
-      .select("habits")
-      .eq("user_id", user.id)
-      .eq("day_date", "2000-01-01")
-      .maybeSingle();
-
-    if (settingsData?.habits?.weekly_plan)
-      setWeeklyPlan(settingsData.habits.weekly_plan);
-    if (settingsData?.habits?.macros) setMacros(settingsData.habits.macros);
-    if (settingsData?.habits?.fasting_window) setFastingWindow(settingsData.habits.fasting_window);
-
-    setLoading(false);
   }, [user, todayDate]);
 
   useEffect(() => {

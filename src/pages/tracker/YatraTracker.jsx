@@ -348,13 +348,16 @@ export default function PravesaPage() {
   const load = useCallback(async () => {
     if (!user) return;
     setLoading(true);
-    const { data } = await supabase
-      .from("travel_logs")
-      .select("*")
-      .eq("user_id", user.id)
-      .order("from_date", { ascending: false });
-    setTrips(data || []);
-    setLoading(false);
+    try {
+      const { data } = await supabase
+        .from("travel_logs")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("from_date", { ascending: false });
+      setTrips(data || []);
+    } finally {
+      setLoading(false);
+    }
   }, [user]);
 
   useEffect(() => {

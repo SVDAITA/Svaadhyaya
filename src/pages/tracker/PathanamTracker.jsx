@@ -203,27 +203,30 @@ export default function ReadingLogPage() {
     async (silent = false) => {
       if (!user) return;
       if (!silent) setLoading(true);
-      const [booksRes, sessionsRes, journalRes] = await Promise.all([
-        supabase
-          .from("books")
-          .select("*")
-          .eq("user_id", user.id)
-          .order("updated_at", { ascending: false }),
-        supabase
-          .from("reading_sessions")
-          .select("*")
-          .eq("user_id", user.id)
-          .order("session_date", { ascending: true }),
-        supabase
-          .from("journal_entries")
-          .select("*")
-          .eq("user_id", user.id)
-          .order("entry_date", { ascending: false }),
-      ]);
-      setBooks(booksRes.data || []);
-      setSessions(sessionsRes.data || []);
-      setJournalEntries(journalRes.data || []);
-      if (!silent) setLoading(false);
+      try {
+        const [booksRes, sessionsRes, journalRes] = await Promise.all([
+          supabase
+            .from("books")
+            .select("*")
+            .eq("user_id", user.id)
+            .order("updated_at", { ascending: false }),
+          supabase
+            .from("reading_sessions")
+            .select("*")
+            .eq("user_id", user.id)
+            .order("session_date", { ascending: true }),
+          supabase
+            .from("journal_entries")
+            .select("*")
+            .eq("user_id", user.id)
+            .order("entry_date", { ascending: false }),
+        ]);
+        setBooks(booksRes.data || []);
+        setSessions(sessionsRes.data || []);
+        setJournalEntries(journalRes.data || []);
+      } finally {
+        if (!silent) setLoading(false);
+      }
     },
     [user],
   );

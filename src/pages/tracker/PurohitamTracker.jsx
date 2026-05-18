@@ -295,27 +295,30 @@ function PurohitamTab({ user, isDark }) {
   const load = useCallback(async () => {
     if (!user) return;
     setLoading(true);
-    const [bks, rts, lrn] = await Promise.all([
-      supabase
-        .from("purohitam_logs")
-        .select("*")
-        .eq("user_id", user.id)
-        .order("log_date", { ascending: false }),
-      supabase
-        .from("ritual_templates")
-        .select("*")
-        .eq("user_id", user.id)
-        .order("created_at"),
-      supabase
-        .from("anshs")
-        .select("*")
-        .eq("user_id", user.id)
-        .order("created_at"),
-    ]);
-    setBookings(bks.data || []);
-    setRituals(rts.data || []);
-    setLearning(lrn.data || []);
-    setLoading(false);
+    try {
+      const [bks, rts, lrn] = await Promise.all([
+        supabase
+          .from("purohitam_logs")
+          .select("*")
+          .eq("user_id", user.id)
+          .order("log_date", { ascending: false }),
+        supabase
+          .from("ritual_templates")
+          .select("*")
+          .eq("user_id", user.id)
+          .order("created_at"),
+        supabase
+          .from("anshs")
+          .select("*")
+          .eq("user_id", user.id)
+          .order("created_at"),
+      ]);
+      setBookings(bks.data || []);
+      setRituals(rts.data || []);
+      setLearning(lrn.data || []);
+    } finally {
+      setLoading(false);
+    }
   }, [user]);
 
   useEffect(() => {

@@ -50,7 +50,7 @@ export default function App() {
           <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
             <Routes>
               {/* Public */}
-              <Route path="/" element={<LandingPage />} />
+              <Route path="/" element={<PublicRoute><LandingPage /></PublicRoute>} />
               <Route path="/auth/login" element={<PublicRoute><LoginPage /></PublicRoute>} />
               <Route path="/auth/signup" element={<PublicRoute><SignupPage /></PublicRoute>} />
               <Route path="/auth/forgot-password" element={<PublicRoute><ForgotPasswordPage /></PublicRoute>} />
