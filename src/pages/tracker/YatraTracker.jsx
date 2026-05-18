@@ -199,7 +199,7 @@ function TripCard({ trip, onDelete, isDark }) {
             )}
             <IconButton
               size="small"
-              onClick={() => onDelete(trip.id)}
+              onClick={() => onDelete(trip)}
               sx={{
                 background: isDark ? "rgba(255,255,255,0.05)" : "#F8F8F8",
                 "&:hover": { background: "#FFF0F0", color: "#D32F2F" },
@@ -338,6 +338,7 @@ export default function PravesaPage() {
 
   const [snack, setSnack] = useState({ open: false, msg: "", severity: "success" });
   const showSnack = (msg, severity = "success") => setSnack({ open: true, msg, severity });
+  const [tripToDelete, setTripToDelete] = useState(null);
 
   const border = isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)";
   const cardBg = isDark ? "#161616" : "#FFFFFF";
@@ -404,7 +405,10 @@ export default function PravesaPage() {
     }
   };
 
-  const deleteTrip = async (id) => {
+  const confirmDeleteTrip = async () => {
+    const id = tripToDelete?.id;
+    setTripToDelete(null);
+    if (!id) return;
     const { error } = await supabase.from("travel_logs").delete().eq("id", id);
     if (error) { showSnack("Failed to delete.", "error"); return; }
     showSnack("Journey removed.");
@@ -715,7 +719,7 @@ export default function PravesaPage() {
               <TripCard
                 key={trip.id}
                 trip={trip}
-                onDelete={deleteTrip}
+                onDelete={(trip) => setTripToDelete(trip)}
                 isDark={isDark}
               />
             ))
@@ -964,12 +968,35 @@ export default function PravesaPage() {
         open={snack.open}
         autoHideDuration={3000}
         onClose={() => setSnack((s) => ({ ...s, open: false }))}
-        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+        anchorOrigin={{ vertical: "top", horizontal: "center" }}
       >
         <Alert severity={snack.severity} onClose={() => setSnack((s) => ({ ...s, open: false }))} sx={{ borderRadius: 2 }}>
           {snack.msg}
         </Alert>
       </Snackbar>
+
+      <Dialog
+        open={!!tripToDelete}
+        onClose={() => setTripToDelete(null)}
+        PaperProps={{ sx: { borderRadius: 3, p: 1 } }}
+      >
+        <DialogTitle sx={{ fontFamily: '"Fraunces",serif', fontWeight: 400, fontSize: 20 }}>
+          Remove journey?
+        </DialogTitle>
+        <DialogContent>
+          <Typography sx={{ color: "text.secondary", fontSize: 14 }}>
+            Delete <strong>{tripToDelete?.destination}</strong>? This cannot be undone.
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2.5 }}>
+          <Button onClick={() => setTripToDelete(null)} color="inherit" sx={{ textTransform: "none" }}>
+            Cancel
+          </Button>
+          <Button onClick={confirmDeleteTrip} variant="contained" sx={{ background: "#D32F2F", "&:hover": { background: "#A03535" }, textTransform: "none", boxShadow: "none" }}>
+            Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }

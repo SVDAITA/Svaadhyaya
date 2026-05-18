@@ -36,6 +36,7 @@ import {
   OutlinedInput,
   Snackbar,
   Alert,
+  Pagination,
 } from "@mui/material";
 import {
   Add,
@@ -185,6 +186,10 @@ export default function ReadingLogPage() {
     summary: "",
   });
   const [newJournal, setNewJournal] = useState("");
+  const [journalPage, setJournalPage] = useState(1);
+  const JOURNAL_PER_PAGE = 8;
+  const [booksPage, setBooksPage] = useState(1);
+  const BOOKS_PER_PAGE = 15;
 
   const fileInputRef = useRef(null);
 
@@ -380,6 +385,18 @@ export default function ReadingLogPage() {
     }
   };
 
+  // --- Journal Delete ---
+  const [journalToDelete, setJournalToDelete] = useState(null);
+  const deleteJournalEntry = async () => {
+    const id = journalToDelete?.id;
+    setJournalToDelete(null);
+    if (!id) return;
+    const { error } = await supabase.from("journal_entries").delete().eq("id", id);
+    if (error) { showSnack("Failed to delete.", "error"); return; }
+    showSnack("Reflection removed.", "success");
+    load(true);
+  };
+
   // --- Journal Saving ---
   const saveJournalEntry = async () => {
     if (!newJournal.trim()) return;
@@ -391,6 +408,7 @@ export default function ReadingLogPage() {
     });
     if (error) { showSnack("Failed to save entry.", "error"); setSaving(false); return; }
     setNewJournal("");
+    setJournalPage(1);
     setSaving(false);
     showSnack("Journal entry saved.", "success");
     load(true);
@@ -462,7 +480,7 @@ export default function ReadingLogPage() {
     };
   });
 
-  const displayedBooks = books
+  const filteredBooks = books
     .filter(
       (b) =>
         !search ||
@@ -472,6 +490,11 @@ export default function ReadingLogPage() {
     .filter((b) => langFilter === "all" || b.language === langFilter)
     .filter((b) => statusFilter === "all" || b.status === statusFilter)
     .filter((b) => genreFilter === "all" || b.genre === genreFilter);
+
+  const displayedBooks = filteredBooks.slice(
+    (booksPage - 1) * BOOKS_PER_PAGE,
+    booksPage * BOOKS_PER_PAGE,
+  );
 
   if (loading)
     return (
@@ -1037,7 +1060,7 @@ export default function ReadingLogPage() {
             size="small"
             placeholder="Search titles, authors..."
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => { setSearch(e.target.value); setBooksPage(1); }}
             InputProps={{
               startAdornment: (
                 <Search sx={{ color: textS, mr: 1, fontSize: 20 }} />
@@ -1058,7 +1081,7 @@ export default function ReadingLogPage() {
             <InputLabel>Genre</InputLabel>
             <Select
               value={genreFilter}
-              onChange={(e) => setGenreFilter(e.target.value)}
+              onChange={(e) => { setGenreFilter(e.target.value); setBooksPage(1); }}
               label="Genre"
               sx={{
                 background: cardBg,
@@ -1081,7 +1104,7 @@ export default function ReadingLogPage() {
             <InputLabel>Language</InputLabel>
             <Select
               value={langFilter}
-              onChange={(e) => setLangFilter(e.target.value)}
+              onChange={(e) => { setLangFilter(e.target.value); setBooksPage(1); }}
               label="Language"
               sx={{
                 background: cardBg,
@@ -1345,6 +1368,24 @@ export default function ReadingLogPage() {
             </TableBody>
           </Table>
         </TableContainer>
+
+        {filteredBooks.length > BOOKS_PER_PAGE && (
+          <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mt: 3, flexWrap: "wrap", gap: 1 }}>
+            <Typography sx={{ fontSize: 12, color: textS }}>
+              Showing {(booksPage - 1) * BOOKS_PER_PAGE + 1}–{Math.min(booksPage * BOOKS_PER_PAGE, filteredBooks.length)} of {filteredBooks.length} books
+            </Typography>
+            <Pagination
+              count={Math.ceil(filteredBooks.length / BOOKS_PER_PAGE)}
+              page={booksPage}
+              onChange={(_, p) => setBooksPage(p)}
+              size="small"
+              sx={{
+                "& .MuiPaginationItem-root": { color: textS },
+                "& .MuiPaginationItem-root.Mui-selected": { background: `${COLOR}20`, color: COLOR },
+              }}
+            />
+          </Box>
+        )}
       </TabPanel>
 
       {/* TAB 1: Reflections Journal */}
@@ -1420,64 +1461,121 @@ export default function ReadingLogPage() {
             </CardContent>
           </Card>
 
-          <Box sx={{ display: "flex", flexDirection: "column", gap: 4, ml: 2 }}>
-            {journalEntries.length === 0 ? (
-              <Typography
-                textAlign="center"
-                color={textS}
-                sx={{ fontStyle: "italic", opacity: 0.7 }}
+          {journalEntries.length === 0 ? (
+            <Typography
+              textAlign="center"
+              color={textS}
+              sx={{ fontStyle: "italic", opacity: 0.7 }}
+            >
+              No reflections yet. Begin your philosophical documentation.
+            </Typography>
+          ) : (
+            <>
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  mb: 2,
+                  ml: 2,
+                }}
               >
-                No reflections yet. Begin your philosophical documentation.
-              </Typography>
-            ) : (
-              journalEntries.map((entry) => (
-                <Box
-                  key={entry.id}
-                  sx={{
-                    pl: 4,
-                    borderLeft: `2px solid ${COLOR}40`,
-                    position: "relative",
-                  }}
-                >
-                  <Box
+                <Typography sx={{ fontSize: 12, color: textS }}>
+                  {journalEntries.length} reflection{journalEntries.length !== 1 ? "s" : ""}
+                </Typography>
+                {journalEntries.length > JOURNAL_PER_PAGE && (
+                  <Pagination
+                    count={Math.ceil(journalEntries.length / JOURNAL_PER_PAGE)}
+                    page={journalPage}
+                    onChange={(_, p) => setJournalPage(p)}
+                    size="small"
                     sx={{
-                      position: "absolute",
-                      left: -7,
-                      top: 6,
-                      width: 12,
-                      height: 12,
-                      borderRadius: "50%",
-                      background: COLOR,
-                      border: `3px solid ${isDark ? "#1A1916" : "#FCFBF9"}`,
+                      "& .MuiPaginationItem-root": { color: textS },
+                      "& .MuiPaginationItem-root.Mui-selected": {
+                        background: `${COLOR}20`,
+                        color: COLOR,
+                      },
                     }}
                   />
-                  <Typography
+                )}
+              </Box>
+              <Box sx={{ display: "flex", flexDirection: "column", gap: 4, ml: 2 }}>
+                {journalEntries
+                  .slice((journalPage - 1) * JOURNAL_PER_PAGE, journalPage * JOURNAL_PER_PAGE)
+                  .map((entry) => (
+                    <Box
+                      key={entry.id}
+                      sx={{
+                        pl: 4,
+                        borderLeft: `2px solid ${COLOR}40`,
+                        position: "relative",
+                      }}
+                    >
+                      <Box
+                        sx={{
+                          position: "absolute",
+                          left: -7,
+                          top: 6,
+                          width: 12,
+                          height: 12,
+                          borderRadius: "50%",
+                          background: COLOR,
+                          border: `3px solid ${isDark ? "#1A1916" : "#FCFBF9"}`,
+                        }}
+                      />
+                      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", mb: 1 }}>
+                        <Typography
+                          sx={{
+                            fontSize: 13,
+                            color: COLOR,
+                            fontWeight: 700,
+                            letterSpacing: 1,
+                            textTransform: "uppercase",
+                          }}
+                        >
+                          {dayjs(entry.entry_date).format("MMMM D, YYYY")}
+                        </Typography>
+                        <IconButton
+                          size="small"
+                          onClick={() => setJournalToDelete(entry)}
+                          sx={{ p: 0.4, opacity: 0.3, "&:hover": { opacity: 1, color: "#CF4E4E" }, mt: -0.5 }}
+                        >
+                          <Delete sx={{ fontSize: 14 }} />
+                        </IconButton>
+                      </Box>
+                      <Typography
+                        sx={{
+                          fontSize: 16,
+                          color: textP,
+                          whiteSpace: "pre-wrap",
+                          lineHeight: 1.7,
+                          fontFamily: '"Lora", serif',
+                        }}
+                      >
+                        {entry.content}
+                      </Typography>
+                    </Box>
+                  ))}
+              </Box>
+              {journalEntries.length > JOURNAL_PER_PAGE && (
+                <Box sx={{ display: "flex", justifyContent: "center", mt: 4 }}>
+                  <Pagination
+                    count={Math.ceil(journalEntries.length / JOURNAL_PER_PAGE)}
+                    page={journalPage}
+                    onChange={(_, p) => { setJournalPage(p); window.scrollTo({ top: 0, behavior: "smooth" }); }}
+                    size="small"
                     sx={{
-                      fontSize: 13,
-                      color: COLOR,
-                      mb: 1,
-                      fontWeight: 700,
-                      letterSpacing: 1,
-                      textTransform: "uppercase",
+                      "& .MuiPaginationItem-root": { color: textS },
+                      "& .MuiPaginationItem-root.Mui-selected": {
+                        background: `${COLOR}20`,
+                        color: COLOR,
+                      },
                     }}
-                  >
-                    {dayjs(entry.entry_date).format("MMMM D, YYYY")}
-                  </Typography>
-                  <Typography
-                    sx={{
-                      fontSize: 16,
-                      color: textP,
-                      whiteSpace: "pre-wrap",
-                      lineHeight: 1.7,
-                      fontFamily: '"Lora", serif',
-                    }}
-                  >
-                    {entry.content}
-                  </Typography>
+                  />
                 </Box>
-              ))
-            )}
-          </Box>
+              )}
+            </>
+          )}
         </Box>
       </TabPanel>
 
@@ -1632,30 +1730,32 @@ export default function ReadingLogPage() {
                 <TextField
                   fullWidth
                   label="Title"
-                  variant="filled"
                   value={form.title}
                   onChange={(e) =>
                     setForm((p) => ({ ...p, title: e.target.value }))
                   }
                   autoFocus
+                  sx={{ "& .MuiOutlinedInput-notchedOutline": { borderColor: border } }}
                 />
                 <TextField
                   fullWidth
                   label="Author"
-                  variant="filled"
                   value={form.author}
                   onChange={(e) =>
                     setForm((p) => ({ ...p, author: e.target.value }))
                   }
+                  sx={{ "& .MuiOutlinedInput-notchedOutline": { borderColor: border } }}
                 />
                 <Box sx={{ display: "flex", gap: 2 }}>
-                  <FormControl fullWidth variant="filled">
+                  <FormControl fullWidth>
                     <InputLabel>Language</InputLabel>
                     <Select
+                      label="Language"
                       value={form.language}
                       onChange={(e) =>
                         setForm((p) => ({ ...p, language: e.target.value }))
                       }
+                      sx={{ "& .MuiOutlinedInput-notchedOutline": { borderColor: border } }}
                     >
                       {LANG_OPTIONS.map((l) => (
                         <MenuItem key={l} value={l}>
@@ -1664,13 +1764,15 @@ export default function ReadingLogPage() {
                       ))}
                     </Select>
                   </FormControl>
-                  <FormControl fullWidth variant="filled">
+                  <FormControl fullWidth>
                     <InputLabel>Status</InputLabel>
                     <Select
+                      label="Status"
                       value={form.status}
                       onChange={(e) =>
                         setForm((p) => ({ ...p, status: e.target.value }))
                       }
+                      sx={{ "& .MuiOutlinedInput-notchedOutline": { borderColor: border } }}
                     >
                       {STATUS_OPTIONS.map((s) => (
                         <MenuItem key={s.value} value={s.value}>
@@ -1684,7 +1786,6 @@ export default function ReadingLogPage() {
                   <TextField
                     fullWidth
                     label="Pages Read"
-                    variant="filled"
                     type="number"
                     value={form.pages_read}
                     onChange={(e) =>
@@ -1693,16 +1794,17 @@ export default function ReadingLogPage() {
                         pages_read: Math.max(0, Number(e.target.value)),
                       }))
                     }
+                    sx={{ "& .MuiOutlinedInput-notchedOutline": { borderColor: border } }}
                   />
                   <TextField
                     fullWidth
                     label="Total Pages"
-                    variant="filled"
                     type="number"
                     value={form.total_pages}
                     onChange={(e) =>
                       setForm((p) => ({ ...p, total_pages: e.target.value }))
                     }
+                    sx={{ "& .MuiOutlinedInput-notchedOutline": { borderColor: border } }}
                   />
                 </Box>
               </Box>
@@ -1726,54 +1828,54 @@ export default function ReadingLogPage() {
                   <TextField
                     fullWidth
                     label="Genre"
-                    variant="filled"
                     value={form.genre || ""}
                     onChange={(e) =>
                       setForm((p) => ({ ...p, genre: e.target.value }))
                     }
+                    sx={{ "& .MuiOutlinedInput-notchedOutline": { borderColor: border } }}
                   />
                   <TextField
                     fullWidth
                     label="Shelf Location"
-                    variant="filled"
                     value={form.location || ""}
                     onChange={(e) =>
                       setForm((p) => ({ ...p, location: e.target.value }))
                     }
+                    sx={{ "& .MuiOutlinedInput-notchedOutline": { borderColor: border } }}
                   />
                 </Box>
                 <Box sx={{ display: "flex", gap: 2 }}>
                   <TextField
                     fullWidth
                     label="Condition"
-                    variant="filled"
                     value={form.condition || ""}
                     onChange={(e) =>
                       setForm((p) => ({ ...p, condition: e.target.value }))
                     }
+                    sx={{ "& .MuiOutlinedInput-notchedOutline": { borderColor: border } }}
                   />
                   <TextField
                     fullWidth
                     label="Price (₹)"
-                    variant="filled"
                     type="number"
                     value={form.price || ""}
                     onChange={(e) =>
                       setForm((p) => ({ ...p, price: e.target.value }))
                     }
+                    sx={{ "& .MuiOutlinedInput-notchedOutline": { borderColor: border } }}
                   />
                 </Box>
                 <TextField
                   fullWidth
                   multiline
                   rows={4}
-                  variant="filled"
                   label="Running Notes / Summary"
                   value={form.notes || ""}
                   onChange={(e) =>
                     setForm((p) => ({ ...p, notes: e.target.value }))
                   }
                   placeholder="Daily log summaries will automatically append here."
+                  sx={{ "& .MuiOutlinedInput-notchedOutline": { borderColor: border } }}
                 />
               </Box>
             </Grid>
@@ -1850,7 +1952,6 @@ export default function ReadingLogPage() {
             </Typography>
             <TextField
               fullWidth
-              variant="filled"
               type="number"
               label="Pages Read Today"
               autoFocus
@@ -1859,18 +1960,19 @@ export default function ReadingLogPage() {
               onChange={(e) =>
                 setSessionForm({ ...sessionForm, pages_read: e.target.value })
               }
+              sx={{ "& .MuiOutlinedInput-notchedOutline": { borderColor: border } }}
             />
             <TextField
               fullWidth
               multiline
               rows={4}
-              variant="filled"
               label="Session Synopsis"
               placeholder="What core ideas were presented in these pages?"
               value={sessionForm.summary}
               onChange={(e) =>
                 setSessionForm({ ...sessionForm, summary: e.target.value })
               }
+              sx={{ "& .MuiOutlinedInput-notchedOutline": { borderColor: border } }}
             />
           </Box>
         </DialogContent>
@@ -1961,11 +2063,41 @@ export default function ReadingLogPage() {
         </DialogActions>
       </Dialog>
 
+      {/* Journal delete confirm */}
+      <Dialog
+        open={!!journalToDelete}
+        onClose={() => setJournalToDelete(null)}
+        PaperProps={{ sx: { borderRadius: 3, p: 1 } }}
+      >
+        <DialogTitle sx={{ fontFamily: '"Fraunces", serif', fontWeight: 400, fontSize: 20, color: textP }}>
+          Delete reflection?
+        </DialogTitle>
+        <DialogContent>
+          <Typography sx={{ color: textS, fontSize: 14, fontFamily: '"Lora", serif' }}>
+            Remove the reflection from{" "}
+            <strong>{journalToDelete ? dayjs(journalToDelete.entry_date).format("MMMM D, YYYY") : ""}</strong>?
+            This cannot be undone.
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2.5 }}>
+          <Button onClick={() => setJournalToDelete(null)} color="inherit" sx={{ textTransform: "none" }}>
+            Cancel
+          </Button>
+          <Button
+            onClick={deleteJournalEntry}
+            variant="contained"
+            sx={{ background: "#CF4E4E", "&:hover": { background: "#A03535" }, textTransform: "none", boxShadow: "none" }}
+          >
+            Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
+
       <Snackbar
         open={snack.open}
         autoHideDuration={3000}
         onClose={() => setSnack((s) => ({ ...s, open: false }))}
-        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+        anchorOrigin={{ vertical: "top", horizontal: "center" }}
       >
         <Alert severity={snack.severity} onClose={() => setSnack((s) => ({ ...s, open: false }))} sx={{ borderRadius: 2 }}>
           {snack.msg}

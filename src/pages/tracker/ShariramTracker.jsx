@@ -113,6 +113,7 @@ export default function ShariramHealthOS() {
   const [compA, setCompA] = useState("");
   const [compB, setCompB] = useState("");
   const [snack, setSnack] = useState({ open: false, msg: "", severity: "success" });
+  const [snapshotToDelete, setSnapshotToDelete] = useState(null);
   const showSnack = (msg, severity = "success") => setSnack({ open: true, msg, severity });
 
   const fetchLogs = useCallback(async () => {
@@ -941,11 +942,7 @@ export default function ShariramHealthOS() {
                       <IconButton
                         size="small"
                         color="error"
-                        onClick={async () => {
-                          const { error } = await supabase.from("health_logs").delete().eq("user_id", user.id).eq("date", date);
-                          showSnack(error ? "Failed to delete." : "Snapshot removed.", error ? "error" : "success");
-                          if (!error) fetchLogs();
-                        }}
+                        onClick={() => setSnapshotToDelete(date)}
                       >
                         <Delete fontSize="small" />
                       </IconButton>
@@ -1052,12 +1049,45 @@ export default function ShariramHealthOS() {
         open={snack.open}
         autoHideDuration={3000}
         onClose={() => setSnack((s) => ({ ...s, open: false }))}
-        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+        anchorOrigin={{ vertical: "top", horizontal: "center" }}
       >
         <Alert severity={snack.severity} onClose={() => setSnack((s) => ({ ...s, open: false }))} sx={{ borderRadius: 2 }}>
           {snack.msg}
         </Alert>
       </Snackbar>
+
+      <Dialog
+        open={!!snapshotToDelete}
+        onClose={() => setSnapshotToDelete(null)}
+        PaperProps={{ sx: { borderRadius: 3, p: 1 } }}
+      >
+        <DialogTitle sx={{ fontFamily: "Fraunces, serif", fontWeight: 400, fontSize: 20 }}>
+          Remove snapshot?
+        </DialogTitle>
+        <DialogContent>
+          <Typography sx={{ color: "text.secondary", fontSize: 14 }}>
+            Delete the health snapshot for <strong>{snapshotToDelete}</strong>? This cannot be undone.
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2.5 }}>
+          <Button onClick={() => setSnapshotToDelete(null)} color="inherit" sx={{ textTransform: "none" }}>
+            Cancel
+          </Button>
+          <Button
+            onClick={async () => {
+              const date = snapshotToDelete;
+              setSnapshotToDelete(null);
+              const { error } = await supabase.from("health_logs").delete().eq("user_id", user.id).eq("date", date);
+              showSnack(error ? "Failed to delete." : "Snapshot removed.", error ? "error" : "success");
+              if (!error) fetchLogs();
+            }}
+            variant="contained"
+            sx={{ background: "#D32F2F", "&:hover": { background: "#A03535" }, textTransform: "none", boxShadow: "none" }}
+          >
+            Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }

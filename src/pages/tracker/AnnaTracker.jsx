@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import {
   Box,
   Typography,
@@ -17,6 +17,8 @@ import {
   IconButton,
   keyframes,
   Divider,
+  Pagination,
+  Collapse,
 } from "@mui/material";
 import {
   CheckCircle,
@@ -32,6 +34,9 @@ import {
   MonitorWeight,
   Spa,
   Save,
+  ExpandMore,
+  ExpandLess,
+  History,
 } from "@mui/icons-material";
 import { useAuth } from "../../hooks/useAuth";
 import { useThemeMode } from "../../hooks/useTheme";
@@ -147,6 +152,10 @@ export default function DietPage() {
   const [notes, setNotes] = useState("");
   const [savingNotes, setSavingNotes] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [reflectionHistory, setReflectionHistory] = useState([]);
+  const [reflectionPage, setReflectionPage] = useState(1);
+  const [showHistory, setShowHistory] = useState(false);
+  const REFLECTION_PER_PAGE = 8;
 
   const [weeklyPlan, setWeeklyPlan] = useState(EMPTY_PLAN);
   const [jsonInput, setJsonInput] = useState("");
@@ -156,6 +165,8 @@ export default function DietPage() {
   const [fastingWindow, setFastingWindow] = useState("12:12");
   const [snack, setSnack] = useState({ open: false, msg: "", severity: "success" });
   const showSnack = (msg, severity = "success") => setSnack({ open: true, msg, severity });
+  const notesTimerRef = useRef(null);
+  const [notesSaved, setNotesSaved] = useState(false);
 
   // Memoize dates to prevent unnecessary re-renders and stabilize hooks
   const todayDate = useMemo(() => dayjs().format("YYYY-MM-DD"), []);
@@ -172,12 +183,29 @@ export default function DietPage() {
     if (!user) return;
     setLoading(true);
     try {
-      const { data: dayData } = await supabase
-        .from("days")
-        .select("habits, journal")
-        .eq("user_id", user.id)
-        .eq("day_date", todayDate)
-        .maybeSingle();
+      const [{ data: dayData }, { data: settingsData }, { data: historyData }] = await Promise.all([
+        supabase
+          .from("days")
+          .select("habits, journal")
+          .eq("user_id", user.id)
+          .eq("day_date", todayDate)
+          .maybeSingle(),
+        supabase
+          .from("days")
+          .select("habits")
+          .eq("user_id", user.id)
+          .eq("day_date", "2000-01-01")
+          .maybeSingle(),
+        supabase
+          .from("days")
+          .select("day_date, journal")
+          .eq("user_id", user.id)
+          .not("journal", "is", null)
+          .neq("journal", "")
+          .neq("day_date", "2000-01-01")
+          .order("day_date", { ascending: false })
+          .limit(200),
+      ]);
 
       if (dayData) {
         const dietHabits = {};
@@ -188,17 +216,12 @@ export default function DietPage() {
         setNotes(dayData.journal || "");
       }
 
-      const { data: settingsData } = await supabase
-        .from("days")
-        .select("habits")
-        .eq("user_id", user.id)
-        .eq("day_date", "2000-01-01")
-        .maybeSingle();
-
       if (settingsData?.habits?.weekly_plan)
         setWeeklyPlan(settingsData.habits.weekly_plan);
       if (settingsData?.habits?.macros) setMacros(settingsData.habits.macros);
       if (settingsData?.habits?.fasting_window) setFastingWindow(settingsData.habits.fasting_window);
+
+      setReflectionHistory(historyData || []);
     } finally {
       setLoading(false);
     }
@@ -230,7 +253,7 @@ export default function DietPage() {
     if (e2) { showSnack("Failed to save", "error"); return; }
   };
 
-  const handleSaveNotes = async () => {
+  const handleSaveNotes = async (silent = false) => {
     setSavingNotes(true);
     const { error } = await supabase
       .from("days")
@@ -238,9 +261,18 @@ export default function DietPage() {
         { user_id: user.id, day_date: todayDate, journal: notes },
         { onConflict: "user_id,day_date" },
       );
-    if (error) { showSnack("Failed to save notes.", "error"); setSavingNotes(false); return; }
     setSavingNotes(false);
-    showSnack("Reflections saved.");
+    if (error) { showSnack("Failed to save notes.", "error"); return; }
+    if (!silent) { showSnack("Reflections saved."); }
+    setNotesSaved(true);
+    setTimeout(() => setNotesSaved(false), 2000);
+  };
+
+  const handleNotesChange = (val) => {
+    setNotes(val);
+    setNotesSaved(false);
+    clearTimeout(notesTimerRef.current);
+    notesTimerRef.current = setTimeout(() => handleSaveNotes(true), 1500);
   };
 
   const handleJsonUpload = async () => {
@@ -744,21 +776,25 @@ export default function DietPage() {
                   <LocalFlorist sx={{ color: safeColor, fontSize: 18 }} /> Daily
                   Reflections
                 </Typography>
-                <Button
-                  size="small"
-                  onClick={handleSaveNotes}
-                  disabled={savingNotes}
-                  startIcon={
-                    savingNotes ? (
-                      <CircularProgress size={14} color="inherit" />
-                    ) : (
-                      <Save />
-                    )
-                  }
-                  sx={{ color: safeColor, textTransform: "none", fontWeight: 600 }}
-                >
-                  {savingNotes ? "Saving..." : "Save Notes"}
-                </Button>
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+                  {notesSaved && (
+                    <Typography sx={{ fontSize: 11, color: safeColor, opacity: 0.8 }}>
+                      ✓ Saved
+                    </Typography>
+                  )}
+                  {savingNotes && (
+                    <CircularProgress size={12} sx={{ color: safeColor }} />
+                  )}
+                  <Button
+                    size="small"
+                    onClick={() => handleSaveNotes(false)}
+                    disabled={savingNotes}
+                    startIcon={<Save sx={{ fontSize: "14px !important" }} />}
+                    sx={{ color: safeColor, textTransform: "none", fontWeight: 600, fontSize: 12 }}
+                  >
+                    Save
+                  </Button>
+                </Box>
               </Box>
               <TextField
                 fullWidth
@@ -766,7 +802,7 @@ export default function DietPage() {
                 rows={3}
                 placeholder="How is your body feeling today? Any cravings or high energy moments?"
                 value={notes}
-                onChange={(e) => setNotes(e.target.value)}
+                onChange={(e) => handleNotesChange(e.target.value)}
                 variant="outlined"
                 sx={{
                   "& .MuiOutlinedInput-root": {
@@ -783,6 +819,93 @@ export default function DietPage() {
               />
             </CardContent>
           </Card>
+
+          {/* ── Reflection History ── */}
+          {reflectionHistory.length > 0 && (
+            <Card
+              sx={{
+                border: `1px solid ${border}`,
+                borderRadius: 4,
+                background: cardBg,
+                backdropFilter: "blur(10px)",
+                boxShadow: "none",
+                mb: 4,
+              }}
+            >
+              <CardContent sx={{ p: { xs: 2, md: 3 } }}>
+                <Box
+                  sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer" }}
+                  onClick={() => setShowHistory((s) => !s)}
+                >
+                  <Typography
+                    sx={{ fontSize: 15, fontWeight: 600, color: textP, display: "flex", alignItems: "center", gap: 1 }}
+                  >
+                    <History sx={{ color: safeColor, fontSize: 18 }} />
+                    Reflection History
+                    <Chip
+                      label={reflectionHistory.length}
+                      size="small"
+                      sx={{ height: 18, fontSize: 10, fontWeight: 700, bgcolor: `${COLOR}15`, color: safeColor, ml: 0.5 }}
+                    />
+                  </Typography>
+                  <IconButton size="small" sx={{ color: textS }}>
+                    {showHistory ? <ExpandLess /> : <ExpandMore />}
+                  </IconButton>
+                </Box>
+
+                <Collapse in={showHistory}>
+                  <Divider sx={{ my: 2, borderColor: border }} />
+                  {reflectionHistory
+                    .slice((reflectionPage - 1) * REFLECTION_PER_PAGE, reflectionPage * REFLECTION_PER_PAGE)
+                    .map((r, i) => (
+                      <Box
+                        key={r.day_date}
+                        sx={{
+                          py: 1.75,
+                          borderBottom: i < REFLECTION_PER_PAGE - 1 ? `1px solid ${border}` : "none",
+                          display: "flex",
+                          gap: 2,
+                          alignItems: "flex-start",
+                        }}
+                      >
+                        <Box
+                          sx={{
+                            minWidth: 90,
+                            pt: 0.25,
+                          }}
+                        >
+                          <Typography sx={{ fontSize: 11, fontWeight: 700, color: safeColor, textTransform: "uppercase", letterSpacing: 0.8 }}>
+                            {dayjs(r.day_date).format("MMM D")}
+                          </Typography>
+                          <Typography sx={{ fontSize: 10, color: textS }}>
+                            {dayjs(r.day_date).format("YYYY")}
+                          </Typography>
+                        </Box>
+                        <Typography
+                          sx={{ fontSize: 14, color: textP, lineHeight: 1.6, whiteSpace: "pre-wrap", flex: 1 }}
+                        >
+                          {r.journal}
+                        </Typography>
+                      </Box>
+                    ))}
+                  {reflectionHistory.length > REFLECTION_PER_PAGE && (
+                    <Box sx={{ display: "flex", justifyContent: "center", mt: 2 }}>
+                      <Pagination
+                        count={Math.ceil(reflectionHistory.length / REFLECTION_PER_PAGE)}
+                        page={reflectionPage}
+                        onChange={(_, p) => setReflectionPage(p)}
+                        size="small"
+                        sx={{
+                          "& .MuiPaginationItem-root": { color: textS },
+                          "& .MuiPaginationItem-root.Mui-selected": { background: `${COLOR}20`, color: safeColor },
+                        }}
+                      />
+                    </Box>
+                  )}
+                </Collapse>
+              </CardContent>
+            </Card>
+          )}
         </TabPanel>
 
         {/* ── 2. MACROS TAB ── */}
@@ -1142,6 +1265,8 @@ export default function DietPage() {
               borderRadius: 4,
               background: cardBg,
               boxShadow: "none",
+              maxHeight: 520,
+              overflowY: "auto",
             }}
           >
             <CardContent sx={{ p: 0 }}>
@@ -1299,7 +1424,7 @@ export default function DietPage() {
         open={snack.open}
         autoHideDuration={3000}
         onClose={() => setSnack((s) => ({ ...s, open: false }))}
-        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+        anchorOrigin={{ vertical: "top", horizontal: "center" }}
       >
         <Alert severity={snack.severity} onClose={() => setSnack((s) => ({ ...s, open: false }))} sx={{ borderRadius: 2 }}>
           {snack.msg}

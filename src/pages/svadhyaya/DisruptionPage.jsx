@@ -780,7 +780,7 @@ export default function DisruptionPage() {
         autoHideDuration={3500}
         onClose={() => setSnack("")}
         message={snack}
-        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+        anchorOrigin={{ vertical: "top", horizontal: "center" }}
         action={
           <IconButton size="small" onClick={() => setSnack("")} sx={{ color: "#fff" }}>
             <Close sx={{ fontSize: 16 }} />

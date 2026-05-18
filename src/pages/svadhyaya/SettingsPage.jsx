@@ -877,100 +877,166 @@ export default function SettingsPage() {
           </TabPanel>
           {/* ── AREAS TAB ── */}
           <TabPanel value={tab} index={3}>
-            <Box sx={{ maxWidth: 520 }}>
-              <Typography sx={{ fontSize: 12, color: textS, mb: 3, lineHeight: 1.7 }}>
-                Edit the tagline shown under each life area's title. Leave blank to restore the default.
-              </Typography>
-              {AREA_INFO.map(({ key, emoji, name }) => (
-                <Box key={key} sx={{ mb: 2.5 }}>
-                  <Typography sx={{ fontSize: 12, fontWeight: 600, color: textP, mb: 0.75 }}>
-                    {emoji} {name}
+            <Box sx={{ maxWidth: 680 }}>
+
+              {/* ── Taglines section ── */}
+              <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 1.5 }}>
+                <Box>
+                  <Typography sx={{ fontSize: 14, fontWeight: 600, color: textP }}>Area Taglines</Typography>
+                  <Typography sx={{ fontSize: 11, color: textS, mt: 0.25 }}>
+                    Subtitle shown under each area's title. Leave blank to restore default.
                   </Typography>
-                  <TextField
-                    fullWidth
-                    size="small"
-                    value={areaSubtitles[key]}
-                    onChange={(e) => setAreaSubtitles((prev) => ({ ...prev, [key]: e.target.value }))}
-                    placeholder={AREA_SUBTITLE_DEFAULTS[key]}
-                    sx={{ "& .MuiOutlinedInput-root": { background: inputBg, fontSize: 13 } }}
-                  />
                 </Box>
-              ))}
-              <Button
-                variant="contained"
-                onClick={handleSaveAreaSubtitles}
-                sx={{
-                  mt: 1,
-                  background: heroColor,
-                  "&:hover": { background: heroColor, opacity: 0.88 },
-                  boxShadow: "none",
-                  px: 4,
-                  textTransform: "none",
-                  fontSize: 13,
-                }}
-              >
-                Save taglines
-              </Button>
+                <Button
+                  size="small"
+                  variant="contained"
+                  onClick={handleSaveAreaSubtitles}
+                  sx={{
+                    background: heroColor,
+                    "&:hover": { background: heroColor, opacity: 0.88 },
+                    boxShadow: "none",
+                    textTransform: "none",
+                    fontSize: 12,
+                    px: 2.5,
+                    borderRadius: 2,
+                  }}
+                >
+                  Save
+                </Button>
+              </Box>
 
-              {/* ── Visibility ── */}
-              <Divider sx={{ my: 4, borderColor: border }} />
-              <SectionLabel>Visibility</SectionLabel>
-              <Typography sx={{ fontSize: 12, color: textS, mb: 3, lineHeight: 1.7 }}>
-                Hide life areas or trackers you don't use. They'll disappear from the sidebar and tracker list.
-              </Typography>
+              <Grid container spacing={1.5} sx={{ mb: 4 }}>
+                {AREA_INFO.map(({ key, emoji, name }) => (
+                  <Grid item xs={12} sm={6} key={key}>
+                    <Box
+                      sx={{
+                        border: `1px solid ${border}`,
+                        borderRadius: 2,
+                        p: 1.25,
+                        background: inputBg,
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 1.25,
+                      }}
+                    >
+                      <Typography sx={{ fontSize: 15, flexShrink: 0 }}>{emoji}</Typography>
+                      <Box sx={{ flex: 1, minWidth: 0 }}>
+                        <Typography sx={{ fontSize: 10, fontWeight: 700, color: textS, textTransform: "uppercase", letterSpacing: 0.8 }}>
+                          {name}
+                        </Typography>
+                        <TextField
+                          fullWidth
+                          variant="standard"
+                          size="small"
+                          value={areaSubtitles[key]}
+                          onChange={(e) => setAreaSubtitles((prev) => ({ ...prev, [key]: e.target.value }))}
+                          placeholder={AREA_SUBTITLE_DEFAULTS[key]}
+                          InputProps={{ disableUnderline: false }}
+                          sx={{
+                            "& .MuiInput-root": { fontSize: 12, color: textP },
+                            "& .MuiInput-underline:before": { borderBottomColor: border },
+                            "& .MuiInput-underline:hover:before": { borderBottomColor: heroColor },
+                          }}
+                        />
+                      </Box>
+                    </Box>
+                  </Grid>
+                ))}
+              </Grid>
 
-              <Typography sx={{ fontSize: 11, fontWeight: 700, color: textS, textTransform: "uppercase", letterSpacing: 1, mb: 1.5 }}>
+              {/* ── Visibility section ── */}
+              <Divider sx={{ mb: 3, borderColor: border }} />
+              <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
+                <Box>
+                  <Typography sx={{ fontSize: 14, fontWeight: 600, color: textP }}>Visibility</Typography>
+                  <Typography sx={{ fontSize: 11, color: textS, mt: 0.25 }}>
+                    Toggle areas and trackers on/off. Hidden items leave data intact.
+                  </Typography>
+                </Box>
+                <Button
+                  size="small"
+                  variant="contained"
+                  onClick={handleSaveVisibility}
+                  sx={{
+                    background: heroColor,
+                    "&:hover": { background: heroColor, opacity: 0.88 },
+                    boxShadow: "none",
+                    textTransform: "none",
+                    fontSize: 12,
+                    px: 2.5,
+                    borderRadius: 2,
+                  }}
+                >
+                  Save
+                </Button>
+              </Box>
+
+              <Typography sx={{ fontSize: 10, fontWeight: 700, color: textS, textTransform: "uppercase", letterSpacing: 1, mb: 1 }}>
                 Life Areas
               </Typography>
-              <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5, mb: 3 }}>
+              <Grid container spacing={1} sx={{ mb: 3 }}>
                 {AREA_INFO.map(({ key, emoji, name }) => (
-                  <Box key={key} sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", py: 0.5 }}>
-                    <Typography sx={{ fontSize: 13, color: textP }}>
-                      {emoji} {name}
-                    </Typography>
-                    <Switch
-                      size="small"
-                      checked={visibility.areas[key] !== false}
-                      onChange={() => toggleArea(key)}
-                      sx={{ "& .MuiSwitch-thumb": { bgcolor: heroColor }, "& .Mui-checked + .MuiSwitch-track": { bgcolor: `${heroColor}80` } }}
-                    />
-                  </Box>
+                  <Grid item xs={6} sm={4} key={key}>
+                    <Box
+                      sx={{
+                        border: `1px solid ${border}`,
+                        borderRadius: 2,
+                        px: 1.5,
+                        py: 0.75,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        background: visibility.areas[key] !== false ? (isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.02)") : "transparent",
+                        opacity: visibility.areas[key] !== false ? 1 : 0.5,
+                      }}
+                    >
+                      <Typography sx={{ fontSize: 12, color: textP }}>
+                        {emoji} {name}
+                      </Typography>
+                      <Switch
+                        size="small"
+                        checked={visibility.areas[key] !== false}
+                        onChange={() => toggleArea(key)}
+                        sx={{ "& .MuiSwitch-thumb": { bgcolor: heroColor }, "& .Mui-checked + .MuiSwitch-track": { bgcolor: `${heroColor}80` } }}
+                      />
+                    </Box>
+                  </Grid>
                 ))}
-              </Box>
+              </Grid>
 
-              <Typography sx={{ fontSize: 11, fontWeight: 700, color: textS, textTransform: "uppercase", letterSpacing: 1, mb: 1.5 }}>
+              <Typography sx={{ fontSize: 10, fontWeight: 700, color: textS, textTransform: "uppercase", letterSpacing: 1, mb: 1 }}>
                 Trackers
               </Typography>
-              <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5, mb: 3 }}>
+              <Grid container spacing={1}>
                 {TRACKER_INFO.map(({ key, emoji, name }) => (
-                  <Box key={key} sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", py: 0.5 }}>
-                    <Typography sx={{ fontSize: 13, color: textP }}>
-                      {emoji} {name}
-                    </Typography>
-                    <Switch
-                      size="small"
-                      checked={visibility.trackers[key] !== false}
-                      onChange={() => toggleTracker(key)}
-                      sx={{ "& .MuiSwitch-thumb": { bgcolor: heroColor }, "& .Mui-checked + .MuiSwitch-track": { bgcolor: `${heroColor}80` } }}
-                    />
-                  </Box>
+                  <Grid item xs={6} sm={4} key={key}>
+                    <Box
+                      sx={{
+                        border: `1px solid ${border}`,
+                        borderRadius: 2,
+                        px: 1.5,
+                        py: 0.75,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        background: visibility.trackers[key] !== false ? (isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.02)") : "transparent",
+                        opacity: visibility.trackers[key] !== false ? 1 : 0.5,
+                      }}
+                    >
+                      <Typography sx={{ fontSize: 12, color: textP }}>
+                        {emoji} {name}
+                      </Typography>
+                      <Switch
+                        size="small"
+                        checked={visibility.trackers[key] !== false}
+                        onChange={() => toggleTracker(key)}
+                        sx={{ "& .MuiSwitch-thumb": { bgcolor: heroColor }, "& .Mui-checked + .MuiSwitch-track": { bgcolor: `${heroColor}80` } }}
+                      />
+                    </Box>
+                  </Grid>
                 ))}
-              </Box>
+              </Grid>
 
-              <Button
-                variant="contained"
-                onClick={handleSaveVisibility}
-                sx={{
-                  background: heroColor,
-                  "&:hover": { background: heroColor, opacity: 0.88 },
-                  boxShadow: "none",
-                  px: 4,
-                  textTransform: "none",
-                  fontSize: 13,
-                }}
-              >
-                Save visibility
-              </Button>
             </Box>
           </TabPanel>
           {/* ── DISRUPTION TAB ── */}
@@ -1278,6 +1344,76 @@ export default function SettingsPage() {
   "body_age": 34
 }`}</Box>
 
+              {/* Artha Tracker format */}
+              <Typography sx={{ fontSize: 12, fontWeight: 700, color: textP, mb: 0.75 }}>
+                💰 Artha Tracker — Finance log (transactions)
+              </Typography>
+              <Box
+                sx={{
+                  background: isDark ? "rgba(255,255,255,0.04)" : "#F4F3EC",
+                  border: `1px solid ${border}`,
+                  borderRadius: 2,
+                  p: 2,
+                  mb: 1.5,
+                  fontFamily: "monospace",
+                  fontSize: 11,
+                  color: textS,
+                  overflowX: "auto",
+                  whiteSpace: "pre",
+                  lineHeight: 1.7,
+                }}
+              >{`[
+  {
+    "amount": 5000,
+    "description": "Salary",
+    "category": "Salary",
+    "type": "needed",
+    "is_income": true,
+    "date": "2026-05-01"
+  },
+  {
+    "amount": 800,
+    "description": "Groceries — Big Basket",
+    "category": "Groceries",
+    "type": "needed",
+    "is_income": false,
+    "date": "2026-05-02"
+  }
+]`}</Box>
+              <Typography sx={{ fontSize: 11, color: textS, mb: 2.5, lineHeight: 1.7 }}>
+                <strong style={{ color: textP }}>type</strong> must be <code style={{ background: isDark ? "rgba(255,255,255,0.06)" : "#EEE", padding: "1px 5px", borderRadius: 3, fontFamily: "monospace" }}>"needed"</code>, <code style={{ background: isDark ? "rgba(255,255,255,0.06)" : "#EEE", padding: "1px 5px", borderRadius: 3, fontFamily: "monospace" }}>"wanted"</code>, or <code style={{ background: isDark ? "rgba(255,255,255,0.06)" : "#EEE", padding: "1px 5px", borderRadius: 3, fontFamily: "monospace" }}>"investment"</code>.
+                {" "}<strong style={{ color: textP }}>is_income</strong> = true for income, false for expense.
+              </Typography>
+
+              <Typography sx={{ fontSize: 12, fontWeight: 700, color: textP, mb: 0.75 }}>
+                💰 Artha Tracker — Loans
+              </Typography>
+              <Box
+                sx={{
+                  background: isDark ? "rgba(255,255,255,0.04)" : "#F4F3EC",
+                  border: `1px solid ${border}`,
+                  borderRadius: 2,
+                  p: 2,
+                  mb: 2.5,
+                  fontFamily: "monospace",
+                  fontSize: 11,
+                  color: textS,
+                  overflowX: "auto",
+                  whiteSpace: "pre",
+                  lineHeight: 1.7,
+                }}
+              >{`[
+  {
+    "label": "Home Loan — SBI",
+    "principal": 3000000,
+    "current_balance": 2650000,
+    "rate": 8.5,
+    "emi": 27500,
+    "start_date": "2022-06-01",
+    "target_close_date": "2037-06-01"
+  }
+]`}</Box>
+
               {/* Section: Data export */}
               <SectionLabel>Exporting your data</SectionLabel>
               <Typography sx={{ fontSize: 13, color: textS, mb: 3, lineHeight: 1.85 }}>
@@ -1418,7 +1554,7 @@ export default function SettingsPage() {
         autoHideDuration={3500}
         onClose={() => setSnack("")}
         message={snack}
-        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+        anchorOrigin={{ vertical: "top", horizontal: "center" }}
         action={
           <IconButton size="small" onClick={() => setSnack("")} sx={{ color: "#fff" }}>
             <Close sx={{ fontSize: 16 }} />

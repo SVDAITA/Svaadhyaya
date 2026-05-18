@@ -320,6 +320,7 @@ export default function FinanceOSPage() {
   const [budgets, setBudgets] = useState([]);
   const [goals, setGoals] = useState([]);
   const [trendData, setTrendData] = useState([]);
+  const [trendWindow, setTrendWindow] = useState("6M");
 
   // UI States
   const [loading, setLoading] = useState(true);
@@ -331,6 +332,9 @@ export default function FinanceOSPage() {
   });
 
   // Form States
+  const [spendErrors, setSpendErrors] = useState({});
+  const [loanErrors, setLoanErrors] = useState({});
+  const [investErrors, setInvestErrors] = useState({});
   const [addOpen, setAddOpen] = useState(false);
   const [form, setForm] = useState({
     isIncome: false,
@@ -384,21 +388,22 @@ export default function FinanceOSPage() {
   const [importTarget, setImportTarget] = useState("loans");
 
   // ── DATA FETCHING ─────────────────────────────────────────────────────────
-  const fetchTrendData = useCallback(async () => {
+  const fetchTrendData = useCallback(async (window = "6M") => {
     if (!user) return;
-    const sixMonthsAgo = dayjs()
-      .subtract(5, "month")
+    const windowMonths = { "1M": 1, "3M": 3, "6M": 6, "1Y": 12, "All": 60 }[window] || 6;
+    const fromDate = dayjs()
+      .subtract(windowMonths - 1, "month")
       .startOf("month")
       .format("YYYY-MM-DD");
     const { data: history, error } = await supabase
       .from("finance_logs")
       .select("amount, date, income_flag")
       .eq("user_id", user.id)
-      .gte("date", sixMonthsAgo);
+      .gte("date", fromDate);
     if (error) return console.error("Trend error:", error);
 
     const months = [];
-    for (let i = 5; i >= 0; i--) {
+    for (let i = windowMonths - 1; i >= 0; i--) {
       const mDate = dayjs().subtract(i, "month");
       const mLabel = mDate.format("MMM YY");
       const mKey = mDate.format("YYYY-MM");
@@ -479,8 +484,13 @@ export default function FinanceOSPage() {
 
   useEffect(() => {
     loadDashboardData(true);
-    fetchTrendData();
+    fetchTrendData(trendWindow);
   }, [loadDashboardData, fetchTrendData]);
+
+  const handleTrendWindowChange = (w) => {
+    setTrendWindow(w);
+    fetchTrendData(w);
+  };
 
   const showToast = (message, severity = "success") =>
     setToast({ open: true, message, severity });
@@ -489,7 +499,12 @@ export default function FinanceOSPage() {
   // Reusing all logic cleanly below.
   const addSpend = async () => {
     /* Logic Preserved */
-    if (!form.amount || isNaN(Number(form.amount)) || !user) return;
+    const errs = {};
+    if (!form.amount || isNaN(Number(form.amount)) || Number(form.amount) <= 0)
+      errs.amount = "Enter a valid amount greater than 0";
+    if (Object.keys(errs).length) { setSpendErrors(errs); return; }
+    setSpendErrors({});
+    if (!user) return;
     setSaving(true);
     try {
       const { error } = await supabase.from("finance_logs").insert({
@@ -541,6 +556,15 @@ export default function FinanceOSPage() {
     if (error) { showToast("Failed to delete goal.", "error"); await loadDashboardData(); }
   };
 
+  const deleteBudget = async (category) => {
+    const existing = budgets.find((b) => b.category === category);
+    if (!existing) return;
+    const { error } = await supabase.from("budgets").delete().eq("id", existing.id);
+    if (error) { showToast("Failed to remove envelope.", "error"); return; }
+    showToast("Envelope removed.");
+    await loadDashboardData();
+  };
+
   const saveBudgetLimit = async () => {
     /* Logic Preserved */
     if (!budgetForm.category || !budgetForm.limit_amt || !user) return;
@@ -576,7 +600,13 @@ export default function FinanceOSPage() {
 
   const addNewLoan = async () => {
     /* Logic Preserved */
-    if (!newLoan.label || !newLoan.principal || !user) return;
+    const errs = {};
+    if (!newLoan.label.trim()) errs.label = "Institution / label is required";
+    if (!newLoan.principal || isNaN(Number(newLoan.principal)) || Number(newLoan.principal) <= 0)
+      errs.principal = "Principal must be a positive number";
+    if (Object.keys(errs).length) { setLoanErrors(errs); return; }
+    setLoanErrors({});
+    if (!user) return;
     setSaving(true);
     try {
       const start = dayjs(newLoan.start_date);
@@ -641,7 +671,11 @@ export default function FinanceOSPage() {
 
   const addNewInvestment = async () => {
     /* Logic Preserved */
-    if (!newInvest.name || !user) return;
+    const errs = {};
+    if (!newInvest.name.trim()) errs.name = "Asset name is required";
+    if (Object.keys(errs).length) { setInvestErrors(errs); return; }
+    setInvestErrors({});
+    if (!user) return;
     setSaving(true);
     try {
       const { error } = await supabase.from("investments").insert({
@@ -911,7 +945,7 @@ export default function FinanceOSPage() {
     <Savings key="4" />,
     <Settings key="5" />,
   ];
-  const TAB_LABELS = ["Cash Flow", "Budgets", "Loans", "Corpus", "Settings"];
+  const TAB_LABELS = ["Cash Flow", "Budgets", "Loans", "Corpus", "Data Import"];
 
   return (
     <Box
@@ -1104,9 +1138,30 @@ export default function FinanceOSPage() {
 
           <Card sx={{ ...cardSx, mb: 3 }}>
             <CardContent sx={{ p: "24px !important" }}>
-              <SectionLabel icon={<BarChart />}>
-                Wealth Momentum — Last 6 Months
-              </SectionLabel>
+              <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2, flexWrap: "wrap", gap: 1 }}>
+                <SectionLabel icon={<BarChart />}>
+                  Wealth Momentum
+                </SectionLabel>
+                <Box sx={{ display: "flex", gap: 0.75 }}>
+                  {["1M", "3M", "6M", "1Y", "All"].map((w) => (
+                    <Box
+                      key={w}
+                      onClick={() => handleTrendWindowChange(w)}
+                      sx={{
+                        px: 1.25, py: 0.4, borderRadius: 1.5, fontSize: 11, fontWeight: 700,
+                        cursor: "pointer", border: "1px solid",
+                        borderColor: trendWindow === w ? COLOR_HERO : (isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.12)"),
+                        color: trendWindow === w ? COLOR_HERO : "text.secondary",
+                        background: trendWindow === w ? alpha(COLOR_HERO, isDark ? 0.15 : 0.08) : "transparent",
+                        transition: "all 0.15s",
+                        "&:hover": { borderColor: COLOR_HERO, color: COLOR_HERO },
+                      }}
+                    >
+                      {w}
+                    </Box>
+                  ))}
+                </Box>
+              </Box>
               <Box sx={{ width: "100%", height: 300, mt: 2 }}>
                 <ResponsiveContainer>
                   <ComposedChart
@@ -1683,6 +1738,13 @@ export default function FinanceOSPage() {
                                 }}
                               />
                             )}
+                            <IconButton
+                              size="small"
+                              onClick={() => deleteBudget(env.category)}
+                              sx={{ p: 0.3, opacity: 0.3, "&:hover": { opacity: 1, color: RED } }}
+                            >
+                              <Delete sx={{ fontSize: 14 }} />
+                            </IconButton>
                           </Box>
                         </Box>
                         <LinearProgress
@@ -2539,7 +2601,7 @@ export default function FinanceOSPage() {
         open={toast.open}
         autoHideDuration={4000}
         onClose={() => setToast((t) => ({ ...t, open: false }))}
-        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+        anchorOrigin={{ vertical: "top", horizontal: "center" }}
       >
         <Alert
           severity={toast.severity}
@@ -2558,6 +2620,7 @@ export default function FinanceOSPage() {
         open={addOpen}
         onClose={() => {
           setAddOpen(false);
+          setSpendErrors({});
           setForm({
             isIncome: false,
             amount: "",
@@ -2620,9 +2683,12 @@ export default function FinanceOSPage() {
               type="number"
               autoFocus
               value={form.amount}
-              onChange={(e) =>
-                setForm((p) => ({ ...p, amount: e.target.value }))
-              }
+              onChange={(e) => {
+                setForm((p) => ({ ...p, amount: e.target.value }));
+                if (spendErrors.amount) setSpendErrors((p) => ({ ...p, amount: undefined }));
+              }}
+              error={!!spendErrors.amount}
+              helperText={spendErrors.amount}
               sx={inputSx}
             />
             {!form.isIncome && (
@@ -2720,6 +2786,7 @@ export default function FinanceOSPage() {
         open={addLoanOpen}
         onClose={() => {
           setAddLoanOpen(false);
+          setLoanErrors({});
           resetLoanForm();
         }}
         maxWidth="xs"
@@ -2738,9 +2805,12 @@ export default function FinanceOSPage() {
               label="Institution / Label"
               placeholder="e.g. Home Loan – SBI"
               value={newLoan.label}
-              onChange={(e) =>
-                setNewLoan((p) => ({ ...p, label: e.target.value }))
-              }
+              onChange={(e) => {
+                setNewLoan((p) => ({ ...p, label: e.target.value }));
+                if (loanErrors.label) setLoanErrors((p) => ({ ...p, label: undefined }));
+              }}
+              error={!!loanErrors.label}
+              helperText={loanErrors.label}
               sx={inputSx}
             />
             <Box sx={{ display: "flex", gap: 2 }}>
@@ -2749,9 +2819,12 @@ export default function FinanceOSPage() {
                 label="Principal (₹)"
                 type="number"
                 value={newLoan.principal}
-                onChange={(e) =>
-                  setNewLoan((p) => ({ ...p, principal: e.target.value }))
-                }
+                onChange={(e) => {
+                  setNewLoan((p) => ({ ...p, principal: e.target.value }));
+                  if (loanErrors.principal) setLoanErrors((p) => ({ ...p, principal: undefined }));
+                }}
+                error={!!loanErrors.principal}
+                helperText={loanErrors.principal}
                 sx={inputSx}
               />
               <TextField
@@ -2821,6 +2894,7 @@ export default function FinanceOSPage() {
           <Button
             onClick={() => {
               setAddLoanOpen(false);
+              setLoanErrors({});
               resetLoanForm();
             }}
             sx={{ color: "text.secondary", borderRadius: 2 }}
@@ -2853,6 +2927,7 @@ export default function FinanceOSPage() {
         open={addInvestOpen}
         onClose={() => {
           setAddInvestOpen(false);
+          setInvestErrors({});
           resetInvestForm();
         }}
         maxWidth="xs"
@@ -2906,9 +2981,12 @@ export default function FinanceOSPage() {
               fullWidth
               label="Asset Name"
               value={newInvest.name}
-              onChange={(e) =>
-                setNewInvest((p) => ({ ...p, name: e.target.value }))
-              }
+              onChange={(e) => {
+                setNewInvest((p) => ({ ...p, name: e.target.value }));
+                if (investErrors.name) setInvestErrors((p) => ({ ...p, name: undefined }));
+              }}
+              error={!!investErrors.name}
+              helperText={investErrors.name}
               sx={inputSx}
             />
             <FormControl fullWidth sx={inputSx}>

@@ -293,12 +293,15 @@ function SiddhiRow({ siddhi, lakshyaId, color, onUpdate }) {
   const { user } = useAuth();
   const { mode } = useThemeMode();
   const isDark = mode === "dark";
-  const GREEN_COMPLETE = isDark ? "#5EC98A" : GREEN_COMPLETE;
+  const GREEN_COMPLETE = isDark ? "#5EC98A" : "#2D7A4F";
   const [editing, setEditing] = useState(false);
   const [progress, setProgress] = useState(siddhi.progress_percent || 0);
   const [spawningAnsh, setSpawningAnsh] = useState(false);
   const [anshTitle, setAnshTitle] = useState("");
-  const [snack, setSnack] = useState("");
+  const [snack, setSnack] = useState({ open: false, msg: "", severity: "error" });
+  const [confirmDelete, setConfirmDelete] = useState(false);
+
+  const showSnack = (msg, severity = "error") => setSnack({ open: true, msg, severity });
 
   const save = async () => {
     const safeProgress = Math.min(100, Math.max(0, Number(progress) || 0));
@@ -307,14 +310,25 @@ function SiddhiRow({ siddhi, lakshyaId, color, onUpdate }) {
       .from("siddhis")
       .update({ progress_percent: safeProgress, status })
       .eq("id", siddhi.id);
-    if (error) { setSnack("Failed to save progress"); return; }
+    if (error) { showSnack("Failed to save progress"); return; }
     if (onUpdate) onUpdate();
     setEditing(false);
   };
 
+  const archive = async () => {
+    const { error } = await supabase
+      .from("siddhis")
+      .update({ status: "archived" })
+      .eq("id", siddhi.id);
+    if (error) { showSnack("Failed to archive milestone"); return; }
+    showSnack("Milestone archived", "info");
+    if (onUpdate) onUpdate();
+  };
+
   const remove = async () => {
     const { error } = await supabase.from("siddhis").delete().eq("id", siddhi.id);
-    if (error) { setSnack("Failed to delete milestone"); return; }
+    if (error) { showSnack("Failed to delete milestone"); return; }
+    setConfirmDelete(false);
     if (onUpdate) onUpdate();
   };
 
@@ -327,7 +341,7 @@ function SiddhiRow({ siddhi, lakshyaId, color, onUpdate }) {
       title: anshTitle.trim(),
       status: "active",
     });
-    if (error) { setSnack("Failed to add task"); return; }
+    if (error) { showSnack("Failed to add task"); return; }
     setAnshTitle("");
     setSpawningAnsh(false);
     if (onUpdate) onUpdate();
@@ -342,24 +356,39 @@ function SiddhiRow({ siddhi, lakshyaId, color, onUpdate }) {
   return (
     <Box
       sx={{
-        pl: 2,
-        mb: 2,
-        borderLeft: `2px solid ${isComplete ? GREEN_COMPLETE : `${color}30`}`,
-        transition: "all 0.3s ease",
+        mb: 1.5,
+        borderRadius: 2.5,
+        border: "1px solid",
+        borderColor: isComplete ? `${GREEN_COMPLETE}35` : `${color}25`,
+        background: isComplete
+          ? isDark ? "rgba(94,201,138,0.05)" : "rgba(45,122,79,0.04)"
+          : isDark ? `rgba(255,255,255,0.03)` : `${color}05`,
+        overflow: "hidden",
+        transition: "all 0.2s ease",
+        "&:hover": { borderColor: isComplete ? `${GREEN_COMPLETE}50` : `${color}40` },
       }}
     >
-      <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 0.75 }}>
-        {isComplete ? (
-          <CheckCircle sx={{ fontSize: 16, color: GREEN_COMPLETE, flexShrink: 0 }} />
-        ) : (
-          <RadioButtonUnchecked
-            sx={{ fontSize: 16, color: `${color}50`, flexShrink: 0 }}
-          />
-        )}
+      {/* Header row */}
+      <Box sx={{ display: "flex", alignItems: "center", gap: 1, px: 1.5, pt: 1.25, pb: 0.75 }}>
+        <Box
+          sx={{
+            width: 28, height: 28, borderRadius: "50%", flexShrink: 0,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            background: isComplete ? `${GREEN_COMPLETE}18` : `${color}12`,
+            border: `1.5px solid ${isComplete ? GREEN_COMPLETE : color}40`,
+          }}
+        >
+          {isComplete ? (
+            <CheckCircle sx={{ fontSize: 15, color: GREEN_COMPLETE }} />
+          ) : (
+            <RadioButtonUnchecked sx={{ fontSize: 15, color }} />
+          )}
+        </Box>
+
         <Typography
           sx={{
-            fontSize: 14,
-            fontWeight: isComplete ? 400 : 500,
+            fontSize: 13.5,
+            fontWeight: isComplete ? 400 : 600,
             color: isComplete ? "text.disabled" : "text.primary",
             textDecoration: isComplete ? "line-through" : "none",
             flex: 1,
@@ -368,114 +397,104 @@ function SiddhiRow({ siddhi, lakshyaId, color, onUpdate }) {
         >
           {siddhi.title}
         </Typography>
-        <Typography
-          variant="caption"
-          sx={{
-            fontSize: 11,
-            fontWeight: 500,
-            color: overdue ? "#CF4E4E" : "text.disabled",
-            flexShrink: 0,
-            background: overdue ? "#CF4E4E15" : "transparent",
-            px: overdue ? 1 : 0,
-            py: overdue ? 0.25 : 0,
-            borderRadius: 1,
-          }}
-        >
-          {siddhi.target_date
-            ? dayjs(siddhi.target_date).format("D MMM YYYY")
-            : ""}
-        </Typography>
-        <IconButton
-          size="small"
-          onClick={() => setEditing((p) => !p)}
-          sx={{
-            p: 0.5,
-            color: "text.disabled",
-            "&:hover": { color: "text.primary", background: `${color}10` },
-          }}
-        >
-          <Edit sx={{ fontSize: 14 }} />
-        </IconButton>
-        <IconButton
-          size="small"
-          onClick={remove}
-          sx={{
-            p: 0.5,
-            color: "text.disabled",
-            "&:hover": { color: "#CF4E4E", background: "#CF4E4E10" },
-          }}
-        >
-          <Delete sx={{ fontSize: 14 }} />
-        </IconButton>
-      </Box>
 
-      <Box sx={{ display: "flex", alignItems: "center", ml: 3, gap: 2 }}>
-        <Box sx={{ flex: 1, position: "relative" }}>
-          <LinearProgress
-            variant="determinate"
-            value={progress}
+        {siddhi.target_date && (
+          <Chip
+            label={dayjs(siddhi.target_date).format("D MMM YY")}
+            size="small"
             sx={{
-              height: 4,
-              borderRadius: 2,
-              bgcolor: "rgba(0,0,0,0.04)",
-              "& .MuiLinearProgress-bar": {
-                background: isComplete
-                  ? GREEN_COMPLETE
-                  : `linear-gradient(90deg, ${color}80 0%, ${color} 100%)`,
-                borderRadius: 2,
-              },
+              height: 19,
+              fontSize: 10,
+              fontWeight: overdue ? 700 : 400,
+              bgcolor: overdue ? "#CF4E4E15" : "transparent",
+              color: overdue ? "#CF4E4E" : "text.disabled",
+              border: `1px solid ${overdue ? "#CF4E4E50" : "transparent"}`,
             }}
           />
+        )}
+
+        <Box sx={{ display: "flex", gap: 0 }}>
+          <Tooltip title="Edit Progress">
+            <IconButton
+              size="small"
+              onClick={() => setEditing((p) => !p)}
+              sx={{ p: 0.5, color: editing ? color : "text.disabled", "&:hover": { color, background: `${color}10` } }}
+            >
+              <Edit sx={{ fontSize: 13 }} />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title="Archive Milestone">
+            <IconButton
+              size="small"
+              onClick={archive}
+              sx={{ p: 0.5, color: "text.disabled", "&:hover": { color: "#ED8C00", background: "#ED8C0010" } }}
+            >
+              <Insights sx={{ fontSize: 13 }} />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title="Delete Milestone">
+            <IconButton
+              size="small"
+              onClick={() => setConfirmDelete(true)}
+              sx={{ p: 0.5, color: "text.disabled", "&:hover": { color: "#CF4E4E", background: "#CF4E4E10" } }}
+            >
+              <Delete sx={{ fontSize: 13 }} />
+            </IconButton>
+          </Tooltip>
         </Box>
+      </Box>
+
+      {/* Progress bar + spawn button */}
+      <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, px: 1.5, pb: 1.25 }}>
+        <LinearProgress
+          variant="determinate"
+          value={Number(progress) || 0}
+          sx={{
+            flex: 1, height: 5, borderRadius: 3,
+            bgcolor: isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.06)",
+            "& .MuiLinearProgress-bar": {
+              background: isComplete
+                ? `linear-gradient(90deg, ${GREEN_COMPLETE}80 0%, ${GREEN_COMPLETE} 100%)`
+                : `linear-gradient(90deg, ${color}70 0%, ${color} 100%)`,
+              borderRadius: 3,
+            },
+          }}
+        />
+        <Typography sx={{ fontSize: 12, fontWeight: 700, color: isComplete ? GREEN_COMPLETE : color, minWidth: 30, textAlign: "right" }}>
+          {Number(progress) || 0}%
+        </Typography>
         {!isComplete && (
           <Tooltip title="Spawn a daily Ansh (micro-task)">
             <Button
               size="small"
               onClick={() => setSpawningAnsh((p) => !p)}
               sx={{
-                minWidth: 0,
-                p: 0.5,
-                px: 1,
-                fontSize: 10,
-                color,
-                textTransform: "uppercase",
-                letterSpacing: 0.5,
-                fontWeight: 700,
-                borderRadius: 1.5,
-                "&:hover": { background: `${color}15` },
+                minWidth: 0, p: 0.5, px: 1.25, fontSize: 10,
+                color: spawningAnsh ? "white" : color,
+                background: spawningAnsh ? color : "transparent",
+                textTransform: "uppercase", letterSpacing: 0.5, fontWeight: 700,
+                borderRadius: 1.5, border: `1px solid ${color}40`,
+                "&:hover": { background: color, color: "white" },
               }}
             >
-              <FlashOn sx={{ fontSize: 14, mr: 0.5 }} /> Spawn Ansh
+              <FlashOn sx={{ fontSize: 12, mr: 0.25 }} /> Ansh
             </Button>
           </Tooltip>
         )}
       </Box>
 
+      {/* Edit progress */}
       <Collapse in={editing}>
         <Box
           sx={{
-            display: "flex",
-            alignItems: "center",
-            gap: 1.5,
-            mt: 1.5,
-            ml: 3,
-            p: 1,
-            bgcolor: "background.paper",
-            borderRadius: 2,
-            border: "1px solid",
-            borderColor: "divider",
-            boxShadow: "0 2px 10px rgba(0,0,0,0.03)",
+            display: "flex", alignItems: "center", gap: 1.5,
+            mx: 1.5, mb: 1.25, p: 1.25,
+            bgcolor: "background.paper", borderRadius: 2,
+            border: "1px solid", borderColor: "divider",
           }}
         >
-          <Typography
-            sx={{
-              fontSize: 11,
-              fontWeight: 600,
-              color: "text.secondary",
-              textTransform: "uppercase",
-            }}
-          >
-            Progress
+          <Typography sx={{ fontSize: 11, fontWeight: 700, color: "text.secondary", textTransform: "uppercase", letterSpacing: 0.5 }}>
+            Progress %
           </Typography>
           <TextField
             type="number"
@@ -483,71 +502,39 @@ function SiddhiRow({ siddhi, lakshyaId, color, onUpdate }) {
             value={progress}
             onChange={(e) => setProgress(e.target.value)}
             inputProps={{ min: 0, max: 100 }}
-            sx={{
-              width: 80,
-              "& input": { py: "6px", fontSize: 13, textAlign: "center" },
-            }}
+            sx={{ width: 80, "& input": { py: "5px", fontSize: 13, textAlign: "center" } }}
           />
-          <Typography sx={{ fontSize: 13, color: "text.disabled", ml: -0.5 }}>
-            %
-          </Typography>
           <Box sx={{ flex: 1 }} />
-          <Button
-            size="small"
-            onClick={() => setEditing(false)}
-            color="inherit"
-            sx={{ py: 0.5, fontSize: 12, minWidth: 0 }}
-          >
+          <Button size="small" onClick={() => setEditing(false)} color="inherit" sx={{ py: 0.5, fontSize: 12, minWidth: 0 }}>
             Cancel
           </Button>
           <Button
-            size="small"
-            variant="contained"
-            onClick={save}
-            sx={{
-              py: 0.5,
-              fontSize: 12,
-              minWidth: 0,
-              px: 2,
-              background: color,
-              boxShadow: "none",
-            }}
+            size="small" variant="contained" onClick={save}
+            sx={{ py: 0.5, fontSize: 12, minWidth: 0, px: 2, background: color, boxShadow: "none" }}
           >
             Save
           </Button>
         </Box>
       </Collapse>
 
+      {/* Spawn Ansh */}
       <Collapse in={spawningAnsh}>
         <Box
           sx={{
-            mt: 1.5,
-            ml: 3,
-            p: 1.5,
-            borderRadius: 2,
-            background: `${color}06`,
-            border: `1px solid ${color}20`,
-            display: "flex",
-            gap: 1.5,
+            display: "flex", gap: 1.5, mx: 1.5, mb: 1.25, p: 1.25,
+            borderRadius: 2, background: `${color}08`, border: `1px solid ${color}25`,
           }}
         >
           <TextField
-            fullWidth
-            size="small"
+            fullWidth size="small"
             placeholder="Define a micro-action for today..."
             value={anshTitle}
             onChange={(e) => setAnshTitle(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && spawnAnsh()}
-            sx={{
-              "& input": { fontSize: 13, py: "6px" },
-              bgcolor: "background.paper",
-              borderRadius: 1,
-            }}
+            sx={{ "& input": { fontSize: 13, py: "6px" }, bgcolor: "background.paper", borderRadius: 1 }}
           />
           <Button
-            variant="contained"
-            size="small"
-            onClick={spawnAnsh}
+            variant="contained" size="small" onClick={spawnAnsh}
             disabled={!anshTitle.trim()}
             sx={{ background: color, minWidth: 0, px: 2, boxShadow: "none" }}
           >
@@ -555,6 +542,45 @@ function SiddhiRow({ siddhi, lakshyaId, color, onUpdate }) {
           </Button>
         </Box>
       </Collapse>
+
+      {/* Delete confirmation */}
+      <Dialog open={confirmDelete} onClose={() => setConfirmDelete(false)} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ fontFamily: '"Fraunces", serif', fontWeight: 400, fontSize: 20 }}>
+          Delete Milestone?
+        </DialogTitle>
+        <DialogContent>
+          <Typography sx={{ fontSize: 14, color: "text.secondary" }}>
+            Permanently delete <strong style={{ color: "text.primary" }}>"{siddhi.title}"</strong>? This cannot be undone.
+            <br /><br />
+            Consider <strong>Archiving</strong> instead to preserve your history.
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2.5 }}>
+          <Button onClick={() => setConfirmDelete(false)} color="inherit">Cancel</Button>
+          <Button
+            onClick={remove} variant="contained"
+            sx={{ bgcolor: "#CF4E4E", "&:hover": { bgcolor: "#b03535" }, boxShadow: "none" }}
+          >
+            Delete Permanently
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Snackbar */}
+      <Snackbar
+        open={snack.open}
+        autoHideDuration={3000}
+        onClose={() => setSnack((p) => ({ ...p, open: false }))}
+        anchorOrigin={{ vertical: "top", horizontal: "center" }}
+      >
+        <Alert
+          onClose={() => setSnack((p) => ({ ...p, open: false }))}
+          severity={snack.severity}
+          sx={{ width: "100%" }}
+        >
+          {snack.msg}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 }
@@ -567,6 +593,10 @@ function LakshyaCard({ lakshya, color, onUpdate }) {
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleVal, setTitleVal] = useState(lakshya.title);
   const [saving, setSaving] = useState(false);
+  const [snack, setSnack] = useState({ open: false, msg: "", severity: "success" });
+  const [confirmArchive, setConfirmArchive] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const showSnack = (msg, severity = "success") => setSnack({ open: true, msg, severity });
 
   const siddhis = lakshya.siddhis || [];
   const activeSiddhis = siddhis.filter((s) => s.status !== "completed");
@@ -581,38 +611,53 @@ function LakshyaCard({ lakshya, color, onUpdate }) {
 
   const saveTitle = async () => {
     if (!titleVal.trim()) return;
-    await supabase
+    const { error } = await supabase
       .from("lakshyas")
       .update({ title: titleVal.trim() })
       .eq("id", lakshya.id);
+    if (error) { showSnack("Failed to save title", "error"); return; }
     setEditingTitle(false);
+    showSnack("Vision updated");
     if (onUpdate) onUpdate();
   };
 
   const archiveLakshya = async () => {
-    await supabase
+    const { error } = await supabase
       .from("lakshyas")
       .update({ status: "archived" })
       .eq("id", lakshya.id);
+    if (error) { showSnack("Failed to archive vision", "error"); return; }
+    setConfirmArchive(false);
+    if (onUpdate) onUpdate();
+  };
+
+  const deleteLakshya = async () => {
+    const { error } = await supabase.from("lakshyas").delete().eq("id", lakshya.id);
+    if (error) { showSnack("Failed to delete vision", "error"); return; }
+    setConfirmDelete(false);
     if (onUpdate) onUpdate();
   };
 
   const addSiddhi = async () => {
     if (!siddhiForm.title.trim() || !user) return;
     setSaving(true);
-    await supabase
-      .from("siddhis")
-      .insert({
-        user_id: user.id,
-        lakshya_id: lakshya.id,
-        title: siddhiForm.title.trim(),
-        target_date: siddhiForm.target_date || null,
-        status: "active",
-        progress_percent: 0,
-      });
+    const { error } = await supabase.from("siddhis").insert({
+      user_id: user.id,
+      lakshya_id: lakshya.id,
+      title: siddhiForm.title.trim(),
+      target_date: siddhiForm.target_date || null,
+      status: "active",
+      progress_percent: 0,
+    });
+    if (error) {
+      showSnack(error.message || "Failed to add milestone. Check database permissions.", "error");
+      setSaving(false);
+      return;
+    }
     setSiddhiForm({ title: "", target_date: "" });
     setAddingSiddhi(false);
     setSaving(false);
+    showSnack("Milestone established");
     if (onUpdate) onUpdate();
   };
 
@@ -1003,6 +1048,7 @@ function LakshyaCard({ lakshya, color, onUpdate }) {
             sx={{
               display: "flex",
               justifyContent: "flex-end",
+              gap: 0.5,
               mt: 2,
               pt: 2,
               borderTop: "1px solid",
@@ -1011,20 +1057,87 @@ function LakshyaCard({ lakshya, color, onUpdate }) {
           >
             <Button
               size="small"
-              onClick={archiveLakshya}
+              onClick={() => setConfirmArchive(true)}
               sx={{
-                fontSize: 11,
-                color: "text.disabled",
-                textTransform: "uppercase",
-                letterSpacing: 0.5,
-                "&:hover": { color: "#CF4E4E", background: "transparent" },
+                fontSize: 11, color: "text.disabled", textTransform: "uppercase",
+                letterSpacing: 0.5, px: 1.5,
+                "&:hover": { color: "#ED8C00", background: "#ED8C0008" },
               }}
             >
               Archive Vision
             </Button>
+            <Button
+              size="small"
+              onClick={() => setConfirmDelete(true)}
+              sx={{
+                fontSize: 11, color: "text.disabled", textTransform: "uppercase",
+                letterSpacing: 0.5, px: 1.5,
+                "&:hover": { color: "#CF4E4E", background: "#CF4E4E08" },
+              }}
+            >
+              Delete Vision
+            </Button>
           </Box>
         </Box>
       </Collapse>
+
+      {/* Archive confirmation */}
+      <Dialog open={confirmArchive} onClose={() => setConfirmArchive(false)} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ fontFamily: '"Fraunces", serif', fontWeight: 400, fontSize: 20 }}>
+          Archive this Vision?
+        </DialogTitle>
+        <DialogContent>
+          <Typography sx={{ fontSize: 14, color: "text.secondary" }}>
+            Archive <strong>"{lakshya.title}"</strong>? It will be hidden from active views but preserved in your history.
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2.5 }}>
+          <Button onClick={() => setConfirmArchive(false)} color="inherit">Cancel</Button>
+          <Button
+            onClick={archiveLakshya} variant="contained"
+            sx={{ bgcolor: "#ED8C00", "&:hover": { bgcolor: "#c97700" }, boxShadow: "none" }}
+          >
+            Archive
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Delete confirmation */}
+      <Dialog open={confirmDelete} onClose={() => setConfirmDelete(false)} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ fontFamily: '"Fraunces", serif', fontWeight: 400, fontSize: 20 }}>
+          Delete this Vision?
+        </DialogTitle>
+        <DialogContent>
+          <Typography sx={{ fontSize: 14, color: "text.secondary" }}>
+            Permanently delete <strong>"{lakshya.title}"</strong> and all its milestones? This cannot be undone.
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2.5 }}>
+          <Button onClick={() => setConfirmDelete(false)} color="inherit">Cancel</Button>
+          <Button
+            onClick={deleteLakshya} variant="contained"
+            sx={{ bgcolor: "#CF4E4E", "&:hover": { bgcolor: "#b03535" }, boxShadow: "none" }}
+          >
+            Delete Permanently
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Snackbar */}
+      <Snackbar
+        open={snack.open}
+        autoHideDuration={3000}
+        onClose={() => setSnack((p) => ({ ...p, open: false }))}
+        anchorOrigin={{ vertical: "top", horizontal: "center" }}
+      >
+        <Alert
+          onClose={() => setSnack((p) => ({ ...p, open: false }))}
+          severity={snack.severity}
+          sx={{ width: "100%" }}
+        >
+          {snack.msg}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 }
@@ -1211,22 +1324,20 @@ export function LakshyaSection({ area, color, lakshyas, onUpdate }) {
               sx={{ mb: 3, mt: 1 }}
               size="medium"
             />
-            <FormControl fullWidth size="medium" sx={{ mb: 3 }}>
-              <InputLabel>Horizon</InputLabel>
-              <Select
-                value={form.timeline_years}
-                onChange={(e) =>
-                  setForm((p) => ({ ...p, timeline_years: e.target.value }))
-                }
-                label="Horizon"
-              >
-                {[1, 2, 3, 5, 8, 10].map((y) => (
-                  <MenuItem key={y} value={y}>
-                    {y} Year{y > 1 ? "s" : ""}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
+            <TextField
+              fullWidth
+              size="medium"
+              type="number"
+              label="Horizon (Years)"
+              value={form.timeline_years}
+              onChange={(e) => {
+                const val = parseInt(e.target.value, 10);
+                if (!isNaN(val) && val >= 1) setForm((p) => ({ ...p, timeline_years: val }));
+              }}
+              inputProps={{ min: 1, step: 1 }}
+              helperText="Enter any number of years (minimum 1)"
+              sx={{ mb: 3 }}
+            />
             <TextField
               fullWidth
               multiline
@@ -1278,7 +1389,11 @@ export function WeeklyGoals({ area, color }) {
   const [goals, setGoals] = useState([]);
   const [newGoal, setNewGoal] = useState("");
   const [loading, setLoading] = useState(false);
+  const [snack, setSnack] = useState({ open: false, msg: "", severity: "success" });
+  const [confirmDeleteId, setConfirmDeleteId] = useState(null);
   const weekStart = dayjs().startOf("week").format("YYYY-MM-DD");
+
+  const showSnack = (msg, severity = "success") => setSnack({ open: true, msg, severity });
 
   const load = useCallback(async () => {
     if (!user) return;
@@ -1299,31 +1414,32 @@ export function WeeklyGoals({ area, color }) {
   const add = async () => {
     if (!newGoal.trim() || !user) return;
     setLoading(true);
-    await supabase
-      .from("weekly_goals")
-      .insert({
-        user_id: user.id,
-        area,
-        week_start: weekStart,
-        title: newGoal.trim(),
-      });
+    const { error } = await supabase.from("weekly_goals").insert({
+      user_id: user.id,
+      area,
+      week_start: weekStart,
+      title: newGoal.trim(),
+    });
+    if (error) { showSnack("Failed to add goal", "error"); setLoading(false); return; }
     setNewGoal("");
     await load();
     setLoading(false);
   };
+
   const toggle = async (goal) => {
-    // Optimistic UI update
-    setGoals((prev) =>
-      prev.map((g) => (g.id === goal.id ? { ...g, done: !g.done } : g)),
-    );
-    await supabase
+    setGoals((prev) => prev.map((g) => (g.id === goal.id ? { ...g, done: !g.done } : g)));
+    const { error } = await supabase
       .from("weekly_goals")
       .update({ done: !goal.done })
       .eq("id", goal.id);
+    if (error) { showSnack("Failed to update goal", "error"); await load(); return; }
     await load();
   };
+
   const remove = async (id) => {
-    await supabase.from("weekly_goals").delete().eq("id", id);
+    const { error } = await supabase.from("weekly_goals").delete().eq("id", id);
+    if (error) { showSnack("Failed to delete goal", "error"); return; }
+    setConfirmDeleteId(null);
     await load();
   };
 
@@ -1389,7 +1505,7 @@ export function WeeklyGoals({ area, color }) {
               </Typography>
               <IconButton
                 size="small"
-                onClick={() => remove(g.id)}
+                onClick={() => setConfirmDeleteId(g.id)}
                 sx={{
                   p: 0.5,
                   opacity: 0,
@@ -1435,6 +1551,42 @@ export function WeeklyGoals({ area, color }) {
           </Box>
         </Box>
       </CardContent>
+
+      {/* Delete goal confirmation */}
+      <Dialog open={!!confirmDeleteId} onClose={() => setConfirmDeleteId(null)} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ fontFamily: '"Fraunces", serif', fontWeight: 400, fontSize: 20 }}>
+          Remove this Goal?
+        </DialogTitle>
+        <DialogContent>
+          <Typography sx={{ fontSize: 14, color: "text.secondary" }}>
+            This weekly focus will be permanently removed.
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2.5 }}>
+          <Button onClick={() => setConfirmDeleteId(null)} color="inherit">Cancel</Button>
+          <Button
+            onClick={() => remove(confirmDeleteId)} variant="contained"
+            sx={{ bgcolor: "#CF4E4E", "&:hover": { bgcolor: "#b03535" }, boxShadow: "none" }}
+          >
+            Remove
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Snackbar
+        open={snack.open}
+        autoHideDuration={3000}
+        onClose={() => setSnack((p) => ({ ...p, open: false }))}
+        anchorOrigin={{ vertical: "top", horizontal: "center" }}
+      >
+        <Alert
+          onClose={() => setSnack((p) => ({ ...p, open: false }))}
+          severity={snack.severity}
+          sx={{ width: "100%" }}
+        >
+          {snack.msg}
+        </Alert>
+      </Snackbar>
     </Card>
   );
 }
@@ -1446,6 +1598,7 @@ export function AreaJournal({ area, color }) {
   const [isSaving, setIsSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [snack, setSnack] = useState({ open: false, msg: "", severity: "error" });
 
   const typingTimeoutRef = useRef(null);
 
@@ -1478,17 +1631,21 @@ export function AreaJournal({ area, color }) {
       if (!user) return;
       const now = new Date().toISOString();
 
-      await supabase.from("area_journals").upsert(
+      const { error } = await supabase.from("area_journals").upsert(
         {
           user_id: user.id,
           area: area,
           content: newContent,
           updated_at: now,
         },
-        { onConflict: "user_id, area" },
+        { onConflict: "user_id,area" },
       );
 
-      setLastSaved(now);
+      if (error) {
+        setSnack({ open: true, msg: "Failed to save journal entry", severity: "error" });
+      } else {
+        setLastSaved(now);
+      }
       setIsSaving(false);
     }, 1500);
   };
@@ -1599,6 +1756,21 @@ export function AreaJournal({ area, color }) {
           </Box>
         )}
       </CardContent>
+
+      <Snackbar
+        open={snack.open}
+        autoHideDuration={3000}
+        onClose={() => setSnack((p) => ({ ...p, open: false }))}
+        anchorOrigin={{ vertical: "top", horizontal: "center" }}
+      >
+        <Alert
+          onClose={() => setSnack((p) => ({ ...p, open: false }))}
+          severity={snack.severity}
+          sx={{ width: "100%" }}
+        >
+          {snack.msg}
+        </Alert>
+      </Snackbar>
     </Card>
   );
 }

@@ -118,9 +118,15 @@ function calcStreak(dayMap, habitId, vacationDateSet = new Set()) {
 
   const isExempt = (dateStr) => {
     const day = dayMap[dateStr];
+    const dm = day?.disruption_mode;
+    // Weekends are always exempt
+    const jsDay = dayjs(dateStr).day();
+    const weekend = jsDay === 0 || jsDay === 6;
     return (
-      day?.disruption_mode === "holiday" ||
-      day?.disruption_mode === "vacation" ||
+      weekend ||
+      dm === "holiday" ||
+      dm === "vacation" ||
+      dm === "disrupted" ||
       vacationDateSet.has(dateStr)
     );
   };
@@ -272,9 +278,11 @@ const HABIT_META = {
 };
 
 const DISRUPTION_META = {
-  holiday:  { label: "Grace Mode",  emoji: "🌊", color: "#C07830" },
-  vacation: { label: "Vacation",    emoji: "🏖️", color: "#7C4DAB" },
-  working:  { label: "Full Day",    emoji: "⚡", color: null },
+  holiday:       { label: "Grace Mode", emoji: "🌊", color: "#C07830" },
+  vacation:      { label: "Vacation",   emoji: "🏖️", color: "#7C4DAB" },
+  disrupted:     { label: "Disrupted",  emoji: "⚠️", color: "#CF4E4E" },
+  working:       { label: "Full Day",   emoji: "⚡", color: "#5C5A52" },
+  "working day": { label: "Full Day",   emoji: "⚡", color: "#5C5A52" },
 };
 
 function DayDialog({ date, dayData, onClose, heroColor, isDark }) {
@@ -369,7 +377,7 @@ function DayDialog({ date, dayData, onClose, heroColor, isDark }) {
                 }}
               />
             )}
-            {disruption !== "working" && (
+            {disruption !== "working" && disruption !== "working day" && (
               <Chip
                 label={`${disruptMeta.emoji} ${disruptMeta.label}`}
                 size="small"

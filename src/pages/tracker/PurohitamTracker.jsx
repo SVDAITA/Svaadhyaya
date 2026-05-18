@@ -1566,6 +1566,7 @@ function PurohitamTab({ user, isDark }) {
         autoHideDuration={3000}
         onClose={() => setSnack("")}
         message={snack}
+        anchorOrigin={{ vertical: "top", horizontal: "center" }}
         ContentProps={{ sx: { background: "#2D6B4A", borderRadius: 2 } }}
       />
     </Box>
@@ -1728,10 +1729,17 @@ function AnushtanamTab({ user, isDark }) {
 
   // ── Japa log ───────────────────────────────────────────────────────
   const saveJapa = async () => {
-    if (!japaForm.count || !japaForm.japa_name) return;
+    if (!japaForm.count || !japaForm.japa_name) {
+      setSnack("Please fill in the Japa name and count");
+      return;
+    }
+    const countVal = parseInt(japaForm.count, 10);
+    if (isNaN(countVal) || countVal < 1) {
+      setSnack("Count must be a positive number");
+      return;
+    }
     setSaving(true);
     try {
-      // Check if a log already exists for this japa + today
       const { data: existing } = await supabase
         .from("japa_logs")
         .select("id")
@@ -1743,17 +1751,14 @@ function AnushtanamTab({ user, isDark }) {
       if (existing?.id) {
         const { error } = await supabase
           .from("japa_logs")
-          .update({
-            count: parseInt(japaForm.count),
-            notes: japaForm.notes || null,
-          })
+          .update({ count: countVal, notes: japaForm.notes || null })
           .eq("id", existing.id);
         if (error) throw error;
       } else {
         const { error } = await supabase.from("japa_logs").insert({
           user_id: user.id,
           japa_name: japaForm.japa_name,
-          count: parseInt(japaForm.count),
+          count: countVal,
           day_date: today,
           notes: japaForm.notes || null,
         });
@@ -1763,8 +1768,9 @@ function AnushtanamTab({ user, isDark }) {
       setJapaForm({ japa_name: "", count: "", notes: "" });
       setSnack("Japa count saved");
       load();
-    } catch {
-      setSnack("Failed to save japa log");
+    } catch (err) {
+      console.error("saveJapa error:", err);
+      setSnack(`Failed to save japa log: ${err?.message || err}`);
     } finally {
       setSaving(false);
     }
@@ -1772,16 +1778,26 @@ function AnushtanamTab({ user, isDark }) {
 
   // ── Japa goal ──────────────────────────────────────────────────────
   const saveGoal = async () => {
-    if (!goalForm.target_count || !goalForm.japa_name) return;
+    if (!goalForm.japa_name.trim()) {
+      setSnack("Please enter the Japa name");
+      return;
+    }
+    const targetCount = Number(goalForm.target_count);
+    if (!goalForm.target_count || isNaN(targetCount) || targetCount < 1) {
+      setSnack("Target count must be a positive number");
+      return;
+    }
+    const deadlineYears = goalForm.deadline_years ? Number(goalForm.deadline_years) : null;
+
     setSaving(true);
     try {
       if (editGoal) {
         const { error } = await supabase
           .from("japa_goals")
           .update({
-            japa_name: goalForm.japa_name,
-            target_count: Number(goalForm.target_count),
-            deadline_years: Number(goalForm.deadline_years),
+            japa_name: goalForm.japa_name.trim(),
+            target_count: targetCount,
+            ...(deadlineYears !== null ? { deadline_years: deadlineYears } : {}),
             notes: goalForm.notes || null,
           })
           .eq("id", editGoal.id);
@@ -1789,9 +1805,9 @@ function AnushtanamTab({ user, isDark }) {
       } else {
         const { error } = await supabase.from("japa_goals").insert({
           user_id: user.id,
-          japa_name: goalForm.japa_name,
-          target_count: Number(goalForm.target_count),
-          deadline_years: Number(goalForm.deadline_years),
+          japa_name: goalForm.japa_name.trim(),
+          target_count: targetCount,
+          ...(deadlineYears !== null ? { deadline_years: deadlineYears } : {}),
           start_date: today,
           notes: goalForm.notes || null,
           is_active: true,
@@ -1803,8 +1819,9 @@ function AnushtanamTab({ user, isDark }) {
       setGoalForm(emptyGoal);
       setSnack(editGoal ? "Sankalpam updated" : "Mahasankalpam set");
       load();
-    } catch {
-      setSnack("Failed to save sankalpam");
+    } catch (err) {
+      console.error("saveGoal error:", err);
+      setSnack(`Failed to save goal: ${err?.message || err}`);
     } finally {
       setSaving(false);
     }
@@ -2719,6 +2736,7 @@ function AnushtanamTab({ user, isDark }) {
         autoHideDuration={3000}
         onClose={() => setSnack("")}
         message={snack}
+        anchorOrigin={{ vertical: "top", horizontal: "center" }}
         ContentProps={{ sx: { background: INDIGO, borderRadius: 2 } }}
       />
     </Box>

@@ -359,7 +359,7 @@ function ProjectCard({ project, onDelete, isDark, cardBg, border, textP, textS }
               <Tooltip title="Delete project">
                 <IconButton
                   size="small"
-                  onClick={() => onDelete(project.id)}
+                  onClick={() => onDelete(project.id, project.title || "this project")}
                   sx={{ color: C.red, opacity: 0.3, "&:hover": { opacity: 1, bgcolor: `${C.red}15` } }}
                 >
                   <Delete fontSize="small" />
@@ -488,7 +488,7 @@ function SkillRow({ skill, onDelete, isDark, textP, textS, border }) {
           <Typography sx={{ fontSize: 11, color: textS, minWidth: 24, textAlign: "right" }}>{rating}/5</Typography>
           <Tooltip title="Remove skill">
             <IconButton
-              onClick={() => onDelete("logs", skill.id)}
+              onClick={() => onDelete("logs", skill.id, skill.value || "this skill")}
               size="small"
               sx={{ opacity: 0.2, "&:hover": { opacity: 1, color: C.red } }}
             >
@@ -609,6 +609,7 @@ export default function VrittiTracker() {
   const [openProj, setOpenProj] = useState(false);
   const [openSkill, setOpenSkill] = useState(false);
   const [openCert, setOpenCert] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState({ open: false, table: null, id: null, label: "" });
 
   // BUG FIX: use the module-level defaults to avoid stale closures
   const [projForm, setProjForm] = useState(DEFAULT_PROJ_FORM);
@@ -729,7 +730,13 @@ export default function VrittiTracker() {
     setSaving(false);
   };
 
-  const deleteItem = async (table, id) => {
+  const deleteItem = (table, id, label = "this item") => {
+    setDeleteConfirm({ open: true, table, id, label });
+  };
+
+  const confirmDeleteItem = async () => {
+    const { table, id } = deleteConfirm;
+    setDeleteConfirm({ open: false, table: null, id: null, label: "" });
     const { error } = await supabase.from(table).delete().eq("id", id);
     if (error) {
       showToast("Delete failed", "error");
@@ -880,7 +887,7 @@ export default function VrittiTracker() {
               <ProjectCard
                 key={p.id}
                 project={p}
-                onDelete={(id) => deleteItem("milestones", id)}
+                onDelete={(id, label) => deleteItem("milestones", id, label)}
                 isDark={isDark}
                 cardBg={cardBg}
                 border={border}
@@ -1057,7 +1064,7 @@ export default function VrittiTracker() {
                           </Box>
                           <Tooltip title="Delete">
                             <IconButton
-                              onClick={() => deleteItem("milestones", c.id)}
+                              onClick={() => deleteItem("milestones", c.id, c.title || "this certification")}
                               size="small"
                               sx={{ opacity: 0.2, flexShrink: 0, "&:hover": { opacity: 1, color: C.red } }}
                             >
@@ -1287,7 +1294,7 @@ export default function VrittiTracker() {
         open={toast.open}
         autoHideDuration={3500}
         onClose={() => setToast((t) => ({ ...t, open: false }))}
-        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+        anchorOrigin={{ vertical: "top", horizontal: "center" }}
       >
         <Alert
           severity={toast.severity}
@@ -1298,6 +1305,29 @@ export default function VrittiTracker() {
           {toast.msg}
         </Alert>
       </Snackbar>
+
+      <Dialog
+        open={deleteConfirm.open}
+        onClose={() => setDeleteConfirm({ open: false, table: null, id: null, label: "" })}
+        PaperProps={{ sx: { borderRadius: 3, p: 1 } }}
+      >
+        <DialogTitle sx={{ fontFamily: '"Fraunces",serif', fontWeight: 400, fontSize: 20 }}>
+          Remove item?
+        </DialogTitle>
+        <DialogContent>
+          <Typography sx={{ color: "text.secondary", fontSize: 14 }}>
+            Delete <strong>{deleteConfirm.label}</strong>? This cannot be undone.
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2.5 }}>
+          <Button onClick={() => setDeleteConfirm({ open: false, table: null, id: null, label: "" })} color="inherit" sx={{ textTransform: "none" }}>
+            Cancel
+          </Button>
+          <Button onClick={confirmDeleteItem} variant="contained" sx={{ background: C.red, "&:hover": { background: "#A03535" }, textTransform: "none", boxShadow: "none" }}>
+            Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }

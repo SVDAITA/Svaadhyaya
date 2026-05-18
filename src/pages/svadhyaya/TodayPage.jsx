@@ -11,8 +11,11 @@ import {
   Fade,
   Slider,
   Dialog,
+  DialogTitle,
   DialogContent,
+  DialogActions,
   Snackbar,
+  Alert,
   IconButton,
   Tooltip,
   Select,
@@ -40,6 +43,7 @@ import {
   AutoAwesome,
   Flag,
   LinkOutlined,
+  ReportProblem,
 } from "@mui/icons-material";
 import { useAuth } from "../../hooks/useAuth";
 import { useThemeMode } from "../../hooks/useTheme";
@@ -143,7 +147,8 @@ const DEFAULT_EVENING = [
   },
 ];
 
-const DAY_TYPES = ["working day", "holiday", "vacation"];
+// Weekend = Saturday (6) or Sunday (0)
+const isWeekendDay = (d = dayjs()) => d.day() === 0 || d.day() === 6;
 
 // ── CLOCK ──────────────────────────────────────────────────────────────────────
 function useRunningClock() {
@@ -2014,13 +2019,17 @@ export default function TodayPage() {
   const [showEveningFlow, setShowEveningFlow] = useState(false);
   const [showSunset, setShowSunset] = useState(false);
   const [showDisrupt, setShowDisrupt] = useState(false);
+  const [confirmDisrupt, setConfirmDisrupt] = useState(false);
   const [addTaskFor, setAddTaskFor] = useState(null);
   const [completionItem, setCompletionItem] = useState(null);
   const [undoSnack, setUndoSnack] = useState(false);
   const [errSnack, setErrSnack] = useState(false);
   const [dismissMorning, setDismissMorning] = useState(false);
 
-  const isGrace = dayType === "holiday" || dayType === "vacation";
+  const isWeekend = isWeekendDay();
+  const isDisrupted = dayType === "disrupted";
+  // Keep grace for backward-compat with old holiday/vacation entries
+  const isGrace = isDisrupted || dayType === "holiday" || dayType === "vacation";
 
   const enrichWithLakshya = (tasks) =>
     tasks.map((t) => ({
@@ -2030,7 +2039,11 @@ export default function TodayPage() {
     }));
 
   const allSacred = enrichWithLakshya(DEFAULT_SACRED).concat(customSacred);
-  const allCore = enrichWithLakshya(DEFAULT_CORE).concat(customCore);
+  // Auto-skip Vritti (office) on weekends
+  const coreBase = isWeekend
+    ? DEFAULT_CORE.filter((t) => t.id !== "office")
+    : DEFAULT_CORE;
+  const allCore = enrichWithLakshya(coreBase).concat(customCore);
   const allEvening = enrichWithLakshya(DEFAULT_EVENING).concat(customEvening);
 
   const cardBg = isDark ? "#1A1916" : "#FCFBF9";
@@ -2292,6 +2305,17 @@ export default function TodayPage() {
     await sync({ disruption_mode: type });
   };
 
+  const markDisrupted = async () => {
+    setConfirmDisrupt(false);
+    setDayType("disrupted");
+    await sync({ disruption_mode: "disrupted" });
+  };
+
+  const unmarkDisrupted = async () => {
+    setDayType("working");
+    await sync({ disruption_mode: "working" });
+  };
+
   const renderItem = (item, section) => {
     const meta = habitsData[item.id];
     const richItem = meta ? { ...item, ...meta } : item;
@@ -2409,42 +2433,154 @@ export default function TodayPage() {
         </Box>
       </Box>
 
-      <Box sx={{ display: "flex", gap: 0.75, mb: 2.5 }}>
-        {DAY_TYPES.map((type) => {
-          const active = dayType === type;
-          return (
-            <Box
-              key={type}
-              onClick={() => changeDayType(type)}
-              sx={{
-                px: 1.75,
-                py: 0.5,
-                borderRadius: 20,
-                cursor: "pointer",
-                border: `1px solid ${active ? (isDark ? "#F0EDE8" : "#2C2C2C") : border}`,
-                background: active
-                  ? isDark
-                    ? "#F0EDE8"
-                    : "#2C2C2C"
-                  : "transparent",
-                transition: "all 0.15s",
-              }}
-            >
+      {/* ── DISRUPTION BANNER ── */}
+      {isDisrupted && (
+        <Fade in>
+          <Box
+            sx={{
+              mb: 2.5,
+              p: "14px 20px",
+              borderRadius: 3,
+              background: isDark
+                ? "rgba(207,78,78,0.12)"
+                : "rgba(207,78,78,0.08)",
+              border: "2px solid #CF4E4E",
+              display: "flex",
+              alignItems: "center",
+              gap: 1.5,
+              flexWrap: "wrap",
+            }}
+          >
+            <ReportProblem sx={{ color: "#CF4E4E", fontSize: 22, flexShrink: 0 }} />
+            <Box sx={{ flex: 1, minWidth: 0 }}>
               <Typography
                 sx={{
-                  fontSize: 12,
-                  fontWeight: 600,
-                  color: active ? (isDark ? "#2C2C2C" : "#fff") : "#9C9A94",
-                  textTransform: "uppercase",
-                  letterSpacing: 0.8,
+                  fontSize: 14,
+                  fontWeight: 700,
+                  color: "#CF4E4E",
+                  letterSpacing: 0.3,
                 }}
               >
-                {type}
+                Disrupted Day
+              </Typography>
+              <Typography sx={{ fontSize: 12, color: isDark ? "#CF4E4E99" : "#CF4E4Ecc" }}>
+                This day has been marked as disrupted. Core tasks are paused — streaks are protected.
               </Typography>
             </Box>
-          );
-        })}
-      </Box>
+            <Button
+              size="small"
+              variant="outlined"
+              onClick={unmarkDisrupted}
+              sx={{
+                fontSize: 12,
+                fontWeight: 600,
+                color: "#CF4E4E",
+                borderColor: "#CF4E4E",
+                borderRadius: 2,
+                px: 2,
+                flexShrink: 0,
+                "&:hover": { background: "#CF4E4E15", borderColor: "#CF4E4E" },
+              }}
+            >
+              Unmark
+            </Button>
+          </Box>
+        </Fade>
+      )}
+
+      {/* ── WEEKEND NOTICE ── */}
+      {isWeekend && !isDisrupted && (
+        <Fade in>
+          <Box
+            sx={{
+              mb: 2.5,
+              px: 2,
+              py: 1.25,
+              borderRadius: 2.5,
+              background: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.03)",
+              border: `1px solid ${border}`,
+              display: "flex",
+              alignItems: "center",
+              gap: 1,
+            }}
+          >
+            <Typography sx={{ fontSize: 16 }}>🌿</Typography>
+            <Typography sx={{ fontSize: 13, color: isDark ? "#9C9A94" : "#64748b", flex: 1 }}>
+              Weekend — Vritti work task is paused. Sacred practice continues.
+            </Typography>
+            <Tooltip title="Mark today as disrupted">
+              <Button
+                size="small"
+                onClick={() => setConfirmDisrupt(true)}
+                sx={{
+                  fontSize: 11,
+                  color: "#CF4E4E",
+                  textTransform: "none",
+                  fontWeight: 600,
+                  px: 1.5,
+                  flexShrink: 0,
+                  "&:hover": { background: "#CF4E4E10" },
+                }}
+              >
+                Mark Disrupted
+              </Button>
+            </Tooltip>
+          </Box>
+        </Fade>
+      )}
+
+      {/* ── MARK DISRUPTED button (working weekday only) ── */}
+      {!isDisrupted && !isWeekend && (
+        <Box sx={{ display: "flex", justifyContent: "flex-end", mb: 2 }}>
+          <Button
+            size="small"
+            startIcon={<ReportProblem sx={{ fontSize: 14 }} />}
+            onClick={() => setConfirmDisrupt(true)}
+            sx={{
+              fontSize: 11,
+              fontWeight: 600,
+              color: "text.disabled",
+              textTransform: "none",
+              borderRadius: 2,
+              px: 1.5,
+              "&:hover": { color: "#CF4E4E", background: "#CF4E4E08" },
+            }}
+          >
+            Mark as Disrupted
+          </Button>
+        </Box>
+      )}
+
+      {/* ── CONFIRM DISRUPT DIALOG ── */}
+      <Dialog
+        open={confirmDisrupt}
+        onClose={() => setConfirmDisrupt(false)}
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle sx={{ fontFamily: '"Fraunces", serif', fontWeight: 400, fontSize: 20 }}>
+          Mark Today as Disrupted?
+        </DialogTitle>
+        <DialogContent>
+          <Typography sx={{ fontSize: 14, color: "text.secondary", lineHeight: 1.7 }}>
+            This will flag today as a disrupted day. Core work tasks will be paused and your streaks will be protected from breaking.
+            <br /><br />
+            You can unmark this at any time.
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2.5 }}>
+          <Button onClick={() => setConfirmDisrupt(false)} color="inherit">
+            Cancel
+          </Button>
+          <Button
+            onClick={markDisrupted}
+            variant="contained"
+            sx={{ bgcolor: "#CF4E4E", "&:hover": { bgcolor: "#b03535" }, boxShadow: "none" }}
+          >
+            Yes, Mark Disrupted
+          </Button>
+        </DialogActions>
+      </Dialog>
       <PanchangamCard
         data={panchangam}
         loading={panchLoading}
@@ -2815,7 +2951,7 @@ export default function TodayPage() {
         open={errSnack}
         autoHideDuration={5000}
         onClose={() => setErrSnack(false)}
-        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+        anchorOrigin={{ vertical: "top", horizontal: "center" }}
         message="⚠️ Save failed — check your connection"
         ContentProps={{
           sx: { background: "#7F1D1D", borderRadius: 2, fontSize: 13 },
@@ -2825,7 +2961,7 @@ export default function TodayPage() {
         open={undoSnack}
         autoHideDuration={8000}
         onClose={() => setUndoSnack(false)}
-        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+        anchorOrigin={{ vertical: "top", horizontal: "center" }}
         message="Day closed 🌙"
         action={
           <Button

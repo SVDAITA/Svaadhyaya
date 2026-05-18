@@ -131,7 +131,13 @@ export function usePanchang() {
           body: { latitude: 17.3850, longitude: 78.4867 }
         })
 
-        if (invokeError) throw new Error(invokeError.message)
+        if (invokeError) {
+          // External panchang API (BigQuery-based) can return transient errors
+          // like "Unrecognized name: status_code" — not a user-facing issue.
+          console.warn('Panchang invoke error (external API):', invokeError.message)
+          setLoading(false)
+          return
+        }
         if (response?.error) throw new Error(response.error)
 
         const normalized = normalizeResponse(response)
