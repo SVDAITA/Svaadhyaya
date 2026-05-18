@@ -135,10 +135,11 @@ export default function ShariramHealthOS() {
   const saveTargets = async (newTargets) => {
     setTargets(newTargets);
     const { data: existing } = await supabase.from("days").select("habits").eq("user_id", user.id).eq("day_date", "2000-01-01").maybeSingle();
-    await supabase.from("days").upsert(
+    const { error } = await supabase.from("days").upsert(
       { user_id: user.id, day_date: "2000-01-01", habits: { ...(existing?.habits || {}), health_targets: newTargets } },
       { onConflict: "user_id,day_date" },
     );
+    if (error) { showSnack("Failed to save targets.", "error"); return; }
     setTargetsOpen(false);
     showSnack("Targets saved.");
   };
@@ -195,7 +196,8 @@ export default function ShariramHealthOS() {
           date: data.date || dayjs().format("YYYY-MM-DD"),
           unit: METRIC_META[key]?.unit || "",
         }));
-        await supabase.from("health_logs").insert(entries);
+        const { error } = await supabase.from("health_logs").insert(entries);
+        if (error) throw error;
         setUploadOpen(false);
         showSnack("Snapshot imported successfully.");
         fetchLogs();
@@ -940,9 +942,9 @@ export default function ShariramHealthOS() {
                         size="small"
                         color="error"
                         onClick={async () => {
-                          await supabase.from("health_logs").delete().eq("user_id", user.id).eq("date", date);
-                          showSnack("Snapshot removed.");
-                          fetchLogs();
+                          const { error } = await supabase.from("health_logs").delete().eq("user_id", user.id).eq("date", date);
+                          showSnack(error ? "Failed to delete." : "Snapshot removed.", error ? "error" : "success");
+                          if (!error) fetchLogs();
                         }}
                       >
                         <Delete fontSize="small" />

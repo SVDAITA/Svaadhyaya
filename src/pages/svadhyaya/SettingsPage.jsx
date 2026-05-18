@@ -288,12 +288,12 @@ export default function SettingsPage() {
   const saveDisruptionBaselines = async () => {
     if (!user) return;
     setBaselinesSaving(true);
-    await supabase.from("days").upsert(
+    const { error } = await supabase.from("days").upsert(
       { user_id: user.id, day_date: SETTINGS_DATE, disruption_baselines: baselines },
       { onConflict: "user_id,day_date" },
     );
     setBaselinesSaving(false);
-    setSnack("Baselines saved");
+    setSnack(error ? "Failed to save baselines" : "Baselines saved");
   };
 
   const handleSaveProfile = async () => {

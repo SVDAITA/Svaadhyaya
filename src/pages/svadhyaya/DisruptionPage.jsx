@@ -242,14 +242,14 @@ export default function DisruptionPage() {
   const saveBaselines = async () => {
     if (!user) return;
     setBaselinesSaving(true);
-    await supabase
+    const { error } = await supabase
       .from("days")
       .upsert(
         { user_id: user.id, day_date: SETTINGS_DATE, disruption_baselines: baselines },
         { onConflict: "user_id,day_date" },
       );
     setBaselinesSaving(false);
-    setSnack("Baselines saved");
+    setSnack(error ? "Failed to save baselines" : "Baselines saved");
   };
 
   // ── Required tasks for current disruption mode (derived from baselines)

@@ -367,39 +367,46 @@ export default function PravesaPage() {
   const saveTrip = async () => {
     if (!form.destination || !user) return;
     setSaving(true);
-    await supabase.from("travel_logs").insert({
-      user_id: user.id,
-      destination: form.destination,
-      from_date: form.from_date,
-      to_date: form.to_date,
-      trip_type: form.trip_type || null,
-      notes: form.notes || null,
-      rating: form.rating || 0,
-      transport: Number(form.transport) || 0,
-      stay: Number(form.stay) || 0,
-      food: Number(form.food) || 0,
-      other: Number(form.other) || 0,
-    });
-    setForm({
-      destination: "",
-      from_date: dayjs().format("YYYY-MM-DD"),
-      to_date: dayjs().add(3, "day").format("YYYY-MM-DD"),
-      trip_type: "",
-      notes: "",
-      rating: 0,
-      transport: "",
-      stay: "",
-      food: "",
-      other: "",
-    });
-    setAddOpen(false);
-    setSaving(false);
-    showSnack("Journey recorded.");
-    load();
+    try {
+      const { error } = await supabase.from("travel_logs").insert({
+        user_id: user.id,
+        destination: form.destination,
+        from_date: form.from_date,
+        to_date: form.to_date,
+        trip_type: form.trip_type || null,
+        notes: form.notes || null,
+        rating: form.rating || 0,
+        transport: Number(form.transport) || 0,
+        stay: Number(form.stay) || 0,
+        food: Number(form.food) || 0,
+        other: Number(form.other) || 0,
+      });
+      if (error) throw error;
+      setForm({
+        destination: "",
+        from_date: dayjs().format("YYYY-MM-DD"),
+        to_date: dayjs().add(3, "day").format("YYYY-MM-DD"),
+        trip_type: "",
+        notes: "",
+        rating: 0,
+        transport: "",
+        stay: "",
+        food: "",
+        other: "",
+      });
+      setAddOpen(false);
+      showSnack("Journey recorded.");
+      load();
+    } catch {
+      showSnack("Failed to save journey.", "error");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const deleteTrip = async (id) => {
-    await supabase.from("travel_logs").delete().eq("id", id);
+    const { error } = await supabase.from("travel_logs").delete().eq("id", id);
+    if (error) { showSnack("Failed to delete.", "error"); return; }
     showSnack("Journey removed.");
     load();
   };

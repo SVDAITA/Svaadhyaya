@@ -295,16 +295,26 @@ export default function ReadingLogPage() {
       price: form.price ? Number(form.price) : null,
       description: form.description || null,
     };
-    if (editBook)
-      await supabase
-        .from("books")
-        .update({ ...payload, updated_at: new Date().toISOString() })
-        .eq("id", editBook.id);
-    else await supabase.from("books").insert(payload);
-    setAddOpen(false);
-    setSaving(false);
-    resetForm();
-    load();
+    try {
+      if (editBook) {
+        const { error } = await supabase
+          .from("books")
+          .update({ ...payload, updated_at: new Date().toISOString() })
+          .eq("id", editBook.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from("books").insert(payload);
+        if (error) throw error;
+      }
+      setAddOpen(false);
+      resetForm();
+      showSnack(editBook ? "Book updated." : "Book added.", "success");
+      load();
+    } catch {
+      showSnack("Failed to save book.", "error");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const confirmDelete = (book) => {
@@ -313,9 +323,11 @@ export default function ReadingLogPage() {
   };
   const executeDelete = async () => {
     if (!bookToDelete) return;
-    await supabase.from("books").delete().eq("id", bookToDelete.id);
+    const { error } = await supabase.from("books").delete().eq("id", bookToDelete.id);
+    if (error) { showSnack("Failed to delete.", "error"); return; }
     setDeleteConfirmOpen(false);
     setBookToDelete(null);
+    showSnack("Book removed.", "success");
     load();
   };
 
@@ -328,50 +340,59 @@ export default function ReadingLogPage() {
     const todayStr = dayjs().format("YYYY-MM-DD");
     const displayDate = dayjs().format("MMM D, YYYY");
 
-    await supabase.from("reading_sessions").insert({
-      user_id: user.id,
-      book_id: activeLogBook.id,
-      session_date: todayStr,
-      pages_read: pagesReadToday,
-      summary: sessionForm.summary || null,
-    });
+    try {
+      const { error: e1 } = await supabase.from("reading_sessions").insert({
+        user_id: user.id,
+        book_id: activeLogBook.id,
+        session_date: todayStr,
+        pages_read: pagesReadToday,
+        summary: sessionForm.summary || null,
+      });
+      if (e1) throw e1;
 
-    const newTotalRead = (activeLogBook.pages_read || 0) + pagesReadToday;
-    const isCompleted =
-      activeLogBook.total_pages && newTotalRead >= activeLogBook.total_pages;
-    const appendedNotes = sessionForm.summary
-      ? `[${displayDate}] +${pagesReadToday} pages: ${sessionForm.summary}\n\n${activeLogBook.notes || ""}`.trim()
-      : activeLogBook.notes;
+      const newTotalRead = (activeLogBook.pages_read || 0) + pagesReadToday;
+      const isCompleted =
+        activeLogBook.total_pages && newTotalRead >= activeLogBook.total_pages;
+      const appendedNotes = sessionForm.summary
+        ? `[${displayDate}] +${pagesReadToday} pages: ${sessionForm.summary}\n\n${activeLogBook.notes || ""}`.trim()
+        : activeLogBook.notes;
 
-    await supabase
-      .from("books")
-      .update({
-        pages_read: newTotalRead,
-        status: isCompleted ? "completed" : "reading",
-        finished_date: isCompleted ? todayStr : activeLogBook.finished_date,
-        notes: appendedNotes,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", activeLogBook.id);
+      const { error: e2 } = await supabase
+        .from("books")
+        .update({
+          pages_read: newTotalRead,
+          status: isCompleted ? "completed" : "reading",
+          finished_date: isCompleted ? todayStr : activeLogBook.finished_date,
+          notes: appendedNotes,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", activeLogBook.id);
+      if (e2) throw e2;
 
-    setSessionOpen(false);
-    setSessionForm({ pages_read: "", summary: "" });
-    setSaving(false);
-    load(true);
+      setSessionOpen(false);
+      setSessionForm({ pages_read: "", summary: "" });
+      showSnack("Session logged.", "success");
+      load(true);
+    } catch {
+      showSnack("Failed to log session.", "error");
+    } finally {
+      setSaving(false);
+    }
   };
 
   // --- Journal Saving ---
   const saveJournalEntry = async () => {
     if (!newJournal.trim()) return;
     setSaving(true);
-    await supabase.from("journal_entries").insert({
+    const { error } = await supabase.from("journal_entries").insert({
       user_id: user.id,
       content: newJournal.trim(),
       entry_date: dayjs().format("YYYY-MM-DD"),
     });
+    if (error) { showSnack("Failed to save entry.", "error"); setSaving(false); return; }
     setNewJournal("");
     setSaving(false);
-    showSnack("Reflection preserved.");
+    showSnack("Journal entry saved.", "success");
     load(true);
   };
 

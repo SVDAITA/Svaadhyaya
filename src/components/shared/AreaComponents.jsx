@@ -19,6 +19,7 @@ import {
   InputLabel,
   Tooltip,
   Alert,
+  Snackbar,
   Collapse,
   CircularProgress,
   Fade,
@@ -297,32 +298,36 @@ function SiddhiRow({ siddhi, lakshyaId, color, onUpdate }) {
   const [progress, setProgress] = useState(siddhi.progress_percent || 0);
   const [spawningAnsh, setSpawningAnsh] = useState(false);
   const [anshTitle, setAnshTitle] = useState("");
+  const [snack, setSnack] = useState("");
 
   const save = async () => {
     const safeProgress = Math.min(100, Math.max(0, Number(progress) || 0));
     const status = safeProgress >= 100 ? "completed" : "active";
-    await supabase
+    const { error } = await supabase
       .from("siddhis")
       .update({ progress_percent: safeProgress, status })
       .eq("id", siddhi.id);
+    if (error) { setSnack("Failed to save progress"); return; }
     if (onUpdate) onUpdate();
     setEditing(false);
   };
 
   const remove = async () => {
-    await supabase.from("siddhis").delete().eq("id", siddhi.id);
+    const { error } = await supabase.from("siddhis").delete().eq("id", siddhi.id);
+    if (error) { setSnack("Failed to delete milestone"); return; }
     if (onUpdate) onUpdate();
   };
 
   const spawnAnsh = async () => {
     if (!anshTitle.trim() || !user) return;
-    await supabase.from("anshs").insert({
+    const { error } = await supabase.from("anshs").insert({
       user_id: user.id,
       lakshya_id: lakshyaId,
       siddhi_id: siddhi.id,
       title: anshTitle.trim(),
       status: "active",
     });
+    if (error) { setSnack("Failed to add task"); return; }
     setAnshTitle("");
     setSpawningAnsh(false);
     if (onUpdate) onUpdate();

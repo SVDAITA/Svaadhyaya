@@ -522,19 +522,23 @@ export default function FinanceOSPage() {
 
   const deleteSpend = async (id) => {
     setSpends((prev) => prev.filter((s) => s.id !== id));
-    await supabase.from("finance_logs").delete().eq("id", id);
+    const { error } = await supabase.from("finance_logs").delete().eq("id", id);
+    if (error) { showToast("Failed to delete entry.", "error"); await loadDashboardData(); }
   };
   const deleteInvestment = async (id) => {
     setInvestments((prev) => prev.filter((inv) => inv.id !== id));
-    await supabase.from("investments").delete().eq("id", id);
+    const { error } = await supabase.from("investments").delete().eq("id", id);
+    if (error) { showToast("Failed to delete investment.", "error"); await loadDashboardData(); }
   };
   const deleteLoan = async (id) => {
     setLoans((prev) => prev.filter((loan) => loan.id !== id));
-    await supabase.from("loans").delete().eq("id", id);
+    const { error } = await supabase.from("loans").delete().eq("id", id);
+    if (error) { showToast("Failed to delete loan.", "error"); await loadDashboardData(); }
   };
   const deleteGoal = async (id) => {
     setGoals((prev) => prev.filter((g) => g.id !== id));
-    await supabase.from("savings_goals").delete().eq("id", id);
+    const { error } = await supabase.from("savings_goals").delete().eq("id", id);
+    if (error) { showToast("Failed to delete goal.", "error"); await loadDashboardData(); }
   };
 
   const saveBudgetLimit = async () => {
@@ -607,11 +611,12 @@ export default function FinanceOSPage() {
     if (!loanForm.balance || !loanForm.id || !user) return;
     setSaving(true);
     try {
-      await supabase
+      const { error: e1 } = await supabase
         .from("loans")
         .update({ current_balance: Number(loanForm.balance) })
         .eq("id", loanForm.id);
-      await supabase
+      if (e1) throw e1;
+      const { error: e2 } = await supabase
         .from("loan_history")
         .insert({
           user_id: user.id,
@@ -619,6 +624,7 @@ export default function FinanceOSPage() {
           balance_recorded: Number(loanForm.balance),
           recorded_date: loanForm.date,
         });
+      if (e2) throw e2;
       setLoanForm({
         id: loans[0]?.id || "",
         balance: "",
@@ -627,7 +633,7 @@ export default function FinanceOSPage() {
       showToast("Balance updated ✓");
       await loadDashboardData();
     } catch (err) {
-      showToast(err.message, "error");
+      showToast(err.message || "Failed to update balance.", "error");
     } finally {
       setSaving(false);
     }
@@ -638,7 +644,7 @@ export default function FinanceOSPage() {
     if (!newInvest.name || !user) return;
     setSaving(true);
     try {
-      await supabase.from("investments").insert({
+      const { error } = await supabase.from("investments").insert({
         user_id: user.id,
         name: newInvest.name,
         asset_class: newInvest.asset_class,
@@ -651,12 +657,13 @@ export default function FinanceOSPage() {
         start_date: newInvest.date,
         is_active: true,
       });
+      if (error) throw error;
       resetInvestForm();
       setAddInvestOpen(false);
       showToast("Investment added ✓");
       await loadDashboardData();
     } catch (err) {
-      showToast(err.message, "error");
+      showToast(err.message || "Failed to add investment.", "error");
     } finally {
       setSaving(false);
     }
@@ -667,7 +674,7 @@ export default function FinanceOSPage() {
     if (!newGoal.name || !newGoal.target_amt || !user) return;
     setSaving(true);
     try {
-      await supabase
+      const { error } = await supabase
         .from("savings_goals")
         .insert({
           user_id: user.id,
@@ -676,6 +683,7 @@ export default function FinanceOSPage() {
           deadline: newGoal.deadline,
           status: "active",
         });
+      if (error) throw error;
       resetGoalForm();
       setAddGoalOpen(false);
       showToast("Goal created ✓");

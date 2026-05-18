@@ -221,22 +221,24 @@ export default function DietPage() {
       .maybeSingle();
 
     const merged = { ...(existing?.habits || {}), ...next };
-    await supabase
+    const { error: e2 } = await supabase
       .from("days")
       .upsert(
         { user_id: user.id, day_date: todayDate, habits: merged },
         { onConflict: "user_id,day_date" },
       );
+    if (e2) { showSnack("Failed to save", "error"); return; }
   };
 
   const handleSaveNotes = async () => {
     setSavingNotes(true);
-    await supabase
+    const { error } = await supabase
       .from("days")
       .upsert(
         { user_id: user.id, day_date: todayDate, journal: notes },
         { onConflict: "user_id,day_date" },
       );
+    if (error) { showSnack("Failed to save notes.", "error"); setSavingNotes(false); return; }
     setSavingNotes(false);
     showSnack("Reflections saved.");
   };
@@ -261,12 +263,13 @@ export default function DietPage() {
         .maybeSingle();
 
       const merged = { ...(existing?.habits || {}), weekly_plan: parsed };
-      await supabase
+      const { error } = await supabase
         .from("days")
         .upsert(
           { user_id: user.id, day_date: "2000-01-01", habits: merged },
           { onConflict: "user_id,day_date" },
         );
+      if (error) throw error;
     } catch (err) {
       setJsonError("Invalid JSON format. Please check the structure.");
     }
@@ -282,12 +285,13 @@ export default function DietPage() {
       .maybeSingle();
 
     const merged = { ...(existing?.habits || {}), macros, fasting_window: fastingWindow };
-    await supabase
+    const { error } = await supabase
       .from("days")
       .upsert(
         { user_id: user.id, day_date: "2000-01-01", habits: merged },
         { onConflict: "user_id,day_date" },
       );
+    if (error) { showSnack("Failed to save targets.", "error"); setEditingMacros(true); return; }
     showSnack("Nutrition targets saved.");
   };
 

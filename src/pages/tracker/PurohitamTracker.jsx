@@ -329,28 +329,36 @@ function PurohitamTab({ user, isDark }) {
   const saveBooking = async () => {
     if (!bForm.program_name) return;
     setSaving(true);
-    if (editBooking) {
-      await supabase
-        .from("purohitam_logs")
-        .update({ ...bForm, dakshina: Number(bForm.dakshina) || 0 })
-        .eq("id", editBooking.id);
-    } else {
-      await supabase.from("purohitam_logs").insert({
-        ...bForm,
-        user_id: user.id,
-        dakshina: Number(bForm.dakshina) || 0,
-      });
+    try {
+      if (editBooking) {
+        const { error } = await supabase
+          .from("purohitam_logs")
+          .update({ ...bForm, dakshina: Number(bForm.dakshina) || 0 })
+          .eq("id", editBooking.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from("purohitam_logs").insert({
+          ...bForm,
+          user_id: user.id,
+          dakshina: Number(bForm.dakshina) || 0,
+        });
+        if (error) throw error;
+      }
+      setBookingOpen(false);
+      setEditBooking(null);
+      setBForm(emptyBooking);
+      setSnack(editBooking ? "Booking updated" : "Booking logged");
+      load();
+    } catch {
+      setSnack("Failed to save booking");
+    } finally {
+      setSaving(false);
     }
-    setBookingOpen(false);
-    setEditBooking(null);
-    setBForm(emptyBooking);
-    setSaving(false);
-    setSnack(editBooking ? "Booking updated" : "Booking logged");
-    load();
   };
 
   const deleteBooking = async (id) => {
-    await supabase.from("purohitam_logs").delete().eq("id", id);
+    const { error } = await supabase.from("purohitam_logs").delete().eq("id", id);
+    if (error) { setSnack("Failed to delete booking"); return; }
     setSnack("Booking deleted");
     load();
   };
@@ -372,26 +380,34 @@ function PurohitamTab({ user, isDark }) {
   const saveRitual = async () => {
     if (!rForm.name) return;
     setSaving(true);
-    if (editRitual) {
-      await supabase
-        .from("ritual_templates")
-        .update({ ...rForm, updated_at: new Date().toISOString() })
-        .eq("id", editRitual.id);
-    } else {
-      await supabase
-        .from("ritual_templates")
-        .insert({ ...rForm, user_id: user.id });
+    try {
+      if (editRitual) {
+        const { error } = await supabase
+          .from("ritual_templates")
+          .update({ ...rForm, updated_at: new Date().toISOString() })
+          .eq("id", editRitual.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from("ritual_templates")
+          .insert({ ...rForm, user_id: user.id });
+        if (error) throw error;
+      }
+      setRitualOpen(false);
+      setEditRitual(null);
+      setRForm(emptyRitual);
+      setSnack(editRitual ? "Template updated" : "Template created");
+      load();
+    } catch {
+      setSnack("Failed to save ritual");
+    } finally {
+      setSaving(false);
     }
-    setRitualOpen(false);
-    setEditRitual(null);
-    setRForm(emptyRitual);
-    setSaving(false);
-    setSnack(editRitual ? "Template updated" : "Template created");
-    load();
   };
 
   const deleteRitual = async (id) => {
-    await supabase.from("ritual_templates").delete().eq("id", id);
+    const { error } = await supabase.from("ritual_templates").delete().eq("id", id);
+    if (error) { setSnack("Failed to delete template"); return; }
     setSnack("Template deleted");
     load();
   };
@@ -411,30 +427,39 @@ function PurohitamTab({ user, isDark }) {
   const saveLearning = async () => {
     if (!lForm.title) return;
     setSaving(true);
-    await supabase.from("anshs").insert({
-      user_id: user.id,
-      title: lForm.title,
-      description: lForm.notes || null,
-      status: "active",
-    });
-    setLearnOpen(false);
-    setLForm({ title: "", notes: "" });
-    setSaving(false);
-    setSnack("Added to learning ledger");
-    load();
+    try {
+      const { error } = await supabase.from("anshs").insert({
+        user_id: user.id,
+        title: lForm.title,
+        description: lForm.notes || null,
+        status: "active",
+      });
+      if (error) throw error;
+      setLearnOpen(false);
+      setLForm({ title: "", notes: "" });
+      setSnack("Added to learning ledger");
+      load();
+    } catch {
+      setSnack("Failed to add item");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const toggleLearning = async (item) => {
     const next = item.status === "completed" ? "active" : "completed";
-    await supabase
+    const { error } = await supabase
       .from("anshs")
       .update({ status: next, updated_at: new Date().toISOString() })
       .eq("id", item.id);
+    if (error) { setSnack("Update failed"); return; }
+    setSnack(next === "completed" ? "Marked complete ✓" : "Marked active");
     load();
   };
 
   const deleteLearning = async (id) => {
-    await supabase.from("anshs").delete().eq("id", id);
+    const { error } = await supabase.from("anshs").delete().eq("id", id);
+    if (error) { setSnack("Failed to remove"); return; }
     setSnack("Item removed");
     load();
   };
@@ -1654,34 +1679,42 @@ function AnushtanamTab({ user, isDark }) {
       (m, s) => Math.max(m, s.order_index || 0),
       0,
     );
-    if (editSeq) {
-      await supabase
-        .from("daily_items")
-        .update({ ...sForm })
-        .eq("id", editSeq.id);
-    } else {
-      await supabase
-        .from("daily_items")
-        .insert({ ...sForm, user_id: user.id, order_index: maxIdx + 1 });
+    try {
+      if (editSeq) {
+        const { error } = await supabase
+          .from("daily_items")
+          .update({ ...sForm })
+          .eq("id", editSeq.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from("daily_items")
+          .insert({ ...sForm, user_id: user.id, order_index: maxIdx + 1 });
+        if (error) throw error;
+      }
+      setSeqOpen(false);
+      setEditSeq(null);
+      setSForm(emptySeq);
+      setSnack(editSeq ? "Step updated" : "Step added");
+      load();
+    } catch {
+      setSnack("Failed to save");
+    } finally {
+      setSaving(false);
     }
-    setSeqOpen(false);
-    setEditSeq(null);
-    setSForm(emptySeq);
-    setSaving(false);
-    setSnack(editSeq ? "Item updated" : "Item added to sequence");
-    load();
   };
 
   const deleteSeqItem = async (id) => {
-    await supabase.from("daily_items").delete().eq("id", id);
-    setSnack("Item removed");
+    const { error } = await supabase.from("daily_items").delete().eq("id", id);
+    if (error) { setSnack("Failed to delete step"); return; }
+    setSnack("Step removed");
     load();
   };
 
   const toggleStep = async (itemId) => {
     const isDone = !completions[itemId];
     setCompletions((p) => ({ ...p, [itemId]: isDone }));
-    await supabase.from("daily_item_completions").upsert(
+    const { error } = await supabase.from("daily_item_completions").upsert(
       {
         user_id: user.id,
         daily_item_id: itemId,
@@ -1690,60 +1723,91 @@ function AnushtanamTab({ user, isDark }) {
       },
       { onConflict: "user_id,daily_item_id,completion_date" },
     );
+    if (error) { setSnack("Save failed"); return; }
   };
 
   // ── Japa log ───────────────────────────────────────────────────────
   const saveJapa = async () => {
     if (!japaForm.count || !japaForm.japa_name) return;
     setSaving(true);
-    await supabase.from("japa_logs").upsert(
-      {
-        user_id: user.id,
-        japa_name: japaForm.japa_name,
-        count: parseInt(japaForm.count),
-        day_date: today,
-        notes: japaForm.notes || null,
-      },
-      { onConflict: "user_id,japa_name,day_date" },
-    );
-    setJapaOpen(false);
-    setJapaForm({ japa_name: "", count: "", notes: "" });
-    setSaving(false);
-    setSnack("Japa count saved");
-    load();
+    try {
+      // Check if a log already exists for this japa + today
+      const { data: existing } = await supabase
+        .from("japa_logs")
+        .select("id")
+        .eq("user_id", user.id)
+        .eq("japa_name", japaForm.japa_name)
+        .eq("day_date", today)
+        .maybeSingle();
+
+      if (existing?.id) {
+        const { error } = await supabase
+          .from("japa_logs")
+          .update({
+            count: parseInt(japaForm.count),
+            notes: japaForm.notes || null,
+          })
+          .eq("id", existing.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from("japa_logs").insert({
+          user_id: user.id,
+          japa_name: japaForm.japa_name,
+          count: parseInt(japaForm.count),
+          day_date: today,
+          notes: japaForm.notes || null,
+        });
+        if (error) throw error;
+      }
+      setJapaOpen(false);
+      setJapaForm({ japa_name: "", count: "", notes: "" });
+      setSnack("Japa count saved");
+      load();
+    } catch {
+      setSnack("Failed to save japa log");
+    } finally {
+      setSaving(false);
+    }
   };
 
   // ── Japa goal ──────────────────────────────────────────────────────
   const saveGoal = async () => {
     if (!goalForm.target_count || !goalForm.japa_name) return;
     setSaving(true);
-    if (editGoal) {
-      await supabase
-        .from("japa_goals")
-        .update({
+    try {
+      if (editGoal) {
+        const { error } = await supabase
+          .from("japa_goals")
+          .update({
+            japa_name: goalForm.japa_name,
+            target_count: Number(goalForm.target_count),
+            deadline_years: Number(goalForm.deadline_years),
+            notes: goalForm.notes || null,
+          })
+          .eq("id", editGoal.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from("japa_goals").insert({
+          user_id: user.id,
           japa_name: goalForm.japa_name,
           target_count: Number(goalForm.target_count),
           deadline_years: Number(goalForm.deadline_years),
+          start_date: today,
           notes: goalForm.notes || null,
-        })
-        .eq("id", editGoal.id);
-    } else {
-      await supabase.from("japa_goals").insert({
-        user_id: user.id,
-        japa_name: goalForm.japa_name,
-        target_count: Number(goalForm.target_count),
-        deadline_years: Number(goalForm.deadline_years),
-        start_date: today,
-        notes: goalForm.notes || null,
-        is_active: true,
-      });
+          is_active: true,
+        });
+        if (error) throw error;
+      }
+      setGoalOpen(false);
+      setEditGoal(null);
+      setGoalForm(emptyGoal);
+      setSnack(editGoal ? "Sankalpam updated" : "Mahasankalpam set");
+      load();
+    } catch {
+      setSnack("Failed to save sankalpam");
+    } finally {
+      setSaving(false);
     }
-    setGoalOpen(false);
-    setEditGoal(null);
-    setGoalForm(emptyGoal);
-    setSaving(false);
-    setSnack(editGoal ? "Sankalpam updated" : "Mahasankalpam set");
-    load();
   };
 
   const openEditGoal = (g) => {
@@ -1758,12 +1822,15 @@ function AnushtanamTab({ user, isDark }) {
   };
 
   const deleteGoal = async (id) => {
-    await supabase.from("japa_goals").update({ is_active: false }).eq("id", id);
+    const { error } = await supabase.from("japa_goals").update({ is_active: false }).eq("id", id);
+    if (error) { setSnack("Failed to remove goal"); return; }
     setSnack("Goal removed");
     load();
   };
   const deleteJapaLog = async (id) => {
-    await supabase.from("japa_logs").delete().eq("id", id);
+    const { error } = await supabase.from("japa_logs").delete().eq("id", id);
+    if (error) { setSnack("Failed to delete"); return; }
+    setSnack("Log entry removed");
     load();
   };
 
