@@ -1247,7 +1247,7 @@ export default function DashboardPage() {
         supabase.from("reading_sessions").select("session_date,pages_read,book_id").eq("user_id", user.id).gte("session_date", thirtyAgo),
         supabase.from("finance_logs").select("amount,date,income_flag,category").eq("user_id", user.id).gte("date", ninetyAgo),
         supabase.from("budgets").select("category,limit_amt,month").eq("user_id", user.id).eq("month", thisMonth),
-        supabase.from("daily_activity").select("date,steps,km_walked,calories_burned,sleep_hours,sleep_quality").eq("user_id", user.id).gte("date", thirtyAgo),
+        supabase.from("daily_activity").select("*").eq("user_id", user.id).gte("date", thirtyAgo),
         supabase.from("health_logs").select("value,date").eq("user_id", user.id).eq("type", "weight").order("date", { ascending: false }).limit(1),
       ]);
 
@@ -1671,7 +1671,7 @@ export default function DashboardPage() {
               emoji: "📖",
               label: "Current Read",
               value: bookProgress != null ? `${bookProgress}%` : "—",
-              sub: activeBook ? activeBook.title.slice(0, 24) + (activeBook.title.length > 24 ? "…" : "") : "No book in progress",
+              sub: activeBook ? ((activeBook.title ?? "").slice(0, 24) + ((activeBook.title?.length ?? 0) > 24 ? "…" : "")) : "No book in progress",
               color: isDark ? "#D4845A" : "#8B3A2F",
               delay: 0.05,
             },
