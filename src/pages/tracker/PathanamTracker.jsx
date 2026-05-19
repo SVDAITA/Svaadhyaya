@@ -205,6 +205,18 @@ export default function ReadingLogPage() {
   const border = isDark ? "rgba(255,255,255,0.08)" : "rgba(160, 82, 45, 0.15)";
   const glassFilter = "blur(16px)";
 
+  const fieldSx = {
+    "& .MuiInputLabel-root": { color: textS },
+    "& .MuiInputLabel-root.Mui-focused": { color: COLOR },
+    "& .MuiOutlinedInput-notchedOutline": {
+      borderColor: isDark ? "rgba(255,255,255,0.18)" : "rgba(160,82,45,0.35)",
+    },
+    "& .MuiOutlinedInput-root:hover .MuiOutlinedInput-notchedOutline": { borderColor: `${COLOR}80` },
+    "& .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline": { borderColor: COLOR },
+    "& .MuiInputBase-input": { color: textP },
+    "& .MuiSelect-select": { color: textP },
+  };
+
   const load = useCallback(
     async (silent = false) => {
       if (!user) return;
@@ -264,7 +276,7 @@ export default function ReadingLogPage() {
     setForm({
       ...book,
       author: book.author || "",
-      language: book.language || "English",
+      language: LANG_OPTIONS.find((l) => l.toLowerCase() === (book.language || "").toLowerCase()) || book.language || "English",
       status: book.status || "reading",
       pages_read: book.pages_read || 0,
       total_pages: book.total_pages || "",
@@ -1724,7 +1736,7 @@ export default function ReadingLogPage() {
             px: 4,
           }}
         >
-          {editBook ? "Refine Documentation" : "Add to Library Archive"}
+          {editBook ? "Edit Book" : "Add to Library"}
         </DialogTitle>
         <DialogContent dividers sx={{ borderColor: border, px: 4, py: 3 }}>
           <Grid container spacing={4}>
@@ -1750,7 +1762,7 @@ export default function ReadingLogPage() {
                     setForm((p) => ({ ...p, title: e.target.value }))
                   }
                   autoFocus
-                  sx={{ "& .MuiOutlinedInput-notchedOutline": { borderColor: border } }}
+                  sx={fieldSx}
                 />
                 <TextField
                   fullWidth
@@ -1759,7 +1771,7 @@ export default function ReadingLogPage() {
                   onChange={(e) =>
                     setForm((p) => ({ ...p, author: e.target.value }))
                   }
-                  sx={{ "& .MuiOutlinedInput-notchedOutline": { borderColor: border } }}
+                  sx={fieldSx}
                 />
                 <Box sx={{ display: "flex", gap: 2 }}>
                   <FormControl fullWidth>
@@ -1770,7 +1782,7 @@ export default function ReadingLogPage() {
                       onChange={(e) =>
                         setForm((p) => ({ ...p, language: e.target.value }))
                       }
-                      sx={{ "& .MuiOutlinedInput-notchedOutline": { borderColor: border } }}
+                      sx={fieldSx}
                     >
                       {LANG_OPTIONS.map((l) => (
                         <MenuItem key={l} value={l}>
@@ -1787,7 +1799,7 @@ export default function ReadingLogPage() {
                       onChange={(e) =>
                         setForm((p) => ({ ...p, status: e.target.value }))
                       }
-                      sx={{ "& .MuiOutlinedInput-notchedOutline": { borderColor: border } }}
+                      sx={fieldSx}
                     >
                       {STATUS_OPTIONS.map((s) => (
                         <MenuItem key={s.value} value={s.value}>
@@ -1809,7 +1821,7 @@ export default function ReadingLogPage() {
                         pages_read: Math.max(0, Number(e.target.value)),
                       }))
                     }
-                    sx={{ "& .MuiOutlinedInput-notchedOutline": { borderColor: border } }}
+                    sx={fieldSx}
                   />
                   <TextField
                     fullWidth
@@ -1819,7 +1831,7 @@ export default function ReadingLogPage() {
                     onChange={(e) =>
                       setForm((p) => ({ ...p, total_pages: e.target.value }))
                     }
-                    sx={{ "& .MuiOutlinedInput-notchedOutline": { borderColor: border } }}
+                    sx={fieldSx}
                   />
                 </Box>
               </Box>
@@ -1847,7 +1859,7 @@ export default function ReadingLogPage() {
                     onChange={(e) =>
                       setForm((p) => ({ ...p, genre: e.target.value }))
                     }
-                    sx={{ "& .MuiOutlinedInput-notchedOutline": { borderColor: border } }}
+                    sx={fieldSx}
                   />
                   <TextField
                     fullWidth
@@ -1856,7 +1868,7 @@ export default function ReadingLogPage() {
                     onChange={(e) =>
                       setForm((p) => ({ ...p, location: e.target.value }))
                     }
-                    sx={{ "& .MuiOutlinedInput-notchedOutline": { borderColor: border } }}
+                    sx={fieldSx}
                   />
                 </Box>
                 <Box sx={{ display: "flex", gap: 2 }}>
@@ -1867,7 +1879,7 @@ export default function ReadingLogPage() {
                     onChange={(e) =>
                       setForm((p) => ({ ...p, condition: e.target.value }))
                     }
-                    sx={{ "& .MuiOutlinedInput-notchedOutline": { borderColor: border } }}
+                    sx={fieldSx}
                   />
                   <TextField
                     fullWidth
@@ -1877,7 +1889,7 @@ export default function ReadingLogPage() {
                     onChange={(e) =>
                       setForm((p) => ({ ...p, price: e.target.value }))
                     }
-                    sx={{ "& .MuiOutlinedInput-notchedOutline": { borderColor: border } }}
+                    sx={fieldSx}
                   />
                 </Box>
                 <TextField
@@ -1890,7 +1902,7 @@ export default function ReadingLogPage() {
                     setForm((p) => ({ ...p, notes: e.target.value }))
                   }
                   placeholder="Daily log summaries will automatically append here."
-                  sx={{ "& .MuiOutlinedInput-notchedOutline": { borderColor: border } }}
+                  sx={fieldSx}
                 />
               </Box>
             </Grid>
@@ -1920,7 +1932,7 @@ export default function ReadingLogPage() {
             {saving ? (
               <CircularProgress size={20} color="inherit" />
             ) : (
-              "Save Record"
+              {editBook ? "Update Book" : "Save Book"}
             )}
           </Button>
         </DialogActions>
@@ -1975,7 +1987,7 @@ export default function ReadingLogPage() {
               onChange={(e) =>
                 setSessionForm({ ...sessionForm, pages_read: e.target.value })
               }
-              sx={{ "& .MuiOutlinedInput-notchedOutline": { borderColor: border } }}
+              sx={fieldSx}
             />
             <TextField
               fullWidth
@@ -1987,7 +1999,7 @@ export default function ReadingLogPage() {
               onChange={(e) =>
                 setSessionForm({ ...sessionForm, summary: e.target.value })
               }
-              sx={{ "& .MuiOutlinedInput-notchedOutline": { borderColor: border } }}
+              sx={fieldSx}
             />
           </Box>
         </DialogContent>

@@ -1251,9 +1251,9 @@ export default function SettingsPage() {
                 Some trackers accept JSON uploads to sync your data. Use these formats exactly.
               </Typography>
 
-              {/* Anna Tracker format */}
+              {/* Anna Tracker — Vital Macros */}
               <Typography sx={{ fontSize: 12, fontWeight: 700, color: textP, mb: 0.75 }}>
-                🥗 Anna Tracker — Weekly meal plan
+                🥗 Anna Tracker — Vital Macros (Calibrate tab → JSON update)
               </Typography>
               <Box
                 sx={{
@@ -1261,7 +1261,7 @@ export default function SettingsPage() {
                   border: `1px solid ${border}`,
                   borderRadius: 2,
                   p: 2,
-                  mb: 2.5,
+                  mb: 1.5,
                   fontFamily: "monospace",
                   fontSize: 11,
                   color: textS,
@@ -1270,15 +1270,47 @@ export default function SettingsPage() {
                   lineHeight: 1.7,
                 }}
               >{`{
-  "monday": "Breakfast: Oats | Lunch: Dal Rice | Dinner: Khichdi",
-  "tuesday": "Breakfast: Idli | Lunch: Rajma Rice | Dinner: Soup",
-  "wednesday": "Breakfast: Poha | Lunch: Curd Rice | Dinner: Roti Sabzi",
-  "thursday": "Breakfast: Upma | Lunch: Dal Rice | Dinner: Khichdi",
-  "friday": "Breakfast: Dosa | Lunch: Pulao | Dinner: Soup",
-  "saturday": "Breakfast: Oats | Lunch: Chole Rice | Dinner: Salad",
-  "sunday": "Breakfast: Idli | Lunch: Biryani | Dinner: Light",
-  "groceries": ["Oats", "Dal", "Rice", "Vegetables"]
+  "calories": 1750,
+  "protein": 120,
+  "carbs": 180,
+  "fats": 55,
+  "fiber": 35,
+  "magnesium": 400,
+  "water": 3000,
+  "fasting_window": "16:8"
 }`}</Box>
+              <Typography sx={{ fontSize: 11, color: textS, mb: 2.5, lineHeight: 1.7 }}>
+                All values are numbers. <strong style={{ color: textP }}>water</strong> is in ml, <strong style={{ color: textP }}>magnesium</strong> in mg, all others in g or kcal. <strong style={{ color: textP }}>fasting_window</strong> is a string like <code style={{ background: isDark ? "rgba(255,255,255,0.06)" : "#EEE", padding: "1px 5px", borderRadius: 3, fontFamily: "monospace" }}>"16:8"</code>.
+              </Typography>
+
+              {/* Anna Tracker — Pantry List */}
+              <Typography sx={{ fontSize: 12, fontWeight: 700, color: textP, mb: 0.75 }}>
+                🥗 Anna Tracker — Pantry List (bulk import)
+              </Typography>
+              <Box
+                sx={{
+                  background: isDark ? "rgba(255,255,255,0.04)" : "#F4F3EC",
+                  border: `1px solid ${border}`,
+                  borderRadius: 2,
+                  p: 2,
+                  mb: 1.5,
+                  fontFamily: "monospace",
+                  fontSize: 11,
+                  color: textS,
+                  overflowX: "auto",
+                  whiteSpace: "pre",
+                  lineHeight: 1.7,
+                }}
+              >{`[
+  { "name": "Brown Rice",    "quantity": "2",   "unit": "kg", "category": "Grains"    },
+  { "name": "Spinach",       "quantity": "500", "unit": "g",  "category": "Vegetables"},
+  { "name": "Almonds",       "quantity": "250", "unit": "g",  "category": "Proteins"  },
+  { "name": "Turmeric",      "quantity": "100", "unit": "g",  "category": "Spices & Herbs" },
+  { "name": "Coconut Oil",   "quantity": "1",   "unit": "L",  "category": "Oils & Fats"   }
+]`}</Box>
+              <Typography sx={{ fontSize: 11, color: textS, mb: 2.5, lineHeight: 1.7 }}>
+                Must be an array. <strong style={{ color: textP }}>name</strong> is required. Valid categories: Grains, Vegetables, Fruits, Proteins, Dairy, Oils &amp; Fats, Spices &amp; Herbs, Beverages, Snacks, Other. Imports are additive — existing items are preserved.
+              </Typography>
 
               {/* Pathanam Tracker format */}
               <Typography sx={{ fontSize: 12, fontWeight: 700, color: textP, mb: 0.75 }}>
@@ -1336,13 +1368,22 @@ export default function SettingsPage() {
                   lineHeight: 1.7,
                 }}
               >{`{
-  "date": "2026-05-17",
-  "weight": 82.5,
-  "bmi": 24.2,
-  "muscle_mass": 61.3,
-  "fat_pct": 21.4,
-  "visceral_fat": 8,
-  "body_age": 34
+  "date": "2026-05-01",
+  "metrics": {
+    "weight": 82.5,
+    "muscle_mass": 64.2,
+    "visceral_fat": 9,
+    "fat_pct": 22.1,
+    "bmi": 24.8,
+    "body_age": 32,
+    "waist": 34,
+    "belly": 36,
+    "neck": 15,
+    "bust": 40,
+    "hip": 38,
+    "thigh": 22,
+    "calf": 14
+  }
 }`}</Box>
 
               {/* Artha Tracker format */}

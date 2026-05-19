@@ -30,6 +30,9 @@ import {
   TextField,
   Snackbar,
   Alert,
+  Checkbox,
+  OutlinedInput,
+  ListItemText,
 } from "@mui/material";
 import {
   CloudUpload,
@@ -41,7 +44,6 @@ import {
   Speed,
   SelfImprovement,
   Timeline,
-  CompareArrows,
   TrackChanges,
 } from "@mui/icons-material";
 import { motion } from "framer-motion";
@@ -85,6 +87,22 @@ const DEFAULT_TARGETS = {
 
 const COLOR_HEALTH = "#2D7A4F";
 
+const HISTORY_COLS = [
+  { id: "weight",       label: "Weight (kg)" },
+  { id: "muscle_mass",  label: "Muscle (kg)" },
+  { id: "visceral_fat", label: "Visceral Fat" },
+  { id: "fat_pct",      label: "Fat %" },
+  { id: "bmi",          label: "BMI" },
+  { id: "body_age",     label: "Body Age" },
+  { id: "waist",        label: "Waist\"" },
+  { id: "belly",        label: "Belly\"" },
+  { id: "neck",         label: "Neck\"" },
+  { id: "bust",         label: "Bust\"" },
+  { id: "hip",          label: "Hip\"" },
+  { id: "thigh",        label: "Thigh\"" },
+  { id: "calf",         label: "Calf\"" },
+];
+
 // Animation Variants
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -110,10 +128,10 @@ export default function ShariramHealthOS() {
   const [targetsOpen, setTargetsOpen] = useState(false);
   const [targets, setTargets] = useState(DEFAULT_TARGETS);
   const [targetsSnapshot, setTargetsSnapshot] = useState(null);
-  const [compA, setCompA] = useState("");
-  const [compB, setCompB] = useState("");
   const [snack, setSnack] = useState({ open: false, msg: "", severity: "success" });
   const [snapshotToDelete, setSnapshotToDelete] = useState(null);
+  const [selectedRows, setSelectedRows] = useState(new Set());
+  const [visibleHistoryCols, setVisibleHistoryCols] = useState(["weight", "muscle_mass", "visceral_fat", "belly"]);
   const showSnack = (msg, severity = "success") => setSnack({ open: true, msg, severity });
 
   // Movement tracking
@@ -209,13 +227,6 @@ export default function ShariramHealthOS() {
 
   const latest = sortedDates.length > 0 ? snapshots[sortedDates[0]] : null;
 
-  // Set default comparison months if available
-  useEffect(() => {
-    if (sortedDates.length >= 2 && !compA && !compB) {
-      setCompA(sortedDates[1]); // Previous month
-      setCompB(sortedDates[0]); // Current month
-    }
-  }, [sortedDates, compA, compB]);
 
   // Chart Data Preparation (Reverse for chronological order)
   const chartData = useMemo(() => {
@@ -359,39 +370,6 @@ export default function ShariramHealthOS() {
     );
   }
 
-  // Calculate Deltas for Comparison Engine
-  const getComparisonDeltas = () => {
-    if (!compA || !compB || !snapshots[compA] || !snapshots[compB]) return [];
-    const metricsToCompare = [
-      "weight",
-      "muscle_mass",
-      "visceral_fat",
-      "fat_pct",
-    ];
-
-    return metricsToCompare.map((key) => {
-      const valA = snapshots[compA].metrics[key] || 0;
-      const valB = snapshots[compB].metrics[key] || 0;
-      const diff = (valB - valA).toFixed(1);
-      const meta = METRIC_META[key];
-
-      let isGood = meta.lowerIsBetter ? diff <= 0 : diff >= 0;
-      if (diff == 0) isGood = true;
-
-      return {
-        key,
-        label: meta.label,
-        diff: diff > 0 ? `+${diff}` : diff,
-        unit: meta.unit,
-        color:
-          diff == 0
-            ? "text.secondary"
-            : isGood
-              ? (isDark ? COLOR_EXCELLENT_DARK : COLOR_EXCELLENT)
-              : COLOR_CRITICAL,
-      };
-    });
-  };
 
   return (
     <Box
@@ -965,221 +943,155 @@ export default function ShariramHealthOS() {
           </Card>
         </Box>
 
-        {/* ── COMPARISON ENGINE ── */}
+        {/* ── BIOMETRIC HISTORY TABLE ── */}
         <Box component={motion.div} variants={itemVariants}>
-          <Card
-            sx={{
-              mb: 6,
-              borderRadius: 4,
-              bgcolor: alpha(theme.palette.background.paper, 0.8),
-              backdropFilter: "blur(10px)",
-              border: `1px solid ${theme.palette.divider}`,
-            }}
-          >
-            <CardContent sx={{ p: 4 }}>
-              <Typography
-                variant="h6"
-                sx={{
-                  mb: 3,
-                  fontFamily: "Fraunces, serif",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 1,
-                }}
+          {/* Toolbar */}
+          <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2, flexWrap: "wrap" }}>
+            <Typography variant="h6" sx={{ fontFamily: "Fraunces, serif", flex: 1 }}>
+              Biometric History
+            </Typography>
+            <FormControl size="small" sx={{ minWidth: 180 }}>
+              <InputLabel>Columns</InputLabel>
+              <Select
+                multiple
+                value={visibleHistoryCols}
+                onChange={(e) => setVisibleHistoryCols(typeof e.target.value === "string" ? e.target.value.split(",") : e.target.value)}
+                input={<OutlinedInput label="Columns" />}
+                renderValue={(sel) => `${sel.length} columns`}
               >
-                <CompareArrows color="primary" /> Diagnostic Comparison Matrix
+                {HISTORY_COLS.map((col) => (
+                  <MenuItem key={col.id} value={col.id}>
+                    <Checkbox checked={visibleHistoryCols.includes(col.id)} size="small" />
+                    <ListItemText primary={col.label} />
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+            {selectedRows.size > 0 && (
+              <Typography variant="caption" sx={{ color: "text.secondary" }}>
+                {selectedRows.size === 2 ? "2 rows selected — comparison shown below" : `${selectedRows.size} row selected — select one more to compare`}
               </Typography>
-              <Grid container spacing={3} sx={{ mb: 4 }} alignItems="center">
-                <Grid item xs={12} md={5}>
-                  <FormControl fullWidth size="small">
-                    <InputLabel id="base-month-label">Base Snapshot</InputLabel>
-                    <Select
-                      labelId="base-month-label"
-                      label="Base Snapshot"
-                      value={compA}
-                      onChange={(e) => setCompA(e.target.value)}
-                    >
-                      {sortedDates.map((d) => (
-                        <MenuItem key={d} value={d}>
-                          {dayjs(d).format("MMMM YYYY")}
-                        </MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
-                </Grid>
-                <Grid item xs={12} md={2} sx={{ textAlign: "center" }}>
-                  <Typography
-                    variant="overline"
-                    color="text.secondary"
-                    sx={{ fontWeight: 800 }}
-                  >
-                    VERSUS
-                  </Typography>
-                </Grid>
-                <Grid item xs={12} md={5}>
-                  <FormControl fullWidth size="small">
-                    <InputLabel id="compare-month-label">
-                      Comparison Snapshot
-                    </InputLabel>
-                    <Select
-                      labelId="compare-month-label"
-                      label="Comparison Snapshot"
-                      value={compB}
-                      onChange={(e) => setCompB(e.target.value)}
-                    >
-                      {sortedDates.map((d) => (
-                        <MenuItem key={d} value={d}>
-                          {dayjs(d).format("MMMM YYYY")}
-                        </MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
-                </Grid>
-              </Grid>
+            )}
+            {selectedRows.size > 0 && (
+              <IconButton size="small" onClick={() => setSelectedRows(new Set())} title="Clear selection">
+                <Delete fontSize="small" />
+              </IconButton>
+            )}
+          </Box>
 
-              {/* Display Comparison Deltas */}
-              {compA && compB && compA !== compB && (
-                <Grid container spacing={2}>
-                  {getComparisonDeltas().map((delta, idx) => (
-                    <Grid item xs={6} sm={3} key={idx}>
-                      <Box
-                        sx={{
-                          p: 2,
-                          borderRadius: 2,
-                          bgcolor: alpha(theme.palette.background.default, 0.5),
-                          textAlign: "center",
-                        }}
-                      >
-                        <Typography
-                          variant="caption"
-                          sx={{
-                            color: "text.secondary",
-                            fontWeight: 700,
-                            textTransform: "uppercase",
-                          }}
-                        >
-                          {delta.label} Shift
+          {/* Row comparison panel */}
+          {selectedRows.size === 2 && (() => {
+            const [d1, d2] = [...selectedRows].sort();
+            const deltas = HISTORY_COLS.filter((c) => visibleHistoryCols.includes(c.id)).map((col) => {
+              const v1 = snapshots[d1]?.metrics[col.id];
+              const v2 = snapshots[d2]?.metrics[col.id];
+              if (v1 == null || v2 == null) return null;
+              const raw = (v2 - v1);
+              const diffStr = (raw > 0 ? "+" : "") + raw.toFixed(1);
+              const meta = METRIC_META[col.id];
+              const isGood = raw === 0 ? true : meta ? (meta.lowerIsBetter ? raw <= 0 : raw >= 0) : raw >= 0;
+              return { ...col, v1, v2, diffStr, isGood };
+            }).filter(Boolean);
+            return (
+              <Card sx={{ mb: 3, borderRadius: 3, border: `2px solid ${alpha(theme.palette.primary.main, 0.25)}`, bgcolor: alpha(theme.palette.primary.main, 0.03), boxShadow: "none" }}>
+                <CardContent sx={{ p: "16px 20px !important" }}>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5, color: "text.secondary" }}>
+                    {dayjs(d1).format("MMM YYYY")} → {dayjs(d2).format("MMM YYYY")}
+                  </Typography>
+                  <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1.5 }}>
+                    {deltas.map((delta) => (
+                      <Box key={delta.id} sx={{ textAlign: "center", px: 1.5, py: 0.75, borderRadius: 2, bgcolor: alpha(delta.isGood ? COLOR_EXCELLENT : COLOR_CRITICAL, 0.08), border: `1px solid ${alpha(delta.isGood ? COLOR_EXCELLENT : COLOR_CRITICAL, 0.22)}` }}>
+                        <Typography variant="caption" sx={{ fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5, display: "block", color: "text.secondary", fontSize: 9 }}>{delta.label}</Typography>
+                        <Typography sx={{ fontFamily: "Fraunces, serif", fontSize: 20, fontWeight: 600, lineHeight: 1.2, color: delta.isGood ? (isDark ? COLOR_EXCELLENT_DARK : COLOR_EXCELLENT) : COLOR_CRITICAL }}>
+                          {delta.diffStr}
                         </Typography>
-                        <Typography
-                          variant="h5"
-                          sx={{
-                            color: delta.color,
-                            fontFamily: "Fraunces, serif",
-                            mt: 0.5,
-                          }}
-                        >
-                          {delta.diff}
-                          <Typography component="span" variant="caption">
-                            {delta.unit}
-                          </Typography>
+                        <Typography variant="caption" sx={{ fontSize: 10, color: "text.secondary" }}>
+                          {delta.v1} → {delta.v2}
                         </Typography>
                       </Box>
-                    </Grid>
-                  ))}
-                </Grid>
-              )}
-            </CardContent>
-          </Card>
-        </Box>
+                    ))}
+                  </Box>
+                </CardContent>
+              </Card>
+            );
+          })()}
 
-        {/* ── LOG HISTORY TABLE ── */}
-        <Box component={motion.div} variants={itemVariants}>
           <TableContainer
             component={Paper}
-            sx={{
-              borderRadius: 4,
-              border: `1px solid ${theme.palette.divider}`,
-              bgcolor: alpha(theme.palette.background.paper, 0.8),
-              backdropFilter: "blur(10px)",
-              boxShadow: "none",
-            }}
+            sx={{ borderRadius: 4, border: `1px solid ${theme.palette.divider}`, bgcolor: alpha(theme.palette.background.paper, 0.8), backdropFilter: "blur(10px)", boxShadow: "none" }}
           >
-            <Table>
-              <TableHead
-                sx={{ bgcolor: alpha(theme.palette.primary.main, 0.05) }}
-              >
+            <Table size="small">
+              <TableHead sx={{ bgcolor: alpha(theme.palette.primary.main, 0.05) }}>
                 <TableRow>
-                  <TableCell sx={{ fontWeight: 800 }}>DATE</TableCell>
-                  <TableCell align="center" sx={{ fontWeight: 800 }}>
-                    WEIGHT
+                  <TableCell padding="checkbox">
+                    <Checkbox
+                      size="small"
+                      indeterminate={selectedRows.size > 0 && selectedRows.size < sortedDates.length}
+                      checked={sortedDates.length > 0 && selectedRows.size === sortedDates.length}
+                      onChange={(e) => setSelectedRows(e.target.checked ? new Set(sortedDates) : new Set())}
+                    />
                   </TableCell>
-                  <TableCell align="center" sx={{ fontWeight: 800 }}>
-                    V. FAT
-                  </TableCell>
-                  <TableCell align="center" sx={{ fontWeight: 800 }}>
-                    MUSCLE
-                  </TableCell>
-                  <TableCell align="center" sx={{ fontWeight: 800 }}>
-                    BELLY
-                  </TableCell>
-                  <TableCell align="right"></TableCell>
+                  <TableCell sx={{ fontWeight: 800, fontSize: 11 }}>DATE</TableCell>
+                  {HISTORY_COLS.filter((c) => visibleHistoryCols.includes(c.id)).map((col) => (
+                    <TableCell key={col.id} align="center" sx={{ fontWeight: 800, fontSize: 11, whiteSpace: "nowrap" }}>{col.label.toUpperCase()}</TableCell>
+                  ))}
+                  <TableCell />
                 </TableRow>
               </TableHead>
               <TableBody>
-                {sortedDates.map((date) => (
-                  <TableRow
-                    key={date}
-                    hover
-                    sx={{ "&:last-child td, &:last-child th": { border: 0 } }}
-                  >
-                    <TableCell
-                      sx={{ fontWeight: 600, color: "text.secondary" }}
-                    >
-                      {dayjs(date).format("MMM D, YYYY")}
-                    </TableCell>
-                    <TableCell
-                      align="center"
-                      sx={{
-                        fontWeight: 500,
-                        color:
-                          snapshots[date].metrics.weight > 85
-                            ? isDark
-                              ? alpha(COLOR_CRITICAL, 0.9)
-                              : COLOR_CRITICAL
-                            : "inherit",
-                      }}
-                    >
-                      {snapshots[date].metrics.weight || "-"} kg
-                    </TableCell>
-                    <TableCell
-                      align="center"
-                      sx={{
-                        fontWeight: 500,
-                        color:
-                          snapshots[date].metrics.visceral_fat > 9
-                            ? isDark
-                              ? alpha(COLOR_ALERT, 0.9)
-                              : COLOR_ALERT
-                            : isDark ? COLOR_EXCELLENT_DARK : COLOR_EXCELLENT,
-                      }}
-                    >
-                      {snapshots[date].metrics.visceral_fat || "-"}
-                    </TableCell>
-                    <TableCell
-                      align="center"
-                      sx={{
-                        fontWeight: 600,
-                        color: isDark ? COLOR_EXCELLENT_DARK : COLOR_EXCELLENT,
-                      }}
-                    >
-                      {snapshots[date].metrics.muscle_mass || "-"} kg
-                    </TableCell>
-                    <TableCell align="center" sx={{ color: "text.secondary" }}>
-                      {snapshots[date].metrics.belly
-                        ? `${snapshots[date].metrics.belly}"`
-                        : "-"}
-                    </TableCell>
-                    <TableCell align="right">
-                      <IconButton
-                        size="small"
-                        color="error"
-                        onClick={() => setSnapshotToDelete(date)}
-                      >
-                        <Delete fontSize="small" />
-                      </IconButton>
+                {sortedDates.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={visibleHistoryCols.length + 3} align="center" sx={{ py: 5, color: "text.secondary", fontStyle: "italic" }}>
+                      No snapshots imported yet. Use "Import Snapshot" to begin.
                     </TableCell>
                   </TableRow>
-                ))}
+                ) : sortedDates.map((date) => {
+                  const isSelected = selectedRows.has(date);
+                  return (
+                    <TableRow
+                      key={date}
+                      hover
+                      selected={isSelected}
+                      onClick={() => {
+                        const next = new Set(selectedRows);
+                        if (next.has(date)) { next.delete(date); }
+                        else if (next.size < 2) { next.add(date); }
+                        setSelectedRows(next);
+                      }}
+                      sx={{ cursor: "pointer", "&:last-child td": { border: 0 }, bgcolor: isSelected ? alpha(theme.palette.primary.main, 0.06) : "inherit" }}
+                    >
+                      <TableCell padding="checkbox">
+                        <Checkbox checked={isSelected} size="small" color="primary" />
+                      </TableCell>
+                      <TableCell sx={{ fontWeight: 600, color: "text.secondary", fontSize: 12, whiteSpace: "nowrap" }}>
+                        {dayjs(date).format("MMM YYYY")}
+                      </TableCell>
+                      {HISTORY_COLS.filter((c) => visibleHistoryCols.includes(c.id)).map((col) => {
+                        const val = snapshots[date].metrics[col.id];
+                        const isInch = ["waist","belly","neck","bust","hip","thigh","calf"].includes(col.id);
+                        const meta = METRIC_META[col.id];
+                        const t = targets[col.id] || {};
+                        const alertVal = t.alert !== "" && t.alert != null ? Number(t.alert) : null;
+                        let cellColor = "inherit";
+                        if (val != null && alertVal != null && meta) {
+                          cellColor = (meta.lowerIsBetter ? val >= alertVal : val < alertVal)
+                            ? (isDark ? alpha(COLOR_ALERT, 0.9) : COLOR_ALERT)
+                            : "inherit";
+                        }
+                        return (
+                          <TableCell key={col.id} align="center" sx={{ fontSize: 12, fontWeight: 500, color: cellColor }}>
+                            {val != null ? `${val}${isInch ? '"' : meta?.unit ? ` ${meta.unit}` : ""}` : "—"}
+                          </TableCell>
+                        );
+                      })}
+                      <TableCell align="right" sx={{ pr: 1 }}>
+                        <IconButton size="small" color="error" onClick={(e) => { e.stopPropagation(); setSnapshotToDelete(date); }}>
+                          <Delete sx={{ fontSize: 16 }} />
+                        </IconButton>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           </TableContainer>
@@ -1195,9 +1107,27 @@ export default function ShariramHealthOS() {
             Import Data Snapshot
           </DialogTitle>
           <DialogContent>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 2, mt: 1 }}>
-              JSON format: {"{ \"date\": \"YYYY-MM-DD\", \"metrics\": { \"weight\": 80, \"muscle_mass\": 62, ... } }"}
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 1, mt: 1 }}>
+              One JSON object per import (one month's snapshot). Physical vitals are in inches.
             </Typography>
+            <Box component="pre" sx={{ fontSize: 11, fontFamily: "monospace", background: isDark ? "rgba(255,255,255,0.04)" : "#F4F3EC", border: `1px solid ${theme.palette.divider}`, borderRadius: 1.5, p: 1.5, mb: 2, overflowX: "auto", lineHeight: 1.7 }}>{`{
+  "date": "2026-05-01",
+  "metrics": {
+    "weight": 82.5,
+    "muscle_mass": 64.2,
+    "visceral_fat": 9,
+    "fat_pct": 22.1,
+    "bmi": 24.8,
+    "body_age": 32,
+    "waist": 34,
+    "belly": 36,
+    "neck": 15,
+    "bust": 40,
+    "hip": 38,
+    "thigh": 22,
+    "calf": 14
+  }
+}`}</Box>
             <Box
               sx={{
                 p: 4,

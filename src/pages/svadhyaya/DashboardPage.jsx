@@ -817,14 +817,7 @@ function ReadingCard({ books, readingSessions, isDark, days = 30 }) {
   const textS = isDark ? "#7A7874" : "#9C9A94";
   const today = dayjs();
 
-  const activeBook = books.find((b) => b.status === "reading");
-  const progress = activeBook?.total_pages > 0
-    ? Math.round((activeBook.pages_read / activeBook.total_pages) * 100) : 0;
-
-  const recent = readingSessions.filter((s) => dayjs(s.session_date).isAfter(today.subtract(7, "day")));
-  const velocity = recent.length > 0 ? Math.round(recent.reduce((s, r) => s + (r.pages_read || 0), 0) / 7) : 0;
-  const remaining = activeBook ? Math.max(0, (activeBook.total_pages || 0) - (activeBook.pages_read || 0)) : 0;
-  const eta = velocity > 0 ? Math.ceil(remaining / velocity) : null;
+  const readingBooks = books.filter((b) => b.status === "reading");
   const booksRead = books.filter((b) => b.status === "completed").length;
 
   const chartData = Array.from({ length: days }, (_, i) => {
@@ -842,23 +835,34 @@ function ReadingCard({ books, readingSessions, isDark, days = 30 }) {
           <Box sx={{ flex: 1 }} />
           <Typography sx={{ fontSize: 10, color: textS }}>{booksRead} completed</Typography>
         </Box>
-        {activeBook ? (
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 2 }}>
-            <Box sx={{ position: "relative", display: "inline-flex", flexShrink: 0 }}>
-              <CircularProgress variant="determinate" value={100} size={52} thickness={4} sx={{ color: alpha(rc, 0.12) }} />
-              <CircularProgress variant="determinate" value={progress} size={52} thickness={4} sx={{ color: rc, position: "absolute", left: 0, strokeLinecap: "round" }} />
-              <Box sx={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <Typography sx={{ fontSize: 10, fontWeight: 800, color: rc }}>{progress}%</Typography>
-              </Box>
-            </Box>
-            <Box sx={{ flex: 1, minWidth: 0 }}>
-              <Typography sx={{ fontSize: 12, fontWeight: 700, color: textP, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{activeBook.title}</Typography>
-              <Typography sx={{ fontSize: 10, color: textS, mt: 0.2 }}>{activeBook.pages_read} / {activeBook.total_pages} pages</Typography>
-              {eta != null && <Typography sx={{ fontSize: 10, color: rc, mt: 0.2 }}>~{eta}d to finish · {velocity} pg/day</Typography>}
-            </Box>
-          </Box>
-        ) : (
+        {readingBooks.length === 0 ? (
           <Typography sx={{ fontSize: 12, color: textS, mb: 2, fontStyle: "italic" }}>No book in progress</Typography>
+        ) : (
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 1.25, mb: 2 }}>
+            {readingBooks.map((book) => {
+              const pct = book.total_pages > 0 ? Math.round((book.pages_read / book.total_pages) * 100) : 0;
+              const recentBook = readingSessions.filter((s) => s.book_id === book.id && dayjs(s.session_date).isAfter(today.subtract(7, "day")));
+              const vel = recentBook.length > 0 ? Math.round(recentBook.reduce((s, r) => s + (r.pages_read || 0), 0) / 7) : 0;
+              const rem = Math.max(0, (book.total_pages || 0) - (book.pages_read || 0));
+              const eta = vel > 0 ? Math.ceil(rem / vel) : null;
+              return (
+                <Box key={book.id} sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+                  <Box sx={{ position: "relative", display: "inline-flex", flexShrink: 0 }}>
+                    <CircularProgress variant="determinate" value={100} size={48} thickness={4} sx={{ color: alpha(rc, 0.12) }} />
+                    <CircularProgress variant="determinate" value={pct} size={48} thickness={4} sx={{ color: rc, position: "absolute", left: 0, strokeLinecap: "round" }} />
+                    <Box sx={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      <Typography sx={{ fontSize: 9.5, fontWeight: 800, color: rc }}>{pct}%</Typography>
+                    </Box>
+                  </Box>
+                  <Box sx={{ flex: 1, minWidth: 0 }}>
+                    <Typography sx={{ fontSize: 12, fontWeight: 700, color: textP, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{book.title}</Typography>
+                    <Typography sx={{ fontSize: 10, color: textS, mt: 0.15 }}>{book.pages_read} / {book.total_pages || "?"} pages</Typography>
+                    {eta != null && <Typography sx={{ fontSize: 10, color: rc, mt: 0.1 }}>~{eta}d · {vel} pg/day</Typography>}
+                  </Box>
+                </Box>
+              );
+            })}
+          </Box>
         )}
         <Typography sx={{ fontSize: 9, color: textS, fontWeight: 700, letterSpacing: 1.2, textTransform: "uppercase", mb: 0.75 }}>Pages · Last 30 days</Typography>
         <ResponsiveContainer width="100%" height={75}>
@@ -1379,7 +1383,7 @@ function LifeBalanceRadar({ dynamicStreaks, isDark, heroColor }) {
 }
 
 // ── TODAY'S VITALS HERO ──────────────────────────────────────────────────────
-function VitalsHero({ massPct, mass, oneThing, todayJapa, japaGoal, todayActivity, activeBook, bookProgress, heroColor, isDark }) {
+function VitalsHero({ massPct, mass, oneThing, todayJapa, japaGoal, todayActivity, readingBooks = [], heroColor, isDark }) {
   const textP = isDark ? "#F0EDE8" : "#1C1C1C";
   const textS = isDark ? "#7A7874" : "#9C9A94";
   const bg = isDark
@@ -1404,8 +1408,16 @@ function VitalsHero({ massPct, mass, oneThing, todayJapa, japaGoal, todayActivit
     },
     {
       emoji: "📖", label: "Reading",
-      value: bookProgress != null ? `${bookProgress}%` : "—",
-      sub: activeBook ? ((activeBook.title ?? "").slice(0, 18) + ((activeBook.title?.length ?? 0) > 18 ? "…" : "")) : null,
+      value: readingBooks.length === 0
+        ? "—"
+        : readingBooks.length > 1
+          ? `${readingBooks.length} books`
+          : readingBooks[0].total_pages > 0
+            ? `${Math.round((readingBooks[0].pages_read / readingBooks[0].total_pages) * 100)}%`
+            : "—",
+      sub: readingBooks.length > 1
+        ? readingBooks.map((b) => (b.title ?? "").slice(0, 14) + ((b.title?.length ?? 0) > 14 ? "…" : "")).join(" · ")
+        : readingBooks[0] ? ((readingBooks[0].title ?? "").slice(0, 18) + ((readingBooks[0].title?.length ?? 0) > 18 ? "…" : "")) : null,
     },
   ];
 
@@ -1853,8 +1865,7 @@ export default function DashboardPage() {
   const todayStr      = dayjs().format("YYYY-MM-DD");
   const todayMass     = useMemo(() => calculateDailyMass(dayMap[todayStr]), [dayMap, todayStr]);
   const todayMassPct  = Math.min(100, Math.round((todayMass / MAX_EXPECTED_MASS) * 100));
-  const activeBook    = useMemo(() => books.find((b) => b.status === "reading"), [books]);
-  const bookProgress  = activeBook?.total_pages > 0 ? Math.round((activeBook.pages_read / activeBook.total_pages) * 100) : null;
+  const readingBooks  = useMemo(() => books.filter((b) => b.status === "reading"), [books]);
   const todayJapa     = useMemo(() => japaLogs.filter((l) => l.day_date === todayStr).reduce((s, l) => s + l.count, 0), [japaLogs, todayStr]);
   const todayActivity = useMemo(() => activityLogs.find((a) => a.date === todayStr), [activityLogs, todayStr]);
 
@@ -1949,8 +1960,7 @@ export default function DashboardPage() {
           todayJapa={todayJapa}
           japaGoal={japaGoals[0] || null}
           todayActivity={todayActivity}
-          activeBook={activeBook}
-          bookProgress={bookProgress}
+          readingBooks={readingBooks}
           heroColor={heroColor}
           isDark={isDark}
         />
