@@ -987,12 +987,38 @@ function MorningFlowModal({
   heroColor,
   isDark,
   pendingSacred,
+  yesterdayTasks,
 }) {
+  const hasCarryOvers = yesterdayTasks?.length > 0;
+  const firstStep = hasCarryOvers ? 1 : 2;
+  const [step, setStep] = useState(firstStep);
   const [intention, setIntention] = useState("");
+  const [selected, setSelected] = useState({});
+
+  // reset when opened
+  useEffect(() => {
+    if (open) {
+      setStep(hasCarryOvers ? 1 : 2);
+      setIntention("");
+      setSelected({});
+    }
+  }, [open, hasCarryOvers]);
+
   const bg = isDark ? "#1A1916" : "#FCFBF9";
   const border = isDark ? "rgba(255,255,255,0.08)" : "#D1D0CF";
   const textP = isDark ? "#F0EDE8" : "#2C2C2C";
   const textS = isDark ? "#7A7874" : "#5F5F5F";
+  const totalSteps = hasCarryOvers ? 3 : 2;
+  const stepIndex = hasCarryOvers ? step : step - 1;
+
+  const handleFinish = () => {
+    const carryOvers = hasCarryOvers
+      ? (yesterdayTasks || []).filter((_, i) => selected[i])
+      : [];
+    onComplete(intention, carryOvers);
+    setStep(firstStep);
+  };
+
   return (
     <Dialog
       open={open}
@@ -1009,154 +1035,178 @@ function MorningFlowModal({
       }}
     >
       <DialogContent sx={{ p: "32px 36px !important" }}>
-        <Box sx={{ textAlign: "center", mb: 3 }}>
-          <Box
-            sx={{
-              display: "inline-flex",
-              width: 56,
-              height: 56,
-              borderRadius: "50%",
-              background: `${heroColor}15`,
-              border: `1px solid ${heroColor}30`,
-              alignItems: "center",
-              justifyContent: "center",
-              mb: 2,
-            }}
-          >
-            <WbSunny sx={{ fontSize: 28, color: heroColor }} />
-          </Box>
-          <Typography
-            sx={{
-              fontFamily: '"Lora","Fraunces",serif',
-              fontSize: 22,
-              fontWeight: 600,
-              color: textP,
-              mb: 0.5,
-            }}
-          >
-            Morning Flow
-          </Typography>
-          <Typography sx={{ fontSize: 13, color: textS, lineHeight: 1.7 }}>
-            {dayjs().format("dddd, D MMMM")} · Begin with clarity
-          </Typography>
-        </Box>
-        {pendingSacred.length > 0 && (
-          <Box
-            sx={{
-              mb: 3,
-              p: 2,
-              borderRadius: 2,
-              background: `${heroColor}08`,
-              border: `1px solid ${heroColor}20`,
-            }}
-          >
-            <Typography
+        {/* progress bar */}
+        <Box sx={{ display: "flex", gap: 0.75, mb: 3 }}>
+          {Array.from({ length: totalSteps }).map((_, i) => (
+            <Box
+              key={i}
               sx={{
-                fontSize: 10,
-                fontWeight: 700,
-                color: heroColor,
-                letterSpacing: 1.5,
-                textTransform: "uppercase",
-                mb: 1,
-              }}
-            >
-              Sacred foundations for today
-            </Typography>
-            {pendingSacred.map((s) => (
-              <Box
-                key={s.id}
-                sx={{ display: "flex", alignItems: "center", gap: 1, py: 0.5 }}
-              >
-                <Typography sx={{ fontSize: 14 }}>{s.emoji || "·"}</Typography>
-                <Typography sx={{ fontSize: 13, color: textP }}>
-                  {s.label}
-                </Typography>
-                {s.lakshyaTitle && (
-                  <Typography sx={{ fontSize: 11, color: heroColor, ml: 0.5 }}>
-                    · {s.lakshyaTitle}
-                  </Typography>
-                )}
-              </Box>
-            ))}
-          </Box>
-        )}
-        <Box sx={{ mb: 3 }}>
-          <Typography
-            sx={{
-              fontSize: 11,
-              fontWeight: 700,
-              color: textS,
-              letterSpacing: 1,
-              textTransform: "uppercase",
-              mb: 1,
-            }}
-          >
-            The one thing today
-          </Typography>
-          <Box
-            sx={{
-              background: isDark ? "#0F0E0C" : "#FAF9F6",
-              border: `1px solid ${border}`,
-              borderRadius: 2,
-              px: 2,
-              py: 1.25,
-            }}
-          >
-            <TextField
-              fullWidth
-              multiline
-              minRows={3}
-              variant="standard"
-              placeholder="What is the single most important thing I must complete today?"
-              value={intention}
-              onChange={(e) => setIntention(e.target.value)}
-              InputProps={{ disableUnderline: true }}
-              sx={{
-                "& textarea": {
-                  fontFamily: '"Lora","Fraunces",serif',
-                  fontStyle: "italic",
-                  fontSize: 16,
-                  color: textP,
-                  lineHeight: 1.6,
-                  "&::placeholder": {
-                    color: isDark ? "#3C3A36" : "#C8C6C0",
-                    fontStyle: "italic",
-                  },
-                },
+                flex: 1,
+                height: 3,
+                borderRadius: 2,
+                background: stepIndex > i ? heroColor : isDark ? "#2C2C2C" : "#E8E6E0",
+                transition: "background 0.3s",
               }}
             />
-          </Box>
+          ))}
         </Box>
-        <Box sx={{ display: "flex", gap: 1.5 }}>
-          <Button
-            variant="outlined"
-            onClick={onClose}
-            sx={{
-              flex: 1,
-              py: 1.2,
-              borderColor: border,
-              color: textS,
-              fontSize: 13,
-            }}
-          >
-            Skip for now
-          </Button>
-          <Button
-            variant="contained"
-            onClick={() => onComplete(intention)}
-            sx={{
-              flex: 2,
-              py: 1.2,
-              background: heroColor,
-              "&:hover": { background: heroColor, opacity: 0.88 },
-              boxShadow: "none",
-              fontSize: 13,
-              fontWeight: 600,
-            }}
-          >
-            Begin the day ☀️
-          </Button>
-        </Box>
+
+        {/* Step 1 — Carry-overs from yesterday */}
+        {step === 1 && hasCarryOvers && (
+          <Fade in>
+            <Box>
+              <Typography sx={{ fontSize: 9, letterSpacing: 2, textTransform: "uppercase", color: "#9C9A94", fontWeight: 700, mb: 0.5 }}>
+                Morning flow · Step 1
+              </Typography>
+              <Typography sx={{ fontFamily: '"Lora","Fraunces",serif', fontSize: 20, fontWeight: 600, color: textP, mb: 0.5 }}>
+                From yesterday's plan
+              </Typography>
+              <Typography sx={{ fontSize: 12, color: textS, mb: 2.5 }}>
+                Select what carries into today's core
+              </Typography>
+              {yesterdayTasks.map((t, i) => {
+                const isOn = !!selected[i];
+                return (
+                  <Box
+                    key={i}
+                    onClick={() => setSelected((s) => ({ ...s, [i]: !s[i] }))}
+                    sx={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 1.5,
+                      p: 1.5,
+                      mb: 1,
+                      borderRadius: 2,
+                      border: `1px solid ${isOn ? heroColor + "60" : border}`,
+                      background: isOn ? `${heroColor}10` : isDark ? "#0F0E0C" : "#FAF9F6",
+                      cursor: "pointer",
+                      transition: "all 0.2s",
+                    }}
+                  >
+                    <Box sx={{
+                      width: 18, height: 18, borderRadius: "50%", flexShrink: 0,
+                      border: `2px solid ${isOn ? heroColor : (isDark ? "#3C3A36" : "#D1D0CF")}`,
+                      background: isOn ? heroColor : "transparent",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      transition: "all 0.2s",
+                    }}>
+                      {isOn && <Box sx={{ width: 6, height: 6, borderRadius: "50%", background: "#fff" }} />}
+                    </Box>
+                    <Typography sx={{ fontSize: 13, color: textP, flex: 1 }}>{t.label}</Typography>
+                    {t.deep && (
+                      <Box sx={{
+                        fontSize: 10, fontWeight: 700, letterSpacing: 0.5,
+                        color: heroColor, background: `${heroColor}15`,
+                        px: 0.75, py: 0.25, borderRadius: 1,
+                      }}>
+                        DEEP
+                      </Box>
+                    )}
+                  </Box>
+                );
+              })}
+              <Button
+                variant="contained"
+                fullWidth
+                onClick={() => setStep(2)}
+                sx={{ mt: 1.5, py: 1.2, background: heroColor, "&:hover": { background: heroColor, opacity: 0.88 }, boxShadow: "none", fontSize: 13, fontWeight: 600 }}
+              >
+                Continue →
+              </Button>
+              <Button fullWidth onClick={onClose} sx={{ mt: 0.75, fontSize: 12, color: "#9C9A94" }}>
+                Not yet
+              </Button>
+            </Box>
+          </Fade>
+        )}
+
+        {/* Step 2 — The one thing */}
+        {step === 2 && (
+          <Fade in>
+            <Box>
+              <Typography sx={{ fontSize: 9, letterSpacing: 2, textTransform: "uppercase", color: "#9C9A94", fontWeight: 700, mb: 0.5 }}>
+                Morning flow · Step {hasCarryOvers ? 2 : 1}
+              </Typography>
+              <Typography sx={{ fontFamily: '"Lora","Fraunces",serif', fontSize: 20, fontWeight: 600, color: textP, mb: 0.5 }}>
+                The one thing today
+              </Typography>
+              <Typography sx={{ fontSize: 12, color: textS, mb: 2.5 }}>
+                {dayjs().format("dddd, D MMMM")} · Begin with clarity
+              </Typography>
+              <Box sx={{ background: isDark ? "#0F0E0C" : "#FAF9F6", border: `1px solid ${border}`, borderRadius: 2, px: 2, py: 1.5, mb: 2 }}>
+                <TextField
+                  fullWidth
+                  multiline
+                  minRows={3}
+                  variant="standard"
+                  placeholder="What is the single most important thing I must complete today?"
+                  value={intention}
+                  onChange={(e) => setIntention(e.target.value)}
+                  InputProps={{ disableUnderline: true }}
+                  sx={{
+                    "& textarea": {
+                      fontFamily: '"Lora","Fraunces",serif',
+                      fontStyle: "italic",
+                      fontSize: 15,
+                      color: textP,
+                      lineHeight: 1.7,
+                      "&::placeholder": { color: isDark ? "#3C3A36" : "#C8C6C0", fontStyle: "italic" },
+                    },
+                  }}
+                />
+              </Box>
+              <Box sx={{ display: "flex", gap: 1 }}>
+                {hasCarryOvers && (
+                  <Button variant="outlined" onClick={() => setStep(1)} sx={{ flex: 1, borderColor: border, color: textS, fontSize: 12 }}>Back</Button>
+                )}
+                <Button
+                  variant="contained"
+                  onClick={() => setStep(3)}
+                  sx={{ flex: 2, py: 1.2, background: heroColor, "&:hover": { background: heroColor, opacity: 0.88 }, boxShadow: "none", fontSize: 13, fontWeight: 600 }}
+                >
+                  Continue →
+                </Button>
+              </Box>
+              <Button fullWidth onClick={onClose} sx={{ mt: 0.75, fontSize: 12, color: "#9C9A94" }}>Not yet</Button>
+            </Box>
+          </Fade>
+        )}
+
+        {/* Step 3 — Sacred reminder + begin */}
+        {step === 3 && (
+          <Fade in>
+            <Box>
+              <Typography sx={{ fontSize: 9, letterSpacing: 2, textTransform: "uppercase", color: "#9C9A94", fontWeight: 700, mb: 0.5 }}>
+                Morning flow · Step {hasCarryOvers ? 3 : 2}
+              </Typography>
+              <Typography sx={{ fontFamily: '"Lora","Fraunces",serif', fontSize: 20, fontWeight: 600, color: textP, mb: 0.5 }}>
+                Today's foundations
+              </Typography>
+              <Typography sx={{ fontSize: 12, color: textS, mb: 2.5 }}>Begin with these — everything else follows</Typography>
+              {pendingSacred.slice(0, 4).map((s) => (
+                <Box key={s.id} sx={{ display: "flex", alignItems: "center", gap: 1.5, py: 0.75, px: 1.5, mb: 0.75, borderRadius: 2, background: isDark ? "#0F0E0C" : "#FAF9F6", border: `1px solid ${border}` }}>
+                  <Typography sx={{ fontSize: 16 }}>{s.emoji || "·"}</Typography>
+                  <Typography sx={{ fontSize: 13, color: textP, flex: 1 }}>{s.label}</Typography>
+                </Box>
+              ))}
+              {pendingSacred.length === 0 && (
+                <Box sx={{ textAlign: "center", py: 2 }}>
+                  <Typography sx={{ fontSize: 24, mb: 0.5 }}>✨</Typography>
+                  <Typography sx={{ fontSize: 13, color: textS }}>All foundations complete</Typography>
+                </Box>
+              )}
+              <Button
+                variant="contained"
+                fullWidth
+                onClick={handleFinish}
+                sx={{ mt: 2, py: 1.3, background: heroColor, "&:hover": { background: heroColor, opacity: 0.88 }, boxShadow: "none", fontSize: 13, fontWeight: 600, borderRadius: 2 }}
+              >
+                Begin the day ☀️
+              </Button>
+              <Button variant="outlined" onClick={() => setStep(2)} sx={{ mt: 1, width: "100%", borderColor: border, color: textS, fontSize: 12 }}>Back</Button>
+            </Box>
+          </Fade>
+        )}
       </DialogContent>
     </Dialog>
   );
@@ -1313,25 +1363,46 @@ function EveningFlowModal({
                 These appear in tomorrow's morning flow
               </Typography>
               {tomorrowTasks.map((t, i) => (
-                <TextField
-                  key={i}
-                  fullWidth
-                  size="small"
-                  placeholder={`Task ${i + 1}…`}
-                  value={t}
-                  onChange={(e) => {
-                    const n = [...tomorrowTasks];
-                    n[i] = e.target.value;
-                    setTomorrowTasks(n);
-                  }}
-                  sx={{
-                    mb: 1.25,
-                    "& .MuiOutlinedInput-root": {
-                      background: isDark ? "#0F0E0C" : "#FAF9F6",
-                      fontSize: 13,
-                    },
-                  }}
-                />
+                <Box key={i} sx={{ display: "flex", gap: 1, alignItems: "center", mb: 1.25 }}>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    placeholder={`Task ${i + 1}…`}
+                    value={t.label}
+                    onChange={(e) => {
+                      const n = [...tomorrowTasks];
+                      n[i] = { ...n[i], label: e.target.value };
+                      setTomorrowTasks(n);
+                    }}
+                    sx={{ "& .MuiOutlinedInput-root": { background: isDark ? "#0F0E0C" : "#FAF9F6", fontSize: 13 } }}
+                  />
+                  <Tooltip title={t.deep ? "Deep work (click to unset)" : "Mark as deep work"}>
+                    <Box
+                      onClick={() => {
+                        const n = [...tomorrowTasks];
+                        n[i] = { ...n[i], deep: !n[i].deep };
+                        setTomorrowTasks(n);
+                      }}
+                      sx={{
+                        flexShrink: 0,
+                        width: 32,
+                        height: 32,
+                        borderRadius: 1.5,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        cursor: "pointer",
+                        border: `1px solid ${t.deep ? heroColor + "80" : border}`,
+                        background: t.deep ? `${heroColor}18` : "transparent",
+                        fontSize: 16,
+                        transition: "all 0.2s",
+                        userSelect: "none",
+                      }}
+                    >
+                      🧠
+                    </Box>
+                  </Tooltip>
+                </Box>
               ))}
               <Box sx={{ display: "flex", gap: 1, mt: 1 }}>
                 <Button
@@ -1427,7 +1498,7 @@ function EveningFlowModal({
                   borderRadius: 2,
                 }}
               >
-                Save & Close Day
+                Save & close the day
               </Button>
               <Button
                 fullWidth
@@ -1547,7 +1618,7 @@ function SunsetDialog({
               fontWeight: 600,
             }}
           >
-            Close day 🌙
+            Close the day 🌙
           </Button>
         </Box>
       </DialogContent>
@@ -2001,7 +2072,12 @@ export default function TodayPage() {
   const [dayType, setDayType] = useState("working");
   const [oneThing, setOneThing] = useState("");
   const [wins, setWins] = useState(["", "", ""]);
-  const [tomorrowTasks, setTomorrowTasks] = useState(["", "", ""]);
+  const [tomorrowTasks, setTomorrowTasks] = useState([
+    { label: "", deep: false },
+    { label: "", deep: false },
+    { label: "", deep: false },
+  ]);
+  const [yesterdayTasks, setYesterdayTasks] = useState([]);
   const [dayClosed, setDayClosed] = useState(false);
   const [morningDone, setMorningDone] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -2065,12 +2141,11 @@ export default function TodayPage() {
       return;
     }
     try {
-      const { data: dayData } = await supabase
-        .from("days")
-        .select("*")
-        .eq("user_id", user.id)
-        .eq("day_date", today)
-        .maybeSingle();
+      const yesterday = dayjs().subtract(1, "day").format("YYYY-MM-DD");
+      const [{ data: dayData }, { data: yData }] = await Promise.all([
+        supabase.from("days").select("*").eq("user_id", user.id).eq("day_date", today).maybeSingle(),
+        supabase.from("days").select("tomorrow_tasks").eq("user_id", user.id).eq("day_date", yesterday).maybeSingle(),
+      ]);
 
       if (dayData) {
         setHabits(dayData.habits || {});
@@ -2078,14 +2153,25 @@ export default function TodayPage() {
         setDayType(dayData.disruption_mode || "working");
         setOneThing(dayData.one_thing || "");
         setWins(dayData.wins?.length ? dayData.wins : ["", "", ""]);
+        const raw = dayData.tomorrow_tasks || [];
         setTomorrowTasks(
-          dayData.tomorrow_tasks?.length ? dayData.tomorrow_tasks : ["", "", ""],
+          raw.length
+            ? raw.map((t) => (typeof t === "string" ? { label: t, deep: false } : t))
+            : [{ label: "", deep: false }, { label: "", deep: false }, { label: "", deep: false }],
         );
         setDayClosed(!!dayData.last_close);
         setMorningDone(!!dayData.morning_flow_done);
         setCustomSacred(dayData.custom_sacred || []);
         setCustomCore(dayData.custom_core || []);
         setCustomEvening(dayData.custom_evening || []);
+      }
+
+      if (yData?.tomorrow_tasks?.length) {
+        setYesterdayTasks(
+          yData.tomorrow_tasks
+            .map((t) => (typeof t === "string" ? { label: t, deep: false } : t))
+            .filter((t) => t.label?.trim()),
+        );
       }
 
       await supabase.from("days").upsert(
@@ -2220,7 +2306,7 @@ export default function TodayPage() {
     setCompletionItem(null);
   };
 
-  const handleMorningComplete = async (intention) => {
+  const handleMorningComplete = async (intention, carryOverTasks) => {
     setMorningDone(true);
     setShowMorningFlow(false);
     const patch = { morning_flow_done: true };
@@ -2228,13 +2314,24 @@ export default function TodayPage() {
       setOneThing(intention);
       patch.one_thing = intention;
     }
+    if (carryOverTasks?.length) {
+      const newItems = carryOverTasks.map((t) => ({
+        id: `custom_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+        label: t.label,
+        emoji: "🎯",
+        ...(t.deep ? { deep: true } : {}),
+      }));
+      const n = [...customCore, ...newItems];
+      setCustomCore(n);
+      patch.custom_core = n;
+    }
     await sync(patch);
   };
 
   const handleSaveDay = async () => {
     await sync({
       wins: wins.filter(Boolean),
-      tomorrow_tasks: tomorrowTasks.filter(Boolean),
+      tomorrow_tasks: tomorrowTasks.filter((t) => t.label?.trim()),
       one_thing: oneThing,
       last_close: new Date().toISOString(),
     });
@@ -2894,30 +2991,86 @@ export default function TodayPage() {
               )}
             </CardContent>
           </Card>
-          <Button
-            variant="contained"
-            fullWidth
-            onClick={() => setShowSunset(true)}
-            disabled={dayClosed}
-            sx={{
-              py: 1.4,
-              borderRadius: 2,
-              fontSize: 12,
-              fontWeight: 700,
-              letterSpacing: 1,
-              textTransform: "uppercase",
-              background: dayClosed
-                ? isDark
-                  ? "rgba(255,255,255,0.08)"
-                  : "rgba(0,0,0,0.06)"
-                : heroColor,
-              color: dayClosed ? (isDark ? "#9C9A94" : "#64748b") : "#fff",
-              "&:hover": { background: heroColor, opacity: 0.88 },
-              boxShadow: "none",
-            }}
-          >
-            {dayClosed ? "✓ Day Closed — Rest Well" : "Close Day"}
-          </Button>
+          {dayClosed ? (
+            <Box
+              sx={{
+                borderRadius: 2,
+                border: `1px solid ${heroColor}35`,
+                background: isDark ? `${heroColor}08` : `${heroColor}06`,
+                p: 2.5,
+              }}
+            >
+              <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 1.5 }}>
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                  <Nightlight sx={{ fontSize: 16, color: heroColor }} />
+                  <Typography sx={{ fontSize: 13, fontWeight: 700, color: heroColor, letterSpacing: 0.5, textTransform: "uppercase" }}>
+                    Day Closed
+                  </Typography>
+                </Box>
+                <Button
+                  size="small"
+                  onClick={handleUndoClose}
+                  sx={{ fontSize: 11, color: isDark ? "#9C9A94" : "#64748b", py: 0.25, px: 1, minWidth: 0, textTransform: "none" }}
+                >
+                  Reopen
+                </Button>
+              </Box>
+              <Typography sx={{ fontSize: 12.5, color: isDark ? "#7A7874" : "#5F5F5F", mb: 2, fontFamily: '"Lora",serif', fontStyle: "italic" }}>
+                Rest well. Tomorrow begins fresh.
+              </Typography>
+              {wins.filter(Boolean).length > 0 && (
+                <Box sx={{ mb: 2 }}>
+                  <Typography sx={{ fontSize: 9.5, fontWeight: 700, letterSpacing: 1.5, textTransform: "uppercase", color: isDark ? "#5C5A52" : "#9C9A94", mb: 1 }}>
+                    Today's wins
+                  </Typography>
+                  {wins.filter(Boolean).map((w, i) => (
+                    <Box key={i} sx={{ display: "flex", gap: 1, alignItems: "flex-start", mb: 0.75 }}>
+                      <Typography sx={{ fontSize: 11, color: heroColor, mt: 0.15, flexShrink: 0 }}>✦</Typography>
+                      <Typography sx={{ fontSize: 13, color: isDark ? "#D0CEC8" : "#2C2C2C", lineHeight: 1.5 }}>{w}</Typography>
+                    </Box>
+                  ))}
+                </Box>
+              )}
+              {tomorrowTasks.filter((t) => t.label?.trim()).length > 0 && (
+                <Box>
+                  <Typography sx={{ fontSize: 9.5, fontWeight: 700, letterSpacing: 1.5, textTransform: "uppercase", color: isDark ? "#5C5A52" : "#9C9A94", mb: 1 }}>
+                    Flagged for tomorrow
+                  </Typography>
+                  {tomorrowTasks.filter((t) => t.label?.trim()).map((t, i) => (
+                    <Box key={i} sx={{ display: "flex", gap: 1, alignItems: "center", mb: 0.75 }}>
+                      <Typography sx={{ fontSize: 11, color: isDark ? "#5C5A52" : "#9C9A94", flexShrink: 0 }}>→</Typography>
+                      <Typography sx={{ fontSize: 13, color: isDark ? "#D0CEC8" : "#2C2C2C", flex: 1, lineHeight: 1.5 }}>{t.label}</Typography>
+                      {t.deep && (
+                        <Box sx={{ fontSize: 9.5, fontWeight: 700, letterSpacing: 0.5, color: heroColor, background: `${heroColor}15`, px: 0.75, py: 0.2, borderRadius: 1, flexShrink: 0 }}>
+                          DEEP
+                        </Box>
+                      )}
+                    </Box>
+                  ))}
+                </Box>
+              )}
+            </Box>
+          ) : (
+            <Button
+              variant="contained"
+              fullWidth
+              onClick={() => setShowSunset(true)}
+              sx={{
+                py: 1.4,
+                borderRadius: 2,
+                fontSize: 12,
+                fontWeight: 700,
+                letterSpacing: 1,
+                textTransform: "uppercase",
+                background: heroColor,
+                color: "#fff",
+                "&:hover": { background: heroColor, opacity: 0.88 },
+                boxShadow: "none",
+              }}
+            >
+              Close the day
+            </Button>
+          )}
         </Box>
       </Box>
 
@@ -2928,6 +3081,7 @@ export default function TodayPage() {
         heroColor={heroColor}
         isDark={isDark}
         pendingSacred={allSacred.filter((s) => !habits[s.id])}
+        yesterdayTasks={yesterdayTasks}
       />
       <EveningFlowModal
         open={showEveningFlow}
