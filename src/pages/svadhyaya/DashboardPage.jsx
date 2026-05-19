@@ -1534,6 +1534,15 @@ export default function DashboardPage() {
     );
   };
 
+  // ── derived state — must stay BEFORE any early return (Rules of Hooks) ──
+  const todayStr      = dayjs().format("YYYY-MM-DD");
+  const todayMass     = useMemo(() => calculateDailyMass(dayMap[todayStr]), [dayMap, todayStr]);
+  const todayMassPct  = Math.min(100, Math.round((todayMass / MAX_EXPECTED_MASS) * 100));
+  const activeBook    = useMemo(() => books.find((b) => b.status === "reading"), [books]);
+  const bookProgress  = activeBook?.total_pages > 0 ? Math.round((activeBook.pages_read / activeBook.total_pages) * 100) : null;
+  const todayJapa     = useMemo(() => japaLogs.filter((l) => l.day_date === todayStr).reduce((s, l) => s + l.count, 0), [japaLogs, todayStr]);
+  const todayActivity = useMemo(() => activityLogs.find((a) => a.date === todayStr), [activityLogs, todayStr]);
+
   if (loading)
     return (
       <Box
@@ -1565,13 +1574,6 @@ export default function DashboardPage() {
     );
 
   const greeting = getTimeGreeting();
-  const todayStr = dayjs().format("YYYY-MM-DD");
-  const todayMass    = useMemo(() => calculateDailyMass(dayMap[todayStr]), [dayMap, todayStr]);
-  const todayMassPct = Math.min(100, Math.round((todayMass / MAX_EXPECTED_MASS) * 100));
-  const activeBook   = useMemo(() => books.find((b) => b.status === "reading"), [books]);
-  const bookProgress = activeBook?.total_pages > 0 ? Math.round((activeBook.pages_read / activeBook.total_pages) * 100) : null;
-  const todayJapa    = useMemo(() => japaLogs.filter((l) => l.day_date === todayStr).reduce((s, l) => s + l.count, 0), [japaLogs, todayStr]);
-  const todayActivity = useMemo(() => activityLogs.find((a) => a.date === todayStr), [activityLogs, todayStr]);
 
   return (
     <Box
