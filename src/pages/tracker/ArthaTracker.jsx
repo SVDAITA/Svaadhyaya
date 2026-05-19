@@ -306,6 +306,8 @@ function SectionLabel({ children, icon }) {
   );
 }
 
+let _arthaCache = null;
+
 // ─── MAIN COMPONENT ───────────────────────────────────────────────────────────
 export default function FinanceOSPage() {
   const { user } = useAuth();
@@ -314,16 +316,16 @@ export default function FinanceOSPage() {
   const [tab, setTab] = useState(0);
 
   // Data States
-  const [spends, setSpends] = useState([]);
-  const [loans, setLoans] = useState([]);
-  const [investments, setInvestments] = useState([]);
-  const [budgets, setBudgets] = useState([]);
-  const [goals, setGoals] = useState([]);
+  const [spends, setSpends] = useState(_arthaCache?.spends || []);
+  const [loans, setLoans] = useState(_arthaCache?.loans || []);
+  const [investments, setInvestments] = useState(_arthaCache?.investments || []);
+  const [budgets, setBudgets] = useState(_arthaCache?.budgets || []);
+  const [goals, setGoals] = useState(_arthaCache?.goals || []);
   const [trendData, setTrendData] = useState([]);
   const [trendWindow, setTrendWindow] = useState("6M");
 
   // UI States
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(_arthaCache === null);
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState({
     open: false,
@@ -429,7 +431,7 @@ export default function FinanceOSPage() {
   const loadDashboardData = useCallback(
     async (isInitial = false) => {
       if (!user) return;
-      if (isInitial) setLoading(true);
+      if (isInitial && _arthaCache === null) setLoading(true);
       try {
         const [fLogs, fLoans, fInvests, fBudgets, fGoals] = await Promise.all([
           supabase
@@ -463,11 +465,14 @@ export default function FinanceOSPage() {
             .eq("status", "active")
             .order("deadline", { ascending: true }),
         ]);
-        setSpends(fLogs.data || []);
-        setLoans(fLoans.data || []);
-        setInvestments(fInvests.data || []);
-        setBudgets(fBudgets.data || []);
-        setGoals(fGoals.data || []);
+        const s = fLogs.data || [], l = fLoans.data || [], i = fInvests.data || [];
+        const b = fBudgets.data || [], g = fGoals.data || [];
+        _arthaCache = { spends: s, loans: l, investments: i, budgets: b, goals: g };
+        setSpends(s);
+        setLoans(l);
+        setInvestments(i);
+        setBudgets(b);
+        setGoals(g);
 
         setLoanForm((prev) => {
           if (fLoans.data?.length > 0 && !prev.id)

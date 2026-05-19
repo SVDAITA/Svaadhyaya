@@ -312,12 +312,14 @@ function TripCard({ trip, onDelete, isDark }) {
   );
 }
 
+let _yatraCache = null;
+
 export default function PravesaPage() {
   const { user } = useAuth();
   const { mode } = useThemeMode();
   const isDark = mode === "dark";
-  const [trips, setTrips] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [trips, setTrips] = useState(_yatraCache?.trips || []);
+  const [loading, setLoading] = useState(_yatraCache === null);
   const [addOpen, setAddOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [saving, setSaving] = useState(false);
@@ -348,13 +350,14 @@ export default function PravesaPage() {
 
   const load = useCallback(async () => {
     if (!user) return;
-    setLoading(true);
+    if (_yatraCache === null) setLoading(true);
     try {
       const { data } = await supabase
         .from("travel_logs")
         .select("*")
         .eq("user_id", user.id)
         .order("from_date", { ascending: false });
+      _yatraCache = { trips: data || [] };
       setTrips(data || []);
     } finally {
       setLoading(false);

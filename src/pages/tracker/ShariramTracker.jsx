@@ -117,13 +117,15 @@ const itemVariants = {
   show: { opacity: 1, y: 0, transition: { duration: 0.6, ease: "easeOut" } },
 };
 
+let _shariramCache = null;
+
 export default function ShariramHealthOS() {
   const theme = useTheme();
   const isDark = theme.palette.mode === "dark";
   const { user } = useAuth();
 
-  const [logs, setLogs] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [logs, setLogs] = useState(_shariramCache?.logs || []);
+  const [loading, setLoading] = useState(_shariramCache === null);
   const [uploadOpen, setUploadOpen] = useState(false);
   const [targetsOpen, setTargetsOpen] = useState(false);
   const [targets, setTargets] = useState(DEFAULT_TARGETS);
@@ -135,7 +137,7 @@ export default function ShariramHealthOS() {
   const showSnack = (msg, severity = "success") => setSnack({ open: true, msg, severity });
 
   // Movement tracking
-  const [activityLogs, setActivityLogs] = useState([]);
+  const [activityLogs, setActivityLogs] = useState(_shariramCache?.activityLogs || []);
   const [movDate, setMovDate]       = useState(dayjs().format("YYYY-MM-DD"));
   const [movSteps, setMovSteps]     = useState("");
   const [movKm, setMovKm]           = useState("");
@@ -146,7 +148,7 @@ export default function ShariramHealthOS() {
 
   const fetchLogs = useCallback(async () => {
     if (!user) return;
-    setLoading(true);
+    if (_shariramCache === null) setLoading(true);
     try {
       const thirtyAgo = dayjs().subtract(30, "day").format("YYYY-MM-DD");
       const [logsRes, settingsRes, activityRes] = await Promise.all([
@@ -159,7 +161,9 @@ export default function ShariramHealthOS() {
         setTargets({ ...DEFAULT_TARGETS, ...settingsRes.data.habits.health_targets });
       }
       if (!activityRes.error) {
-        setActivityLogs(activityRes.data || []);
+        const al = activityRes.data || [];
+        _shariramCache = { logs: logsRes.data || [], activityLogs: al };
+        setActivityLogs(al);
         const todayEntry = activityRes.data?.find((a) => a.date === dayjs().format("YYYY-MM-DD"));
         if (todayEntry) {
           setMovSteps(todayEntry.steps != null ? String(todayEntry.steps) : "");

@@ -250,6 +250,8 @@ function SL({ children, color }) {
   );
 }
 
+let _purohitamCache = null;
+
 // ═══════════════════════════════════════════════════════════════════
 // PUROHITAM TAB
 // ═══════════════════════════════════════════════════════════════════
@@ -259,10 +261,10 @@ function PurohitamTab({ user, isDark }) {
   const textP = isDark ? "#F5EFE0" : "#2C2010";
   const textS = isDark ? "#A09070" : "#7A6040";
 
-  const [bookings, setBookings] = useState([]);
-  const [rituals, setRituals] = useState([]);
-  const [learning, setLearning] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [bookings, setBookings] = useState(_purohitamCache?.bookings || []);
+  const [rituals, setRituals] = useState(_purohitamCache?.rituals || []);
+  const [learning, setLearning] = useState(_purohitamCache?.learning || []);
+  const [loading, setLoading] = useState(_purohitamCache === null);
   const [snack, setSnack] = useState("");
 
   // Dialogs
@@ -294,7 +296,7 @@ function PurohitamTab({ user, isDark }) {
 
   const load = useCallback(async () => {
     if (!user) return;
-    setLoading(true);
+    if (_purohitamCache === null) setLoading(true);
     try {
       const [bks, rts, lrn] = await Promise.all([
         supabase
@@ -313,6 +315,7 @@ function PurohitamTab({ user, isDark }) {
           .eq("user_id", user.id)
           .order("created_at"),
       ]);
+      _purohitamCache = { bookings: bks.data || [], rituals: rts.data || [], learning: lrn.data || [] };
       setBookings(bks.data || []);
       setRituals(rts.data || []);
       setLearning(lrn.data || []);
@@ -1573,6 +1576,8 @@ function PurohitamTab({ user, isDark }) {
   );
 }
 
+let _anushtanamCache = null;
+
 // ═══════════════════════════════════════════════════════════════════
 // ANUSHTANAM TAB
 // ═══════════════════════════════════════════════════════════════════
@@ -1582,11 +1587,11 @@ function AnushtanamTab({ user, isDark }) {
   const textP = isDark ? "#E8E8F8" : "#1A1A3A";
   const textS = isDark ? "#8080AA" : "#5A5A7A";
 
-  const [sequence, setSequence] = useState([]);
-  const [completions, setCompletions] = useState({});
-  const [japaLogs, setJapaLogs] = useState([]);
-  const [japaGoals, setJapaGoals] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [sequence, setSequence] = useState(_anushtanamCache?.sequence || []);
+  const [completions, setCompletions] = useState(_anushtanamCache?.completions || {});
+  const [japaLogs, setJapaLogs] = useState(_anushtanamCache?.japaLogs || []);
+  const [japaGoals, setJapaGoals] = useState(_anushtanamCache?.japaGoals || []);
+  const [loading, setLoading] = useState(_anushtanamCache === null);
   const [snack, setSnack] = useState("");
   const [japaFilter, setJapaFilter] = useState("Month");
   const [selectedJapa, setSelectedJapa] = useState("");
@@ -1633,7 +1638,7 @@ function AnushtanamTab({ user, isDark }) {
 
   const load = useCallback(async () => {
     if (!user) return;
-    setLoading(true);
+    if (_anushtanamCache === null) setLoading(true);
     const [items, comps, japa, goals] = await Promise.all([
       supabase
         .from("daily_items")
@@ -1656,15 +1661,15 @@ function AnushtanamTab({ user, isDark }) {
         .eq("user_id", user.id)
         .eq("is_active", true),
     ]);
-    setSequence(items.data || []);
-    setCompletions(
-      comps.data?.reduce(
-        (acc, c) => ({ ...acc, [c.daily_item_id]: c.is_completed }),
-        {},
-      ) || {},
-    );
-    setJapaLogs(japa.data || []);
-    setJapaGoals(goals.data || []);
+    const seq = items.data || [];
+    const comp = comps.data?.reduce((acc, c) => ({ ...acc, [c.daily_item_id]: c.is_completed }), {}) || {};
+    const jl = japa.data || [];
+    const jg = goals.data || [];
+    _anushtanamCache = { sequence: seq, completions: comp, japaLogs: jl, japaGoals: jg };
+    setSequence(seq);
+    setCompletions(comp);
+    setJapaLogs(jl);
+    setJapaGoals(jg);
     setLoading(false);
   }, [user, today]);
 

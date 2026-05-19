@@ -115,16 +115,18 @@ const parseManualDate = (dateStr) => {
   return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
 };
 
+let _pathanamCache = null;
+
 export default function ReadingLogPage() {
   const { user } = useAuth();
   const { mode } = useThemeMode();
   const isDark = mode === "dark";
 
   const [tab, setTab] = useState(0);
-  const [books, setBooks] = useState([]);
-  const [sessions, setSessions] = useState([]);
-  const [journalEntries, setJournalEntries] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [books, setBooks] = useState(_pathanamCache?.books || []);
+  const [sessions, setSessions] = useState(_pathanamCache?.sessions || []);
+  const [journalEntries, setJournalEntries] = useState(_pathanamCache?.journalEntries || []);
+  const [loading, setLoading] = useState(_pathanamCache === null);
   const [snack, setSnack] = useState({ open: false, msg: "", severity: "success" });
   const showSnack = (msg, severity = "success") => setSnack({ open: true, msg, severity });
 
@@ -220,7 +222,7 @@ export default function ReadingLogPage() {
   const load = useCallback(
     async (silent = false) => {
       if (!user) return;
-      if (!silent) setLoading(true);
+      if (!silent && _pathanamCache === null) setLoading(true);
       try {
         const [booksRes, sessionsRes, journalRes] = await Promise.all([
           supabase
@@ -239,9 +241,13 @@ export default function ReadingLogPage() {
             .eq("user_id", user.id)
             .order("entry_date", { ascending: false }),
         ]);
-        setBooks(booksRes.data || []);
-        setSessions(sessionsRes.data || []);
-        setJournalEntries(journalRes.data || []);
+        const b = booksRes.data || [];
+        const s = sessionsRes.data || [];
+        const j = journalRes.data || [];
+        _pathanamCache = { books: b, sessions: s, journalEntries: j };
+        setBooks(b);
+        setSessions(s);
+        setJournalEntries(j);
       } finally {
         if (!silent) setLoading(false);
       }

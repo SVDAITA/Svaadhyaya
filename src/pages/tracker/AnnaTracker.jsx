@@ -115,6 +115,8 @@ const MacroRing = ({ value, max, label, color, icon, unit }) => {
   );
 };
 
+let _annaCache = null;
+
 export default function DietPage() {
   const { user } = useAuth();
   const { mode } = useThemeMode();
@@ -122,10 +124,10 @@ export default function DietPage() {
   const safeColor = isDark ? "#9AC833" : COLOR;
 
   const [tab, setTab] = useState(0);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(_annaCache === null);
 
   // Meal log
-  const [mealLogs, setMealLogs] = useState(EMPTY_MEAL_LOGS);
+  const [mealLogs, setMealLogs] = useState(_annaCache?.mealLogs ?? EMPTY_MEAL_LOGS);
   const mealSaveTimer = useRef(null);
 
   // Reflection
@@ -137,12 +139,12 @@ export default function DietPage() {
   const notesTimerRef = useRef(null);
 
   // Macros
-  const [macros, setMacros] = useState(DEFAULT_MACROS);
+  const [macros, setMacros] = useState(_annaCache?.macros ?? DEFAULT_MACROS);
   const [editingMacros, setEditingMacros] = useState(false);
-  const [fastingWindow, setFastingWindow] = useState("12:12");
+  const [fastingWindow, setFastingWindow] = useState(_annaCache?.fastingWindow ?? "12:12");
 
   // Pantry
-  const [pantryItems, setPantryItems] = useState([]);
+  const [pantryItems, setPantryItems] = useState(_annaCache?.pantryItems ?? []);
   const [addPantryOpen, setAddPantryOpen] = useState(false);
   const [newItem, setNewItem] = useState({ name: "", quantity: "", unit: "", category: "Grains" });
   const [pantryJsonInput, setPantryJsonInput] = useState("");
@@ -173,7 +175,7 @@ export default function DietPage() {
 
   const load = useCallback(async () => {
     if (!user) return;
-    setLoading(true);
+    if (_annaCache === null) setLoading(true);
     try {
       const [{ data: dayData }, { data: settingsData }, { data: historyData }] = await Promise.all([
         supabase
@@ -199,14 +201,18 @@ export default function DietPage() {
           .limit(200),
       ]);
 
-      if (dayData) {
-        if (dayData.habits?.meal_logs)
-          setMealLogs({ ...EMPTY_MEAL_LOGS, ...dayData.habits.meal_logs });
-        setNotes(dayData.journal || "");
-      }
-      if (settingsData?.habits?.macros) setMacros(settingsData.habits.macros);
-      if (settingsData?.habits?.fasting_window) setFastingWindow(settingsData.habits.fasting_window);
-      if (settingsData?.habits?.pantry_items) setPantryItems(settingsData.habits.pantry_items);
+      const ml = dayData?.habits?.meal_logs
+        ? { ...EMPTY_MEAL_LOGS, ...dayData.habits.meal_logs }
+        : EMPTY_MEAL_LOGS;
+      const m = settingsData?.habits?.macros ?? DEFAULT_MACROS;
+      const fw = settingsData?.habits?.fasting_window ?? "12:12";
+      const pi = settingsData?.habits?.pantry_items ?? [];
+      _annaCache = { mealLogs: ml, macros: m, fastingWindow: fw, pantryItems: pi };
+      setMealLogs(ml);
+      if (dayData) setNotes(dayData.journal || "");
+      setMacros(m);
+      setFastingWindow(fw);
+      setPantryItems(pi);
       setReflectionHistory(historyData || []);
     } finally {
       setLoading(false);

@@ -19,7 +19,6 @@ import {
   BottomNavigationAction,
   AppBar,
   Toolbar,
-  GlobalStyles,
 } from "@mui/material";
 import {
   Today,
@@ -610,15 +609,6 @@ export default function AppLayout() {
         position: "relative",
       }}
     >
-      {/* Global CSS for Page Animations */}
-      <GlobalStyles
-        styles={{
-          "@keyframes pageEnter": {
-            "0%": { opacity: 0, transform: "translateY(15px)" },
-            "100%": { opacity: 1, transform: "translateY(0)" },
-          },
-        }}
-      />
 
       <TextureOverlay isDark={isDark} />
 
@@ -742,14 +732,7 @@ export default function AppLayout() {
               overflowX: "hidden",
             }}
           >
-            {/* Keyed Box forces the animation to re-run on route change */}
-            <Box
-              key={location.pathname}
-              sx={{
-                animation: "pageEnter 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) both",
-                height: "100%",
-              }}
-            >
+            <Box sx={{ height: "100%" }}>
               <Outlet />
             </Box>
           </Box>
@@ -839,14 +822,7 @@ export default function AppLayout() {
               isDark={isDark}
             />
 
-            {/* Animated Router Outlet Wrapper */}
-            <Box
-              key={location.pathname}
-              sx={{
-                flex: 1,
-                animation: "pageEnter 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) both",
-              }}
-            >
+            <Box sx={{ flex: 1 }}>
               <Outlet />
             </Box>
           </Box>

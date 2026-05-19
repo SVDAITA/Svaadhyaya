@@ -591,6 +591,8 @@ function ProgressRing({ value, size = 44, color, isDark }) {
   );
 }
 
+let _vrittiCache = null;
+
 // ─── Main Component ──────────────────────────────────────────────────────────
 export default function VrittiTracker() {
   const { user } = useAuth();
@@ -598,13 +600,13 @@ export default function VrittiTracker() {
   const isDark = mode === "dark";
 
   const [tab, setTab] = useState(0);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(_vrittiCache === null);
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState({ open: false, msg: "", severity: "success" });
 
-  const [projects, setProjects] = useState([]);
-  const [skills, setSkills] = useState([]);
-  const [certs, setCerts] = useState([]);
+  const [projects, setProjects] = useState(_vrittiCache?.projects || []);
+  const [skills, setSkills] = useState(_vrittiCache?.skills || []);
+  const [certs, setCerts] = useState(_vrittiCache?.certs || []);
 
   const [openProj, setOpenProj] = useState(false);
   const [openSkill, setOpenSkill] = useState(false);
@@ -634,13 +636,14 @@ export default function VrittiTracker() {
   // ─── Data Loading ─────────────────────────────────────────────────────────
   const loadData = useCallback(async () => {
     if (!user) return;
-    setLoading(true);
+    if (_vrittiCache === null) setLoading(true);
     try {
       const [p, s, c] = await Promise.all([
         supabase.from("milestones").select("*").eq("user_id", user.id).eq("area", "career_project").order("created_at", { ascending: false }),
         supabase.from("logs").select("*").eq("user_id", user.id).eq("area", "skill").order("created_at", { ascending: false }),
         supabase.from("milestones").select("*").eq("user_id", user.id).eq("area", "certification").order("progress", { ascending: false }),
       ]);
+      _vrittiCache = { projects: p.data || [], skills: s.data || [], certs: c.data || [] };
       setProjects(p.data || []);
       setSkills(s.data || []);
       setCerts(c.data || []);
