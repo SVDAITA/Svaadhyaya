@@ -1932,7 +1932,7 @@ export default function ReadingLogPage() {
             {saving ? (
               <CircularProgress size={20} color="inherit" />
             ) : (
-              {editBook ? "Update Book" : "Save Book"}
+              editBook ? "Update Book" : "Save Book"
             )}
           </Button>
         </DialogActions>
