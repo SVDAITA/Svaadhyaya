@@ -116,22 +116,67 @@ export default function ShariramHealthOS() {
   const [snapshotToDelete, setSnapshotToDelete] = useState(null);
   const showSnack = (msg, severity = "success") => setSnack({ open: true, msg, severity });
 
+  // Movement tracking
+  const [activityLogs, setActivityLogs] = useState([]);
+  const [movDate, setMovDate]       = useState(dayjs().format("YYYY-MM-DD"));
+  const [movSteps, setMovSteps]     = useState("");
+  const [movKm, setMovKm]           = useState("");
+  const [movCalories, setMovCalories] = useState("");
+  const [movSleep, setMovSleep]     = useState("");
+  const [movSleepQ, setMovSleepQ]   = useState(0);
+  const [savingMov, setSavingMov]   = useState(false);
+
   const fetchLogs = useCallback(async () => {
     if (!user) return;
     setLoading(true);
     try {
-      const [logsRes, settingsRes] = await Promise.all([
+      const thirtyAgo = dayjs().subtract(30, "day").format("YYYY-MM-DD");
+      const [logsRes, settingsRes, activityRes] = await Promise.all([
         supabase.from("health_logs").select("*").eq("user_id", user.id).order("date", { ascending: false }),
         supabase.from("days").select("habits").eq("user_id", user.id).eq("day_date", "2000-01-01").maybeSingle(),
+        supabase.from("daily_activity").select("*").eq("user_id", user.id).gte("date", thirtyAgo).order("date", { ascending: false }),
       ]);
       if (!logsRes.error) setLogs(logsRes.data || []);
       if (settingsRes.data?.habits?.health_targets) {
         setTargets({ ...DEFAULT_TARGETS, ...settingsRes.data.habits.health_targets });
       }
+      if (!activityRes.error) {
+        setActivityLogs(activityRes.data || []);
+        const todayEntry = activityRes.data?.find((a) => a.date === dayjs().format("YYYY-MM-DD"));
+        if (todayEntry) {
+          setMovSteps(todayEntry.steps != null ? String(todayEntry.steps) : "");
+          setMovKm(todayEntry.km_walked != null ? String(todayEntry.km_walked) : "");
+          setMovCalories(todayEntry.calories_burned != null ? String(todayEntry.calories_burned) : "");
+          setMovSleep(todayEntry.sleep_hours != null ? String(todayEntry.sleep_hours) : "");
+          setMovSleepQ(todayEntry.sleep_quality ?? 0);
+        }
+      }
     } finally {
       setLoading(false);
     }
   }, [user]);
+
+  const saveMovement = async () => {
+    if (!movSteps && !movKm && !movCalories && !movSleep) {
+      showSnack("Enter at least one value to save.", "error");
+      return;
+    }
+    setSavingMov(true);
+    const payload = {
+      user_id: user.id,
+      date: movDate,
+      steps: movSteps ? parseInt(movSteps, 10) : null,
+      km_walked: movKm ? parseFloat(movKm) : null,
+      calories_burned: movCalories ? parseInt(movCalories, 10) : null,
+      sleep_hours: movSleep ? parseFloat(movSleep) : null,
+      sleep_quality: movSleepQ || null,
+    };
+    const { error } = await supabase.from("daily_activity").upsert(payload, { onConflict: "user_id,date" });
+    setSavingMov(false);
+    if (error) { showSnack("Failed to save movement.", "error"); return; }
+    showSnack("Saved.");
+    fetchLogs();
+  };
 
   const saveTargets = async (newTargets) => {
     setTargets(newTargets);
@@ -733,6 +778,192 @@ export default function ShariramHealthOS() {
             </Card>
           </Box>
         )}
+
+        {/* ── DAILY MOVEMENT ── */}
+        <Box component={motion.div} variants={itemVariants}>
+          <Card sx={{ mb: 6, borderRadius: 4, bgcolor: alpha(theme.palette.background.paper, 0.8), backdropFilter: "blur(10px)", border: `1px solid ${theme.palette.divider}` }}>
+            <CardContent sx={{ p: { xs: 2, md: 4 } }}>
+              <Typography variant="h6" sx={{ mb: 0.5, fontFamily: "Fraunces, serif", display: "flex", alignItems: "center", gap: 1 }}>
+                🏃 Daily Activity & Sleep
+              </Typography>
+              <Typography variant="body2" sx={{ color: "text.secondary", mb: 3 }}>
+                Log data from Apple Watch / Apple Health · Steps auto-estimate calories if manual calories are blank
+              </Typography>
+              <Grid container spacing={3} alignItems="flex-start">
+                {/* Input panel */}
+                <Grid item xs={12} md={5}>
+                  <Stack spacing={2}>
+                    <TextField
+                      label="Date"
+                      type="date"
+                      size="small"
+                      value={movDate}
+                      onChange={(e) => {
+                        const d = e.target.value;
+                        setMovDate(d);
+                        const ex = activityLogs.find((a) => a.date === d);
+                        setMovSteps(ex?.steps != null ? String(ex.steps) : "");
+                        setMovKm(ex?.km_walked != null ? String(ex.km_walked) : "");
+                        setMovCalories(ex?.calories_burned != null ? String(ex.calories_burned) : "");
+                        setMovSleep(ex?.sleep_hours != null ? String(ex.sleep_hours) : "");
+                        setMovSleepQ(ex?.sleep_quality ?? 0);
+                      }}
+                      InputLabelProps={{ shrink: true }}
+                      fullWidth
+                    />
+
+                    {/* Movement group */}
+                    <Typography variant="caption" sx={{ fontWeight: 700, color: "text.secondary", textTransform: "uppercase", letterSpacing: 0.5, pt: 0.5 }}>
+                      Movement
+                    </Typography>
+                    <Stack direction="row" spacing={1.5}>
+                      <TextField
+                        label="Steps"
+                        type="number"
+                        size="small"
+                        placeholder="e.g. 8000"
+                        value={movSteps}
+                        onChange={(e) => setMovSteps(e.target.value)}
+                        inputProps={{ min: 0 }}
+                        sx={{ flex: 1 }}
+                      />
+                      <TextField
+                        label="km Walked"
+                        type="number"
+                        size="small"
+                        placeholder="e.g. 5.2"
+                        value={movKm}
+                        onChange={(e) => setMovKm(e.target.value)}
+                        inputProps={{ min: 0, step: 0.1 }}
+                        sx={{ flex: 1 }}
+                      />
+                    </Stack>
+                    <TextField
+                      label="Active Calories (kcal)"
+                      type="number"
+                      size="small"
+                      placeholder="From Apple Health → Active Calories"
+                      helperText="Leave blank to auto-estimate from steps"
+                      value={movCalories}
+                      onChange={(e) => setMovCalories(e.target.value)}
+                      inputProps={{ min: 0 }}
+                      fullWidth
+                    />
+
+                    {/* Sleep group */}
+                    <Typography variant="caption" sx={{ fontWeight: 700, color: "text.secondary", textTransform: "uppercase", letterSpacing: 0.5, pt: 0.5 }}>
+                      Sleep
+                    </Typography>
+                    <TextField
+                      label="Sleep Duration (hrs)"
+                      type="number"
+                      size="small"
+                      placeholder="e.g. 7.5"
+                      helperText="From Apple Health → Sleep"
+                      value={movSleep}
+                      onChange={(e) => setMovSleep(e.target.value)}
+                      inputProps={{ min: 0, max: 24, step: 0.25 }}
+                      fullWidth
+                    />
+                    {/* Sleep quality dots */}
+                    <Box>
+                      <Typography variant="caption" sx={{ color: "text.secondary", display: "block", mb: 0.75 }}>
+                        Sleep Quality
+                      </Typography>
+                      <Stack direction="row" spacing={0.75}>
+                        {[1, 2, 3, 4, 5].map((n) => (
+                          <Box
+                            key={n}
+                            onClick={() => setMovSleepQ(movSleepQ === n ? 0 : n)}
+                            sx={{
+                              width: 32,
+                              height: 32,
+                              borderRadius: "50%",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              fontSize: 16,
+                              cursor: "pointer",
+                              border: `2px solid ${n <= movSleepQ ? "#6AAEE8" : theme.palette.divider}`,
+                              bgcolor: n <= movSleepQ ? alpha("#6AAEE8", 0.15) : "transparent",
+                              transition: "all 0.15s",
+                              userSelect: "none",
+                            }}
+                          >
+                            {["😴", "😐", "🙂", "😊", "🌟"][n - 1]}
+                          </Box>
+                        ))}
+                      </Stack>
+                      {movSleepQ > 0 && (
+                        <Typography variant="caption" sx={{ color: "text.secondary", mt: 0.5, display: "block" }}>
+                          {["Poor", "Fair", "Good", "Great", "Excellent"][movSleepQ - 1]}
+                        </Typography>
+                      )}
+                    </Box>
+
+                    <Button
+                      variant="contained"
+                      onClick={saveMovement}
+                      disabled={savingMov}
+                      sx={{ borderRadius: 2, textTransform: "none", fontWeight: 600, mt: 0.5 }}
+                    >
+                      {savingMov ? "Saving…" : "Save"}
+                    </Button>
+                  </Stack>
+                </Grid>
+
+                {/* Recent log */}
+                <Grid item xs={12} md={7}>
+                  <Typography variant="body2" sx={{ color: "text.secondary", mb: 1.5 }}>Last 10 entries · click a row to edit</Typography>
+                  {activityLogs.length === 0 ? (
+                    <Typography variant="body2" sx={{ color: "text.secondary", fontStyle: "italic" }}>No activity logged yet.</Typography>
+                  ) : (
+                    <TableContainer component={Paper} elevation={0} sx={{ borderRadius: 2, border: `1px solid ${theme.palette.divider}` }}>
+                      <Table size="small">
+                        <TableHead>
+                          <TableRow>
+                            <TableCell sx={{ fontSize: 11, fontWeight: 700 }}>Date</TableCell>
+                            <TableCell align="right" sx={{ fontSize: 11, fontWeight: 700 }}>Steps</TableCell>
+                            <TableCell align="right" sx={{ fontSize: 11, fontWeight: 700 }}>kcal</TableCell>
+                            <TableCell align="right" sx={{ fontSize: 11, fontWeight: 700 }}>Sleep</TableCell>
+                            <TableCell align="center" sx={{ fontSize: 11, fontWeight: 700 }}>Quality</TableCell>
+                          </TableRow>
+                        </TableHead>
+                        <TableBody>
+                          {activityLogs.slice(0, 10).map((row) => (
+                            <TableRow
+                              key={row.date}
+                              hover
+                              onClick={() => {
+                                setMovDate(row.date);
+                                setMovSteps(row.steps != null ? String(row.steps) : "");
+                                setMovKm(row.km_walked != null ? String(row.km_walked) : "");
+                                setMovCalories(row.calories_burned != null ? String(row.calories_burned) : "");
+                                setMovSleep(row.sleep_hours != null ? String(row.sleep_hours) : "");
+                                setMovSleepQ(row.sleep_quality ?? 0);
+                              }}
+                              sx={{ cursor: "pointer" }}
+                            >
+                              <TableCell sx={{ fontSize: 12 }}>{dayjs(row.date).format("D MMM")}</TableCell>
+                              <TableCell align="right" sx={{ fontSize: 12, fontWeight: 600 }}>{row.steps?.toLocaleString() ?? "—"}</TableCell>
+                              <TableCell align="right" sx={{ fontSize: 12, fontWeight: 600, color: row.calories_burned ? (isDark ? "#F59E6A" : "#C07830") : "text.secondary" }}>
+                                {row.calories_burned?.toLocaleString() ?? "—"}
+                              </TableCell>
+                              <TableCell align="right" sx={{ fontSize: 12 }}>{row.sleep_hours != null ? `${row.sleep_hours}h` : "—"}</TableCell>
+                              <TableCell align="center" sx={{ fontSize: 14 }}>
+                                {row.sleep_quality ? ["😴", "😐", "🙂", "😊", "🌟"][row.sleep_quality - 1] : "—"}
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </TableContainer>
+                  )}
+                </Grid>
+              </Grid>
+            </CardContent>
+          </Card>
+        </Box>
 
         {/* ── COMPARISON ENGINE ── */}
         <Box component={motion.div} variants={itemVariants}>

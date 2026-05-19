@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import {
   Box,
   Typography,
@@ -34,6 +34,11 @@ import { useAuth } from "../../hooks/useAuth";
 import { useThemeMode } from "../../hooks/useTheme";
 import { supabase } from "../../lib/supabase";
 import dayjs from "dayjs";
+import {
+  AreaChart, Area, BarChart, Bar, ComposedChart, Line,
+  XAxis, YAxis, ReferenceLine, Cell,
+  Tooltip as RechTooltip, ResponsiveContainer,
+} from "recharts";
 
 // ── ANIMATIONS & STYLING ────────────────────────────────────────────────────
 const fadeUp = keyframes`
@@ -779,6 +784,403 @@ function WeeklyMassChart({ weekDays, dayMap, heroColor }) {
   );
 }
 
+// ── HERO STAT CARD ──────────────────────────────────────────────────────────
+function HeroStatCard({ emoji, label, value, sub, color, isDark, delay = 0 }) {
+  const textP = isDark ? "#F0EDE8" : "#2C2C2C";
+  const textS = isDark ? "#7A7874" : "#9C9A94";
+  return (
+    <Card sx={{
+      border: `1px solid ${alpha(color, 0.22)}`,
+      borderRadius: 2.5,
+      background: isDark ? "rgba(26,25,22,0.7)" : "rgba(255,255,255,0.85)",
+      boxShadow: "none",
+      position: "relative",
+      overflow: "hidden",
+      animation: `${fadeUp} 0.4s ease ${delay}s both`,
+    }}>
+      <Box sx={{ position: "absolute", top: -8, right: -6, fontSize: 54, opacity: isDark ? 0.04 : 0.06, pointerEvents: "none" }}>{emoji}</Box>
+      <CardContent sx={{ p: "14px 16px !important", position: "relative", zIndex: 1 }}>
+        <Typography sx={{ fontSize: 8.5, fontWeight: 800, letterSpacing: 1.4, textTransform: "uppercase", color, mb: 0.75 }}>{label}</Typography>
+        <Typography sx={{ fontFamily: '"Fraunces",serif', fontSize: 28, fontWeight: 700, color: textP, lineHeight: 1, mb: 0.3 }}>{value}</Typography>
+        {sub && <Typography sx={{ fontSize: 10, color: textS, lineHeight: 1.35, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{sub}</Typography>}
+      </CardContent>
+    </Card>
+  );
+}
+
+// ── READING RHYTHM CARD ─────────────────────────────────────────────────────
+function ReadingCard({ books, readingSessions, isDark }) {
+  const rc = isDark ? "#D4845A" : "#8B3A2F";
+  const textP = isDark ? "#F0EDE8" : "#2C2C2C";
+  const textS = isDark ? "#7A7874" : "#9C9A94";
+  const today = dayjs();
+
+  const activeBook = books.find((b) => b.status === "reading");
+  const progress = activeBook?.total_pages > 0
+    ? Math.round((activeBook.pages_read / activeBook.total_pages) * 100) : 0;
+
+  const recent = readingSessions.filter((s) => dayjs(s.session_date).isAfter(today.subtract(7, "day")));
+  const velocity = recent.length > 0 ? Math.round(recent.reduce((s, r) => s + (r.pages_read || 0), 0) / 7) : 0;
+  const remaining = activeBook ? Math.max(0, (activeBook.total_pages || 0) - (activeBook.pages_read || 0)) : 0;
+  const eta = velocity > 0 ? Math.ceil(remaining / velocity) : null;
+  const booksRead = books.filter((b) => b.status === "completed").length;
+
+  const chartData = Array.from({ length: 30 }, (_, i) => {
+    const d = today.subtract(29 - i, "day").format("YYYY-MM-DD");
+    const pages = readingSessions.filter((s) => s.session_date === d).reduce((s, r) => s + (r.pages_read || 0), 0);
+    return { day: today.subtract(29 - i, "day").format("D"), pages };
+  });
+
+  return (
+    <Card sx={{ border: `1px solid ${alpha(rc, 0.25)}`, borderRadius: 2.5, background: isDark ? "rgba(26,25,22,0.7)" : "#fff", boxShadow: "none", height: "100%", animation: `${fadeUp} 0.5s ease 0.2s both` }}>
+      <CardContent sx={{ p: 2.5 }}>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
+          <Typography sx={{ fontSize: 14 }}>📖</Typography>
+          <Typography sx={{ fontSize: 10, fontWeight: 800, letterSpacing: 1.2, textTransform: "uppercase", color: rc }}>Reading Rhythm</Typography>
+          <Box sx={{ flex: 1 }} />
+          <Typography sx={{ fontSize: 10, color: textS }}>{booksRead} completed</Typography>
+        </Box>
+        {activeBook ? (
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 2 }}>
+            <Box sx={{ position: "relative", display: "inline-flex", flexShrink: 0 }}>
+              <CircularProgress variant="determinate" value={100} size={52} thickness={4} sx={{ color: alpha(rc, 0.12) }} />
+              <CircularProgress variant="determinate" value={progress} size={52} thickness={4} sx={{ color: rc, position: "absolute", left: 0, strokeLinecap: "round" }} />
+              <Box sx={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <Typography sx={{ fontSize: 10, fontWeight: 800, color: rc }}>{progress}%</Typography>
+              </Box>
+            </Box>
+            <Box sx={{ flex: 1, minWidth: 0 }}>
+              <Typography sx={{ fontSize: 12, fontWeight: 700, color: textP, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{activeBook.title}</Typography>
+              <Typography sx={{ fontSize: 10, color: textS, mt: 0.2 }}>{activeBook.pages_read} / {activeBook.total_pages} pages</Typography>
+              {eta != null && <Typography sx={{ fontSize: 10, color: rc, mt: 0.2 }}>~{eta}d to finish · {velocity} pg/day</Typography>}
+            </Box>
+          </Box>
+        ) : (
+          <Typography sx={{ fontSize: 12, color: textS, mb: 2, fontStyle: "italic" }}>No book in progress</Typography>
+        )}
+        <Typography sx={{ fontSize: 9, color: textS, fontWeight: 700, letterSpacing: 1.2, textTransform: "uppercase", mb: 0.75 }}>Pages · Last 30 days</Typography>
+        <ResponsiveContainer width="100%" height={75}>
+          <AreaChart data={chartData} margin={{ top: 2, right: 0, left: -32, bottom: 0 }}>
+            <defs>
+              <linearGradient id="readGrad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor={rc} stopOpacity={0.5} />
+                <stop offset="100%" stopColor={rc} stopOpacity={0} />
+              </linearGradient>
+            </defs>
+            <XAxis dataKey="day" tick={{ fontSize: 7.5, fill: textS }} interval={5} />
+            <YAxis tick={{ fontSize: 7.5, fill: textS }} />
+            <RechTooltip contentStyle={{ fontSize: 11, background: isDark ? "#1A1916" : "#fff", border: `1px solid ${alpha(rc, 0.3)}`, borderRadius: 8 }} />
+            <Area type="monotone" dataKey="pages" stroke={rc} fill="url(#readGrad)" strokeWidth={2} dot={false} />
+          </AreaChart>
+        </ResponsiveContainer>
+      </CardContent>
+    </Card>
+  );
+}
+
+// ── JAPA MAHASANKALPAM CARD ─────────────────────────────────────────────────
+function JapaCard({ japaLogs, japaGoals, isDark }) {
+  const jc = isDark ? "#D4A830" : "#C07830";
+  const textP = isDark ? "#F0EDE8" : "#2C2C2C";
+  const textS = isDark ? "#7A7874" : "#9C9A94";
+  const today = dayjs().format("YYYY-MM-DD");
+  const [activeGoal, setActiveGoal] = useState(null);
+
+  useEffect(() => {
+    if (japaGoals.length > 0 && !activeGoal) setActiveGoal(japaGoals[0]);
+  }, [japaGoals]);
+
+  const totalLogged = activeGoal
+    ? japaLogs.filter((l) => l.japa_name === activeGoal.japa_name).reduce((s, l) => s + l.count, 0) : 0;
+  const pct = activeGoal ? Math.min((totalLogged / activeGoal.target_count) * 100, 100) : 0;
+  const todayCount = activeGoal
+    ? japaLogs.filter((l) => l.japa_name === activeGoal.japa_name && l.day_date === today).reduce((s, l) => s + l.count, 0) : 0;
+
+  const daysLogged = activeGoal ? japaLogs.filter((l) => l.japa_name === activeGoal.japa_name).length : 1;
+  const remaining = activeGoal ? Math.max(0, activeGoal.target_count - totalLogged) : 0;
+  const deadlineDays = activeGoal?.deadline_years ? activeGoal.deadline_years * 365 - daysLogged : null;
+  const dailyPace = deadlineDays > 0 ? Math.round(remaining / deadlineDays) : null;
+
+  const chartData = Array.from({ length: 14 }, (_, i) => {
+    const d = dayjs().subtract(13 - i, "day").format("YYYY-MM-DD");
+    const count = activeGoal
+      ? japaLogs.filter((l) => l.japa_name === activeGoal.japa_name && l.day_date === d).reduce((s, l) => s + l.count, 0) : 0;
+    return { day: dayjs(d).format("D"), count };
+  });
+
+  return (
+    <Card sx={{ border: `1px solid ${alpha(jc, 0.25)}`, borderRadius: 2.5, background: isDark ? "rgba(26,25,22,0.7)" : "#fff", boxShadow: "none", height: "100%", animation: `${fadeUp} 0.5s ease 0.25s both` }}>
+      <CardContent sx={{ p: 2.5 }}>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
+          <Typography sx={{ fontSize: 14 }}>🕉️</Typography>
+          <Typography sx={{ fontSize: 10, fontWeight: 800, letterSpacing: 1.2, textTransform: "uppercase", color: jc }}>Japa Mahasankalpam</Typography>
+        </Box>
+        {japaGoals.length === 0 ? (
+          <Typography sx={{ fontSize: 12, color: textS, fontStyle: "italic", mb: 2 }}>No active Mahasankalpam</Typography>
+        ) : (
+          <>
+            {japaGoals.length > 1 && (
+              <Box sx={{ display: "flex", gap: 0.5, flexWrap: "wrap", mb: 1.5 }}>
+                {japaGoals.map((g) => (
+                  <Box key={g.id} onClick={() => setActiveGoal(g)} sx={{
+                    px: 1, py: 0.25, borderRadius: 10, cursor: "pointer", fontSize: 10, fontWeight: 600,
+                    background: activeGoal?.id === g.id ? jc : "transparent",
+                    color: activeGoal?.id === g.id ? "#fff" : textS,
+                    border: `1px solid ${activeGoal?.id === g.id ? jc : alpha(jc, 0.3)}`,
+                  }}>{g.japa_name}</Box>
+                ))}
+              </Box>
+            )}
+            <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2 }}>
+              <Box sx={{ position: "relative", display: "inline-flex", flexShrink: 0 }}>
+                <CircularProgress variant="determinate" value={100} size={56} thickness={4} sx={{ color: alpha(jc, 0.12) }} />
+                <CircularProgress variant="determinate" value={pct} size={56} thickness={4} sx={{ color: jc, position: "absolute", left: 0, strokeLinecap: "round" }} />
+                <Box sx={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <Typography sx={{ fontSize: 10, fontWeight: 800, color: jc }}>{Math.round(pct)}%</Typography>
+                </Box>
+              </Box>
+              <Box>
+                <Typography sx={{ fontSize: 10, color: textS }}>Total logged</Typography>
+                <Typography sx={{ fontFamily: '"Fraunces",serif', fontSize: 22, fontWeight: 700, color: textP, lineHeight: 1.1 }}>{totalLogged.toLocaleString()}</Typography>
+                <Typography sx={{ fontSize: 10, color: textS }}>of {(activeGoal?.target_count || 0).toLocaleString()}</Typography>
+                {todayCount > 0 && <Typography sx={{ fontSize: 10, color: jc, fontWeight: 700, mt: 0.25 }}>Today: {todayCount.toLocaleString()}</Typography>}
+              </Box>
+            </Box>
+          </>
+        )}
+        <Typography sx={{ fontSize: 9, color: textS, fontWeight: 700, letterSpacing: 1.2, textTransform: "uppercase", mb: 0.75 }}>Daily count · Last 14 days</Typography>
+        <ResponsiveContainer width="100%" height={75}>
+          <ComposedChart data={chartData} margin={{ top: 2, right: 0, left: -32, bottom: 0 }}>
+            <XAxis dataKey="day" tick={{ fontSize: 7.5, fill: textS }} />
+            <YAxis tick={{ fontSize: 7.5, fill: textS }} />
+            <RechTooltip contentStyle={{ fontSize: 11, background: isDark ? "#1A1916" : "#fff", border: `1px solid ${alpha(jc, 0.3)}`, borderRadius: 8 }} />
+            <Bar dataKey="count" radius={[3, 3, 0, 0]}>
+              {chartData.map((_, i) => <Cell key={i} fill={alpha(jc, 0.65)} />)}
+            </Bar>
+            {dailyPace != null && <ReferenceLine y={dailyPace} stroke={jc} strokeDasharray="4 3" strokeWidth={1.5} />}
+          </ComposedChart>
+        </ResponsiveContainer>
+        {dailyPace != null && <Typography sx={{ fontSize: 9.5, color: textS, mt: 0.75 }}>── pace needed: {dailyPace.toLocaleString()} / day</Typography>}
+      </CardContent>
+    </Card>
+  );
+}
+
+// ── FINANCE PULSE CARD ──────────────────────────────────────────────────────
+function FinanceCard({ financeLogs, financeBudgets, isDark }) {
+  const fc = isDark ? "#4DC4B5" : "#1A7A6E";
+  const textP = isDark ? "#F0EDE8" : "#2C2C2C";
+  const textS = isDark ? "#7A7874" : "#9C9A94";
+  const thisMonth = dayjs().format("YYYY-MM");
+
+  const monthlyData = Array.from({ length: 3 }, (_, i) => {
+    const m = dayjs().subtract(2 - i, "month");
+    const key = m.format("YYYY-MM");
+    const entries = financeLogs.filter((l) => (l.date || "").startsWith(key));
+    const income  = entries.filter((l) =>  l.income_flag).reduce((s, l) => s + l.amount, 0);
+    const expense = entries.filter((l) => !l.income_flag).reduce((s, l) => s + l.amount, 0);
+    return { month: m.format("MMM"), income, expense, savings: Math.max(0, income - expense) };
+  });
+
+  const thisMonthLogs = financeLogs.filter((l) => (l.date || "").startsWith(thisMonth) && !l.income_flag);
+  const spendByCat = thisMonthLogs.reduce((acc, l) => { acc[l.category] = (acc[l.category] || 0) + l.amount; return acc; }, {});
+  const budgetRows = financeBudgets
+    .map((b) => ({ category: b.category, limit: b.limit_amt, spent: spendByCat[b.category] || 0, pct: Math.min(100, Math.round(((spendByCat[b.category] || 0) / b.limit_amt) * 100)) }))
+    .sort((a, b) => b.pct - a.pct).slice(0, 4);
+
+  return (
+    <Card sx={{ border: `1px solid ${alpha(fc, 0.25)}`, borderRadius: 2.5, background: isDark ? "rgba(26,25,22,0.7)" : "#fff", boxShadow: "none", height: "100%", animation: `${fadeUp} 0.5s ease 0.3s both` }}>
+      <CardContent sx={{ p: 2.5 }}>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
+          <Typography sx={{ fontSize: 14 }}>💰</Typography>
+          <Typography sx={{ fontSize: 10, fontWeight: 800, letterSpacing: 1.2, textTransform: "uppercase", color: fc }}>Finance Pulse</Typography>
+          <Box sx={{ flex: 1 }} />
+          <Typography sx={{ fontSize: 10, color: textS }}>{dayjs().format("MMM YYYY")}</Typography>
+        </Box>
+        {budgetRows.length > 0 ? (
+          <Box sx={{ mb: 2 }}>
+            {budgetRows.map((row) => (
+              <Box key={row.category} sx={{ mb: 1.25 }}>
+                <Box sx={{ display: "flex", justifyContent: "space-between", mb: 0.4 }}>
+                  <Typography sx={{ fontSize: 10.5, color: textP, fontWeight: 500, textTransform: "capitalize" }}>{row.category}</Typography>
+                  <Typography sx={{ fontSize: 10, color: row.pct >= 90 ? "#E05A2B" : textS }}>₹{row.spent.toLocaleString()} / ₹{row.limit.toLocaleString()}</Typography>
+                </Box>
+                <Box sx={{ height: 5, borderRadius: 3, background: alpha(fc, 0.12), overflow: "hidden" }}>
+                  <Box sx={{ height: "100%", borderRadius: 3, width: `${row.pct}%`, background: row.pct >= 90 ? "#E05A2B" : row.pct >= 75 ? "#E0A02B" : fc, transition: "width 0.6s ease" }} />
+                </Box>
+              </Box>
+            ))}
+          </Box>
+        ) : (
+          <Typography sx={{ fontSize: 11, color: textS, fontStyle: "italic", mb: 2 }}>No budgets set for this month</Typography>
+        )}
+        <Typography sx={{ fontSize: 9, color: textS, fontWeight: 700, letterSpacing: 1.2, textTransform: "uppercase", mb: 0.75 }}>Income vs Expense · 3 months</Typography>
+        <ResponsiveContainer width="100%" height={75}>
+          <ComposedChart data={monthlyData} margin={{ top: 2, right: 0, left: -20, bottom: 0 }}>
+            <XAxis dataKey="month" tick={{ fontSize: 7.5, fill: textS }} />
+            <YAxis tick={{ fontSize: 7.5, fill: textS }} />
+            <RechTooltip contentStyle={{ fontSize: 11, background: isDark ? "#1A1916" : "#fff", border: `1px solid ${alpha(fc, 0.3)}`, borderRadius: 8 }} />
+            <Bar dataKey="expense" fill={alpha("#E05A2B", 0.55)} radius={[3, 3, 0, 0]} name="Expense" />
+            <Bar dataKey="income"  fill={alpha(fc, 0.65)} radius={[3, 3, 0, 0]} name="Income" />
+            <Line type="monotone" dataKey="savings" stroke={fc} strokeWidth={2} dot={{ fill: fc, r: 3 }} name="Savings" />
+          </ComposedChart>
+        </ResponsiveContainer>
+      </CardContent>
+    </Card>
+  );
+}
+
+// ── MOVEMENT CARD ────────────────────────────────────────────────────────────
+function estimateCalories(steps, weightKg) {
+  if (!steps || !weightKg) return null;
+  return Math.round(steps * weightKg * 0.000571);
+}
+
+function SleepStars({ quality, color }) {
+  return (
+    <Box sx={{ display: "flex", gap: 0.25 }}>
+      {[1, 2, 3, 4, 5].map((n) => (
+        <Box key={n} sx={{ width: 8, height: 8, borderRadius: "50%", background: n <= quality ? color : alpha(color, 0.2) }} />
+      ))}
+    </Box>
+  );
+}
+
+function MovementCard({ activityLogs, latestWeightKg, isDark }) {
+  const mc   = isDark ? "#5EC98A" : "#2D7A4F";
+  const sc   = isDark ? "#9B6CC4" : "#7C4DAB";
+  const textP = isDark ? "#F0EDE8" : "#2C2C2C";
+  const textS = isDark ? "#7A7874" : "#9C9A94";
+  const todayStr = dayjs().format("YYYY-MM-DD");
+  const todayEntry = activityLogs.find((a) => a.date === todayStr);
+  const yEntry     = activityLogs.find((a) => a.date === dayjs().subtract(1, "day").format("YYYY-MM-DD"));
+
+  const todaySteps  = todayEntry?.steps || 0;
+  const todayKm     = todayEntry?.km_walked || 0;
+  const todaySleep  = todayEntry?.sleep_hours ?? null;
+  const todaySleepQ = todayEntry?.sleep_quality ?? null;
+  const manualCals  = todayEntry?.calories_burned ?? null;
+  const estCals     = estimateCalories(todaySteps, latestWeightKg);
+  const displayCals = manualCals ?? estCals;
+  const calsIsEst   = manualCals == null && estCals != null;
+
+  const stepTrend = todaySteps > 0 ? (todaySteps >= (yEntry?.steps || 0) ? "↑" : "↓") : null;
+
+  const chartData = Array.from({ length: 14 }, (_, i) => {
+    const d = dayjs().subtract(13 - i, "day").format("YYYY-MM-DD");
+    const e = activityLogs.find((a) => a.date === d);
+    return {
+      day: dayjs(d).format("D"),
+      steps: e?.steps || 0,
+      calories: e?.calories_burned ?? estimateCalories(e?.steps, latestWeightKg) ?? 0,
+      isToday: d === todayStr,
+    };
+  });
+  const activeDays = chartData.filter((d) => d.steps > 0);
+  const avgSteps = activeDays.length > 0
+    ? Math.round(activeDays.reduce((s, d) => s + d.steps, 0) / activeDays.length) : 0;
+  const avgSleep = activityLogs.filter((a) => a.sleep_hours > 0).length > 0
+    ? (activityLogs.filter((a) => a.sleep_hours > 0).reduce((s, a) => s + a.sleep_hours, 0) / activityLogs.filter((a) => a.sleep_hours > 0).length).toFixed(1)
+    : null;
+
+  return (
+    <Card sx={{ border: `1px solid ${alpha(mc, 0.25)}`, borderRadius: 2.5, background: isDark ? "rgba(26,25,22,0.7)" : "#fff", boxShadow: "none", animation: `${fadeUp} 0.5s ease 0.35s both` }}>
+      <CardContent sx={{ p: 2.5 }}>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2.5 }}>
+          <Typography sx={{ fontSize: 14 }}>🏃</Typography>
+          <Typography sx={{ fontSize: 10, fontWeight: 800, letterSpacing: 1.2, textTransform: "uppercase", color: mc }}>Movement & Recovery</Typography>
+          <Box sx={{ flex: 1 }} />
+          {avgSteps > 0 && <Typography sx={{ fontSize: 10, color: textS }}>avg {avgSteps.toLocaleString()} steps/day</Typography>}
+          {avgSleep && <Typography sx={{ fontSize: 10, color: textS, ml: 1.5 }}>avg {avgSleep}h sleep</Typography>}
+        </Box>
+
+        <Grid container spacing={3} alignItems="flex-start">
+          {/* Today's big stats */}
+          <Grid item xs={12} sm={5}>
+            <Grid container spacing={1.5}>
+              {/* Steps */}
+              <Grid item xs={6}>
+                <Box sx={{ p: 1.5, borderRadius: 2, border: `1px solid ${alpha(mc, 0.2)}`, background: alpha(mc, 0.04) }}>
+                  <Typography sx={{ fontSize: 8.5, color: textS, fontWeight: 700, letterSpacing: 1.2, textTransform: "uppercase", mb: 0.5 }}>Steps</Typography>
+                  <Box sx={{ display: "flex", alignItems: "baseline", gap: 0.4 }}>
+                    <Typography sx={{ fontFamily: '"Fraunces",serif', fontSize: 26, fontWeight: 700, color: todaySteps > 0 ? mc : textS, lineHeight: 1 }}>
+                      {todaySteps > 0 ? todaySteps.toLocaleString() : "—"}
+                    </Typography>
+                    {stepTrend && <Typography sx={{ fontSize: 13, color: stepTrend === "↑" ? mc : "#E05A2B", fontWeight: 700 }}>{stepTrend}</Typography>}
+                  </Box>
+                  {todayKm > 0 && <Typography sx={{ fontSize: 10, color: mc, mt: 0.25 }}>{todayKm} km</Typography>}
+                </Box>
+              </Grid>
+
+              {/* Calories */}
+              <Grid item xs={6}>
+                <Box sx={{ p: 1.5, borderRadius: 2, border: `1px solid ${alpha("#E05A2B", 0.2)}`, background: alpha("#E05A2B", 0.04) }}>
+                  <Typography sx={{ fontSize: 8.5, color: textS, fontWeight: 700, letterSpacing: 1.2, textTransform: "uppercase", mb: 0.5 }}>Calories</Typography>
+                  <Typography sx={{ fontFamily: '"Fraunces",serif', fontSize: 26, fontWeight: 700, color: displayCals ? "#E05A2B" : textS, lineHeight: 1 }}>
+                    {displayCals ? displayCals.toLocaleString() : "—"}
+                  </Typography>
+                  {displayCals && (
+                    <Typography sx={{ fontSize: 9.5, color: calsIsEst ? textS : "#E05A2B", mt: 0.25 }}>
+                      {calsIsEst ? "est. from steps" : "kcal · Apple Watch"}
+                    </Typography>
+                  )}
+                </Box>
+              </Grid>
+
+              {/* Sleep */}
+              <Grid item xs={6}>
+                <Box sx={{ p: 1.5, borderRadius: 2, border: `1px solid ${alpha(sc, 0.2)}`, background: alpha(sc, 0.04) }}>
+                  <Typography sx={{ fontSize: 8.5, color: textS, fontWeight: 700, letterSpacing: 1.2, textTransform: "uppercase", mb: 0.5 }}>Sleep</Typography>
+                  <Typography sx={{ fontFamily: '"Fraunces",serif', fontSize: 26, fontWeight: 700, color: todaySleep ? sc : textS, lineHeight: 1 }}>
+                    {todaySleep ? `${todaySleep}h` : "—"}
+                  </Typography>
+                  {todaySleepQ && <Box sx={{ mt: 0.5 }}><SleepStars quality={todaySleepQ} color={sc} /></Box>}
+                </Box>
+              </Grid>
+
+              {/* Net balance placeholder (calories burned vs consumed) */}
+              <Grid item xs={6}>
+                <Box sx={{ p: 1.5, borderRadius: 2, border: `1px solid ${alpha(mc, 0.15)}`, background: alpha(mc, 0.03), height: "100%", display: "flex", flexDirection: "column", justifyContent: "center" }}>
+                  <Typography sx={{ fontSize: 8.5, color: textS, fontWeight: 700, letterSpacing: 1.2, textTransform: "uppercase", mb: 0.5 }}>Active days</Typography>
+                  <Typography sx={{ fontFamily: '"Fraunces",serif', fontSize: 26, fontWeight: 700, color: mc, lineHeight: 1 }}>
+                    {activeDays.length}
+                  </Typography>
+                  <Typography sx={{ fontSize: 9.5, color: textS, mt: 0.25 }}>last 14 days</Typography>
+                </Box>
+              </Grid>
+            </Grid>
+
+            {todaySteps === 0 && !todaySleep && (
+              <Typography sx={{ fontSize: 10, color: textS, mt: 1.5, fontStyle: "italic" }}>Log in Sharīram tracker</Typography>
+            )}
+          </Grid>
+
+          {/* Charts */}
+          <Grid item xs={12} sm={7}>
+            <Typography sx={{ fontSize: 9, color: textS, fontWeight: 700, letterSpacing: 1.2, textTransform: "uppercase", mb: 0.75 }}>
+              Steps & Calories · Last 14 days
+            </Typography>
+            <ResponsiveContainer width="100%" height={110}>
+              <ComposedChart data={chartData} margin={{ top: 2, right: 0, left: -28, bottom: 0 }}>
+                <XAxis dataKey="day" tick={{ fontSize: 7.5, fill: textS }} />
+                <YAxis yAxisId="steps" tick={{ fontSize: 7.5, fill: textS }} />
+                <YAxis yAxisId="cals" orientation="right" tick={{ fontSize: 7.5, fill: textS }} />
+                <RechTooltip contentStyle={{ fontSize: 11, background: isDark ? "#1A1916" : "#fff", border: `1px solid ${alpha(mc, 0.3)}`, borderRadius: 8 }} />
+                <Bar yAxisId="steps" dataKey="steps" radius={[3, 3, 0, 0]} name="Steps">
+                  {chartData.map((entry, i) => (
+                    <Cell key={i} fill={entry.steps > 0 ? (entry.isToday ? mc : alpha(mc, 0.5)) : alpha(mc, 0.1)} />
+                  ))}
+                </Bar>
+                <Line yAxisId="cals" type="monotone" dataKey="calories" stroke="#E05A2B" strokeWidth={1.5} dot={false} name="Calories" />
+              </ComposedChart>
+            </ResponsiveContainer>
+          </Grid>
+        </Grid>
+      </CardContent>
+    </Card>
+  );
+}
+
 // ── MAIN DASHBOARD ─────────────────────────────────────────────────────────────
 
 export default function DashboardPage() {
@@ -794,6 +1196,14 @@ export default function DashboardPage() {
   const [weeklyGoals, setWeeklyGoals] = useState([]);
   const [selectedDate, setSelectedDate] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [japaLogs, setJapaLogs] = useState([]);
+  const [japaGoals, setJapaGoals] = useState([]);
+  const [books, setBooks] = useState([]);
+  const [readingSessions, setReadingSessions] = useState([]);
+  const [financeLogs, setFinanceLogs] = useState([]);
+  const [financeBudgets, setFinanceBudgets] = useState([]);
+  const [activityLogs, setActivityLogs] = useState([]);
+  const [latestWeightKg, setLatestWeightKg] = useState(null);
 
   const textP = isDark ? "#F0EDE8" : "#2C2C2C";
   const textS = isDark ? "#7A7874" : "#9C9A94";
@@ -804,44 +1214,58 @@ export default function DashboardPage() {
     if (!user) { setLoading(false); return; }
     setLoading(true);
     try {
-      const { data: days } = await supabase
-        .from("days")
-        .select("*")
-        .eq("user_id", user.id)
-        .order("day_date");
-      const map = {};
-      days?.forEach((d) => {
-        map[d.day_date] = d;
-      });
-      setDayMap(map);
+      const thirtyAgo  = dayjs().subtract(30, "day").format("YYYY-MM-DD");
+      const ninetyAgo  = dayjs().subtract(90, "day").format("YYYY-MM-DD");
+      const thisMonth  = dayjs().format("YYYY-MM");
+      const weekStart  = dayjs().startOf("week").format("YYYY-MM-DD");
 
-      const weekStart = dayjs().startOf("week").format("YYYY-MM-DD");
-      const [{ data: lData }, { data: anshData }, { data: vacData }, { data: wgData }] = await Promise.all([
-        supabase
-          .from("lakshyas")
-          .select("*, siddhis(*)")
-          .eq("user_id", user.id)
-          .eq("status", "active"),
-        supabase
-          .from("anshs")
-          .select("id, lakshya_id, status")
-          .eq("user_id", user.id),
-        supabase
-          .from("vacations")
-          .select("from_date, to_date")
-          .eq("user_id", user.id),
-        supabase
-          .from("weekly_goals")
-          .select("*")
-          .eq("user_id", user.id)
-          .eq("week_start", weekStart)
-          .order("created_at"),
+      const [
+        { data: days },
+        { data: lData },
+        { data: anshData },
+        { data: vacData },
+        { data: wgData },
+        { data: japaLogsData },
+        { data: japaGoalsData },
+        { data: booksData },
+        { data: sessionsData },
+        { data: finLogsData },
+        { data: budgetsData },
+        { data: activityData },
+        { data: weightData },
+      ] = await Promise.all([
+        supabase.from("days")
+          .select("day_date,habits,habits_data,disruption_mode,last_close,wins,one_thing,morning_flow_done")
+          .eq("user_id", user.id).order("day_date"),
+        supabase.from("lakshyas").select("*, siddhis(*)").eq("user_id", user.id).eq("status", "active"),
+        supabase.from("anshs").select("id, lakshya_id, status").eq("user_id", user.id),
+        supabase.from("vacations").select("from_date, to_date").eq("user_id", user.id),
+        supabase.from("weekly_goals").select("*").eq("user_id", user.id).eq("week_start", weekStart).order("created_at"),
+        supabase.from("japa_logs").select("japa_name,count,day_date").eq("user_id", user.id),
+        supabase.from("japa_goals").select("*").eq("user_id", user.id).eq("is_active", true),
+        supabase.from("books").select("id,title,pages_read,total_pages,status").eq("user_id", user.id),
+        supabase.from("reading_sessions").select("session_date,pages_read,book_id").eq("user_id", user.id).gte("session_date", thirtyAgo),
+        supabase.from("finance_logs").select("amount,date,income_flag,category").eq("user_id", user.id).gte("date", ninetyAgo),
+        supabase.from("budgets").select("category,limit_amt,month").eq("user_id", user.id).eq("month", thisMonth),
+        supabase.from("daily_activity").select("date,steps,km_walked,calories_burned,sleep_hours,sleep_quality").eq("user_id", user.id).gte("date", thirtyAgo),
+        supabase.from("health_logs").select("value,date").eq("user_id", user.id).eq("type", "weight").order("date", { ascending: false }).limit(1),
       ]);
+
+      const map = {};
+      (days || []).forEach((d) => { map[d.day_date] = d; });
+      setDayMap(map);
       setLakshyas(lData || []);
       setTodayAnshs(anshData || []);
       setWeeklyGoals(wgData || []);
+      setJapaLogs(japaLogsData || []);
+      setJapaGoals(japaGoalsData || []);
+      setBooks(booksData || []);
+      setReadingSessions(sessionsData || []);
+      setFinanceLogs(finLogsData || []);
+      setFinanceBudgets(budgetsData || []);
+      setActivityLogs(activityData || []);
+      setLatestWeightKg(weightData?.[0]?.value ?? null);
 
-      // Build a Set of every date string covered by any vacation range.
       const vacationDateSet = new Set();
       (vacData || []).forEach(({ from_date, to_date }) => {
         let cur = dayjs(from_date);
@@ -852,8 +1276,6 @@ export default function DashboardPage() {
         }
       });
 
-      // AREA_HABIT_MAP — maps life pillar to the default habit task ID it tracks.
-      // These IDs match the locked task ids defined in DEFAULT_SACRED/CORE on TodayPage.
       const AREA_HABIT_MAP = {
         spirit:  "anushthanam",
         music:   "saadhana",
@@ -866,16 +1288,10 @@ export default function DashboardPage() {
       setDynamicStreaks(
         Object.entries(AREA_HABIT_MAP).map(([area, habitId]) => {
           const linked = activeLakshyas.find((l) => l.pillar === area);
-          return {
-            area,
-            habitId,
-            count: calcStreak(map, habitId, vacationDateSet),
-            lakshyaTitle: linked?.title || null,
-          };
+          return { area, habitId, count: calcStreak(map, habitId, vacationDateSet), lakshyaTitle: linked?.title || null };
         }),
       );
-      // Artificial delay for smooth aesthetic loading
-      setTimeout(() => setLoading(false), 400);
+      setLoading(false);
     } catch (err) {
       console.error("DashboardPage load error:", err.message);
       setLoading(false);
@@ -1149,6 +1565,13 @@ export default function DashboardPage() {
     );
 
   const greeting = getTimeGreeting();
+  const todayStr = dayjs().format("YYYY-MM-DD");
+  const todayMass    = useMemo(() => calculateDailyMass(dayMap[todayStr]), [dayMap, todayStr]);
+  const todayMassPct = Math.min(100, Math.round((todayMass / MAX_EXPECTED_MASS) * 100));
+  const activeBook   = useMemo(() => books.find((b) => b.status === "reading"), [books]);
+  const bookProgress = activeBook?.total_pages > 0 ? Math.round((activeBook.pages_read / activeBook.total_pages) * 100) : null;
+  const todayJapa    = useMemo(() => japaLogs.filter((l) => l.day_date === todayStr).reduce((s, l) => s + l.count, 0), [japaLogs, todayStr]);
+  const todayActivity = useMemo(() => activityLogs.find((a) => a.date === todayStr), [activityLogs, todayStr]);
 
   return (
     <Box
@@ -1232,6 +1655,48 @@ export default function DashboardPage() {
             </ToggleButton>
           </ToggleButtonGroup>
         </Box>
+
+        {/* HERO STATS ROW */}
+        <Grid container spacing={1.5} sx={{ mb: 3 }}>
+          {[
+            {
+              emoji: "🔥",
+              label: "Today's Resonance",
+              value: `${todayMassPct}%`,
+              sub: `${todayMass} / ${MAX_EXPECTED_MASS} mass`,
+              color: heroColor,
+              delay: 0,
+            },
+            {
+              emoji: "📖",
+              label: "Current Read",
+              value: bookProgress != null ? `${bookProgress}%` : "—",
+              sub: activeBook ? activeBook.title.slice(0, 24) + (activeBook.title.length > 24 ? "…" : "") : "No book in progress",
+              color: isDark ? "#D4845A" : "#8B3A2F",
+              delay: 0.05,
+            },
+            {
+              emoji: "🕉️",
+              label: "Japa Today",
+              value: todayJapa > 0 ? todayJapa.toLocaleString() : "—",
+              sub: japaGoals[0]?.japa_name || "No active goal",
+              color: isDark ? "#D4A830" : "#C07830",
+              delay: 0.1,
+            },
+            {
+              emoji: "🏃",
+              label: "Steps Today",
+              value: todayActivity?.steps ? todayActivity.steps.toLocaleString() : "—",
+              sub: todayActivity?.km_walked ? `${todayActivity.km_walked} km walked` : "Log in Sharīram",
+              color: isDark ? "#5EC98A" : "#2D7A4F",
+              delay: 0.15,
+            },
+          ].map((s) => (
+            <Grid item xs={6} md={3} key={s.label}>
+              <HeroStatCard {...s} isDark={isDark} />
+            </Grid>
+          ))}
+        </Grid>
 
         {/* STREAKS GRID */}
         <Grid container spacing={1.5} sx={{ mb: 3 }}>
@@ -1612,6 +2077,14 @@ export default function DashboardPage() {
               </CardContent>
             </Card>
           </Grid>
+        </Grid>
+
+        {/* ANALYTICS SECTION */}
+        <Grid container spacing={2} sx={{ mt: 1 }}>
+          <Grid item xs={12} md={4}><ReadingCard books={books} readingSessions={readingSessions} isDark={isDark} /></Grid>
+          <Grid item xs={12} md={4}><JapaCard japaLogs={japaLogs} japaGoals={japaGoals} isDark={isDark} /></Grid>
+          <Grid item xs={12} md={4}><FinanceCard financeLogs={financeLogs} financeBudgets={financeBudgets} isDark={isDark} /></Grid>
+          <Grid item xs={12}><MovementCard activityLogs={activityLogs} latestWeightKg={latestWeightKg} isDark={isDark} /></Grid>
         </Grid>
       </Box>
 
