@@ -117,7 +117,6 @@ const cardBaseStyles = {
   backgroundImage: ashramBgPattern,
   backgroundBlendMode: "overlay",
   transition: "transform 0.2s ease, box-shadow 0.2s ease",
-  animation: `${fadeIn} 0.6s ease-out forwards`,
   "&:hover": {
     boxShadow: "0 8px 32px -8px rgba(0,0,0,0.08)",
   },

@@ -44,8 +44,8 @@ import {
 
 // ── ANIMATIONS & STYLING ────────────────────────────────────────────────────
 const fadeUp = keyframes`
-  0% { opacity: 0; transform: translateY(10px); }
-  100% { opacity: 1; transform: translateY(0); }
+  0% { opacity: 1; }
+  100% { opacity: 1; }
 `;
 
 const pulseScale = keyframes`
@@ -1509,26 +1509,28 @@ function VitalsHero({ massPct, mass, oneThing, todayJapa, japaGoal, todayActivit
 
 // ── MAIN DASHBOARD ─────────────────────────────────────────────────────────────
 
+let _dashCache = null;
+
 export default function DashboardPage() {
   const { user } = useAuth();
   const { heroColor, mode } = useThemeMode();
   const isDark = mode === "dark";
   const [viewMode, setViewMode] = useState("week");
   const [currentDate, setCurrentDate] = useState(dayjs());
-  const [dayMap, setDayMap] = useState({});
-  const [dynamicStreaks, setDynamicStreaks] = useState([]);
-  const [lakshyas, setLakshyas] = useState([]);
-  const [todayAnshs, setTodayAnshs] = useState([]);
-  const [weeklyGoals, setWeeklyGoals] = useState([]);
+  const [dayMap, setDayMap] = useState(_dashCache?.dayMap || {});
+  const [dynamicStreaks, setDynamicStreaks] = useState(_dashCache?.dynamicStreaks || []);
+  const [lakshyas, setLakshyas] = useState(_dashCache?.lakshyas || []);
+  const [todayAnshs, setTodayAnshs] = useState(_dashCache?.todayAnshs || []);
+  const [weeklyGoals, setWeeklyGoals] = useState(_dashCache?.weeklyGoals || []);
   const [selectedDate, setSelectedDate] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [japaLogs, setJapaLogs] = useState([]);
-  const [japaGoals, setJapaGoals] = useState([]);
-  const [books, setBooks] = useState([]);
-  const [readingSessions, setReadingSessions] = useState([]);
-  const [financeLogs, setFinanceLogs] = useState([]);
-  const [financeBudgets, setFinanceBudgets] = useState([]);
-  const [activityLogs, setActivityLogs] = useState([]);
+  const [loading, setLoading] = useState(_dashCache === null);
+  const [japaLogs, setJapaLogs] = useState(_dashCache?.japaLogs || []);
+  const [japaGoals, setJapaGoals] = useState(_dashCache?.japaGoals || []);
+  const [books, setBooks] = useState(_dashCache?.books || []);
+  const [readingSessions, setReadingSessions] = useState(_dashCache?.readingSessions || []);
+  const [financeLogs, setFinanceLogs] = useState(_dashCache?.financeLogs || []);
+  const [financeBudgets, setFinanceBudgets] = useState(_dashCache?.financeBudgets || []);
+  const [activityLogs, setActivityLogs] = useState(_dashCache?.activityLogs || []);
   const [latestWeightKg, setLatestWeightKg] = useState(null);
   const [analyticsRange, setAnalyticsRange] = useState(30);
 
@@ -1539,7 +1541,7 @@ export default function DashboardPage() {
 
   const load = useCallback(async () => {
     if (!user) { setLoading(false); return; }
-    setLoading(true);
+    if (_dashCache === null) setLoading(true);
     try {
       const thirtyAgo  = dayjs().subtract(30, "day").format("YYYY-MM-DD");
       const ninetyAgo  = dayjs().subtract(90, "day").format("YYYY-MM-DD");
@@ -1592,6 +1594,13 @@ export default function DashboardPage() {
       setFinanceBudgets(budgetsData || []);
       setActivityLogs(activityData || []);
       setLatestWeightKg(weightData?.[0]?.value ?? null);
+      _dashCache = {
+        dayMap: map, lakshyas: lData || [], todayAnshs: anshData || [],
+        weeklyGoals: wgData || [], japaLogs: japaLogsData || [], japaGoals: japaGoalsData || [],
+        books: booksData || [], readingSessions: sessionsData || [],
+        financeLogs: finLogsData || [], financeBudgets: budgetsData || [],
+        activityLogs: activityData || [],
+      };
 
       const vacationDateSet = new Set();
       (vacData || []).forEach(({ from_date, to_date }) => {
@@ -1612,11 +1621,13 @@ export default function DashboardPage() {
         reading: "reading",
       };
       const activeLakshyas = lData || [];
+      const computedStreaks = Object.entries(AREA_HABIT_MAP).map(([area, habitId]) => {
+        const linked = activeLakshyas.find((l) => l.pillar === area);
+        return { area, habitId, count: calcStreak(map, habitId, vacationDateSet), lakshyaTitle: linked?.title || null };
+      });
+      if (_dashCache) _dashCache.dynamicStreaks = computedStreaks;
       setDynamicStreaks(
-        Object.entries(AREA_HABIT_MAP).map(([area, habitId]) => {
-          const linked = activeLakshyas.find((l) => l.pillar === area);
-          return { area, habitId, count: calcStreak(map, habitId, vacationDateSet), lakshyaTitle: linked?.title || null };
-        }),
+        computedStreaks,
       );
       setLoading(false);
     } catch (err) {

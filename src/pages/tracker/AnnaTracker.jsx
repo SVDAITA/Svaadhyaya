@@ -45,6 +45,7 @@ import {
   Save,
   Add,
   Delete,
+  Edit,
   Restaurant,
   History,
 } from "@mui/icons-material";
@@ -80,8 +81,16 @@ const PANTRY_CATEGORIES = [
   "Oils & Fats", "Spices & Herbs", "Beverages", "Snacks", "Other",
 ];
 
-const EMPTY_MEAL = { time: "", items: "", quantity: "" };
-const EMPTY_MEAL_LOGS = Object.fromEntries(MEAL_SLOTS.map((s) => [s.id, { ...EMPTY_MEAL }]));
+const EMPTY_MEAL = { time: "", items: [] };
+const EMPTY_MEAL_LOGS = Object.fromEntries(MEAL_SLOTS.map((s) => [s.id, { time: "", items: [] }]));
+
+const normalizeMealLog = (log) => {
+  if (!log) return { time: "", items: [] };
+  if (Array.isArray(log.items)) return { time: log.time || "", items: log.items };
+  // backwards-compat: old format had items as a string
+  const items = log.items?.trim() ? [{ name: log.items.trim(), qty: log.quantity || "" }] : [];
+  return { time: log.time || "", items };
+};
 const REFLECTION_PER_PAGE = 6;
 
 const fadeInUp = keyframes`
@@ -145,6 +154,15 @@ export default function DietPage() {
   const [reflectionPage, setReflectionPage] = useState(1);
   const [mealHistory, setMealHistory] = useState([]);
   const [mealHistoryPage, setMealHistoryPage] = useState(1);
+  const [itemDraft, setItemDraft] = useState(
+    Object.fromEntries(MEAL_SLOTS.map((s) => [s.id, { name: "", qty: "" }]))
+  );
+  const [editHistDay, setEditHistDay] = useState(null);
+  const [editHistLogs, setEditHistLogs] = useState(null);
+  const [editHistSaving, setEditHistSaving] = useState(false);
+  const [editHistDraft, setEditHistDraft] = useState(
+    Object.fromEntries(MEAL_SLOTS.map((s) => [s.id, { name: "", qty: "" }]))
+  );
   const notesTimerRef = useRef(null);
 
   // Macros
@@ -218,9 +236,10 @@ export default function DietPage() {
           .limit(90),
       ]);
 
-      const ml = dayData?.habits?.meal_logs
-        ? { ...EMPTY_MEAL_LOGS, ...dayData.habits.meal_logs }
-        : EMPTY_MEAL_LOGS;
+      const rawLogs = dayData?.habits?.meal_logs || {};
+      const ml = Object.fromEntries(
+        MEAL_SLOTS.map((s) => [s.id, normalizeMealLog(rawLogs[s.id])])
+      );
       const m = settingsData?.habits?.macros ?? DEFAULT_MACROS;
       const fw = settingsData?.habits?.fasting_window ?? "12:12";
       const pi = settingsData?.habits?.pantry_items ?? [];
@@ -231,10 +250,18 @@ export default function DietPage() {
       setFastingWindow(fw);
       setPantryItems(pi);
       setReflectionHistory(historyData || []);
-      const mh = (mealHistData || []).filter((d) =>
-        d.habits?.meal_logs &&
-        MEAL_SLOTS.some((s) => d.habits.meal_logs[s.id]?.items?.trim())
-      );
+      const mh = (mealHistData || [])
+        .filter((d) => d.habits?.meal_logs &&
+          MEAL_SLOTS.some((s) => normalizeMealLog(d.habits.meal_logs[s.id]).items.length > 0))
+        .map((d) => ({
+          ...d,
+          habits: {
+            ...d.habits,
+            meal_logs: Object.fromEntries(
+              MEAL_SLOTS.map((s) => [s.id, normalizeMealLog(d.habits.meal_logs[s.id])])
+            ),
+          },
+        }));
       setMealHistory(mh);
     } finally {
       setLoading(false);
@@ -253,11 +280,71 @@ export default function DietPage() {
     );
   }, [user, todayDate]);
 
-  const handleMealChange = (slotId, field, value) => {
-    const updated = { ...mealLogs, [slotId]: { ...mealLogs[slotId], [field]: value } };
+  const handleMealTimeChange = (slotId, value) => {
+    const updated = { ...mealLogs, [slotId]: { ...mealLogs[slotId], time: value } };
     setMealLogs(updated);
     clearTimeout(mealSaveTimer.current);
     mealSaveTimer.current = setTimeout(() => saveMealLogs(updated), 1000);
+  };
+
+  const handleAddItem = (slotId) => {
+    const draft = itemDraft[slotId];
+    if (!draft.name.trim()) return;
+    const updated = {
+      ...mealLogs,
+      [slotId]: { ...mealLogs[slotId], items: [...(mealLogs[slotId]?.items || []), { name: draft.name.trim(), qty: draft.qty.trim() }] },
+    };
+    setMealLogs(updated);
+    setItemDraft((p) => ({ ...p, [slotId]: { name: "", qty: "" } }));
+    clearTimeout(mealSaveTimer.current);
+    mealSaveTimer.current = setTimeout(() => saveMealLogs(updated), 800);
+  };
+
+  const handleRemoveItem = (slotId, idx) => {
+    const updated = {
+      ...mealLogs,
+      [slotId]: { ...mealLogs[slotId], items: mealLogs[slotId].items.filter((_, i) => i !== idx) },
+    };
+    setMealLogs(updated);
+    clearTimeout(mealSaveTimer.current);
+    mealSaveTimer.current = setTimeout(() => saveMealLogs(updated), 800);
+  };
+
+  const handleDeleteReflection = async (dayDate) => {
+    const { data: existing } = await supabase.from("days").select("habits, journal").eq("user_id", user.id).eq("day_date", dayDate).maybeSingle();
+    await supabase.from("days").upsert(
+      { user_id: user.id, day_date: dayDate, journal: "" },
+      { onConflict: "user_id,day_date" },
+    );
+    setReflectionHistory((prev) => prev.filter((r) => r.day_date !== dayDate));
+  };
+
+  const handleDeleteMealDay = async (dayDate) => {
+    const { data: existing } = await supabase.from("days").select("habits").eq("user_id", user.id).eq("day_date", dayDate).maybeSingle();
+    const merged = { ...(existing?.habits || {}), meal_logs: null };
+    await supabase.from("days").upsert({ user_id: user.id, day_date: dayDate, habits: merged }, { onConflict: "user_id,day_date" });
+    setMealHistory((prev) => prev.filter((r) => r.day_date !== dayDate));
+  };
+
+  const handleEditHistOpen = (row) => {
+    setEditHistDay(row.day_date);
+    setEditHistLogs(
+      Object.fromEntries(MEAL_SLOTS.map((s) => [s.id, row.habits?.meal_logs?.[s.id] || { time: "", items: [] }]))
+    );
+    setEditHistDraft(Object.fromEntries(MEAL_SLOTS.map((s) => [s.id, { name: "", qty: "" }])));
+  };
+
+  const handleEditHistSave = async () => {
+    setEditHistSaving(true);
+    const { data: existing } = await supabase.from("days").select("habits").eq("user_id", user.id).eq("day_date", editHistDay).maybeSingle();
+    const merged = { ...(existing?.habits || {}), meal_logs: editHistLogs };
+    await supabase.from("days").upsert({ user_id: user.id, day_date: editHistDay, habits: merged }, { onConflict: "user_id,day_date" });
+    setMealHistory((prev) => prev.map((r) =>
+      r.day_date === editHistDay ? { ...r, habits: { ...r.habits, meal_logs: editHistLogs } } : r
+    ));
+    setEditHistSaving(false);
+    setEditHistDay(null);
+    showSnack("Meal log updated.");
   };
 
   const handleSaveNotes = async (silent = false) => {
@@ -349,7 +436,7 @@ export default function DietPage() {
     return groups;
   }, [pantryItems]);
 
-  const filledMeals = MEAL_SLOTS.filter((s) => mealLogs[s.id]?.items?.trim()).length;
+  const filledMeals = MEAL_SLOTS.filter((s) => (mealLogs[s.id]?.items?.length || 0) > 0).length;
 
   if (loading)
     return (
@@ -421,20 +508,15 @@ export default function DietPage() {
 
               {MEAL_SLOTS.map((slot, idx) => {
                 const log = mealLogs[slot.id] || EMPTY_MEAL;
-                const filled = !!log.items?.trim();
+                const filled = (log.items?.length || 0) > 0;
+                const draft = itemDraft[slot.id];
                 return (
                   <Box key={slot.id}>
                     {idx > 0 && <Divider sx={{ my: 2.5, borderColor: border }} />}
                     <Box sx={{ display: "flex", gap: 2, alignItems: "flex-start" }}>
                       {/* Timeline node */}
                       <Box sx={{ minWidth: 36, display: "flex", flexDirection: "column", alignItems: "center", pt: 0.25 }}>
-                        <Box sx={{
-                          width: 32, height: 32, borderRadius: "50%",
-                          border: `2px solid ${filled ? COLOR : border}`,
-                          display: "flex", alignItems: "center", justifyContent: "center",
-                          fontSize: 14, transition: "all 0.2s",
-                          background: filled ? `${COLOR}15` : "transparent",
-                        }}>
+                        <Box sx={{ width: 32, height: 32, borderRadius: "50%", border: `2px solid ${filled ? COLOR : border}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, transition: "all 0.2s", background: filled ? `${COLOR}15` : "transparent" }}>
                           {slot.emoji}
                         </Box>
                         {idx < MEAL_SLOTS.length - 1 && (
@@ -442,43 +524,56 @@ export default function DietPage() {
                         )}
                       </Box>
 
-                      {/* Fields */}
                       <Box sx={{ flex: 1 }}>
-                        <Typography sx={{ fontSize: 13, fontWeight: 700, color: filled ? textP : textS, mb: 1.5, letterSpacing: 0.3 }}>
-                          {slot.label}
-                        </Typography>
-                        <Grid container spacing={1.5}>
-                          <Grid item xs={12} sm={3}>
-                            <TextField
-                              size="small"
-                              label="Time"
-                              type="time"
-                              value={log.time || ""}
-                              onChange={(e) => handleMealChange(slot.id, "time", e.target.value)}
-                              InputLabelProps={{ shrink: true }}
-                              sx={{ ...fieldSx, width: "100%" }}
-                            />
-                          </Grid>
-                          <Grid item xs={12} sm={6}>
-                            <TextField
-                              size="small"
-                              label="What did you eat?"
-                              value={log.items || ""}
-                              onChange={(e) => handleMealChange(slot.id, "items", e.target.value)}
-                              sx={{ ...fieldSx, width: "100%" }}
-                            />
-                          </Grid>
-                          <Grid item xs={12} sm={3}>
-                            <TextField
-                              size="small"
-                              label="Quantity"
-                              placeholder="e.g. 1 bowl"
-                              value={log.quantity || ""}
-                              onChange={(e) => handleMealChange(slot.id, "quantity", e.target.value)}
-                              sx={{ ...fieldSx, width: "100%" }}
-                            />
-                          </Grid>
-                        </Grid>
+                        <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 1.5 }}>
+                          <Typography sx={{ fontSize: 13, fontWeight: 700, color: filled ? textP : textS, letterSpacing: 0.3 }}>
+                            {slot.label}
+                          </Typography>
+                          <TextField
+                            size="small" label="Time" type="time"
+                            value={log.time || ""}
+                            onChange={(e) => handleMealTimeChange(slot.id, e.target.value)}
+                            InputLabelProps={{ shrink: true }}
+                            sx={{ ...fieldSx, width: 130 }}
+                          />
+                        </Box>
+
+                        {/* Logged items */}
+                        {log.items?.map((item, i) => (
+                          <Box key={i} sx={{ display: "flex", alignItems: "center", gap: 1, mb: 0.75, px: 1, py: 0.5, borderRadius: 2, background: isDark ? "rgba(255,255,255,0.04)" : "rgba(90,110,26,0.05)" }}>
+                            <Typography sx={{ fontSize: 13, color: textP, flex: 1 }}>{item.name}</Typography>
+                            {item.qty && <Typography sx={{ fontSize: 11, color: textS, mr: 0.5 }}>{item.qty}</Typography>}
+                            <IconButton size="small" onClick={() => handleRemoveItem(slot.id, i)} sx={{ p: 0.25, color: textS, opacity: 0.5, "&:hover": { opacity: 1, color: "#CF4E4E" } }}>
+                              <Delete sx={{ fontSize: 14 }} />
+                            </IconButton>
+                          </Box>
+                        ))}
+
+                        {/* Add item row */}
+                        <Box sx={{ display: "flex", gap: 1, mt: log.items?.length ? 1 : 0 }}>
+                          <TextField
+                            size="small" placeholder="Add food item"
+                            value={draft.name}
+                            onChange={(e) => setItemDraft((p) => ({ ...p, [slot.id]: { ...p[slot.id], name: e.target.value } }))}
+                            onKeyDown={(e) => e.key === "Enter" && handleAddItem(slot.id)}
+                            sx={{ ...fieldSx, flex: 1 }}
+                          />
+                          <TextField
+                            size="small" placeholder="Qty"
+                            value={draft.qty}
+                            onChange={(e) => setItemDraft((p) => ({ ...p, [slot.id]: { ...p[slot.id], qty: e.target.value } }))}
+                            onKeyDown={(e) => e.key === "Enter" && handleAddItem(slot.id)}
+                            sx={{ ...fieldSx, width: 90 }}
+                          />
+                          <Button
+                            size="small" variant="outlined"
+                            onClick={() => handleAddItem(slot.id)}
+                            disabled={!draft.name.trim()}
+                            sx={{ borderColor: `${COLOR}60`, color: safeColor, minWidth: 36, px: 1, textTransform: "none", "&:hover": { borderColor: COLOR, background: `${COLOR}10` } }}
+                          >
+                            <Add sx={{ fontSize: 16 }} />
+                          </Button>
+                        </Box>
                       </Box>
                     </Box>
                   </Box>
@@ -552,13 +647,18 @@ export default function DietPage() {
                     <Grid item xs={12} sm={6} key={r.day_date}>
                       <Card sx={{ border: `1px solid ${border}`, borderRadius: 3, background: cardBg, boxShadow: "none", height: "100%" }}>
                         <CardContent sx={{ p: 2.5 }}>
-                          <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, mb: 1.25 }}>
-                            <Typography sx={{ fontSize: 11, fontWeight: 700, color: safeColor, textTransform: "uppercase", letterSpacing: 0.8 }}>
-                              {dayjs(r.day_date).format("MMM D, YYYY")}
-                            </Typography>
-                            <Typography sx={{ fontSize: 10, color: textS }}>
-                              · {dayjs(r.day_date).format("ddd")}
-                            </Typography>
+                          <Box sx={{ display: "flex", alignItems: "center", mb: 1.25 }}>
+                            <Box sx={{ flex: 1, display: "flex", alignItems: "center", gap: 0.75 }}>
+                              <Typography sx={{ fontSize: 11, fontWeight: 700, color: safeColor, textTransform: "uppercase", letterSpacing: 0.8 }}>
+                                {dayjs(r.day_date).format("MMM D, YYYY")}
+                              </Typography>
+                              <Typography sx={{ fontSize: 10, color: textS }}>
+                                · {dayjs(r.day_date).format("ddd")}
+                              </Typography>
+                            </Box>
+                            <IconButton size="small" onClick={() => handleDeleteReflection(r.day_date)} sx={{ color: textS, opacity: 0.4, p: 0.25, "&:hover": { opacity: 1, color: "#CF4E4E" } }}>
+                              <Delete sx={{ fontSize: 14 }} />
+                            </IconButton>
                           </Box>
                           <Typography sx={{ fontSize: 13, color: textP, lineHeight: 1.65, whiteSpace: "pre-wrap" }}>
                             {r.journal}
@@ -609,6 +709,7 @@ export default function DietPage() {
                               {s.emoji} {s.label}
                             </TableCell>
                           ))}
+                          <TableCell sx={{ fontSize: 11, fontWeight: 700, color: safeColor, textTransform: "uppercase", letterSpacing: 0.8, minWidth: 80, background: isDark ? "rgba(255,255,255,0.03)" : "rgba(90,110,26,0.04)" }}>Actions</TableCell>
                         </TableRow>
                       </TableHead>
                       <TableBody>
@@ -620,22 +721,30 @@ export default function DietPage() {
                             </TableCell>
                             {MEAL_SLOTS.map((s) => {
                               const log = row.habits?.meal_logs?.[s.id];
-                              const hasData = log?.items?.trim();
+                              const items = log?.items || [];
                               return (
-                                <TableCell key={s.id} sx={{ fontSize: 12, color: hasData ? textP : textS }}>
-                                  {hasData ? (
+                                <TableCell key={s.id} sx={{ fontSize: 12, color: items.length > 0 ? textP : textS }}>
+                                  {items.length > 0 ? (
                                     <>
-                                      <Typography sx={{ fontSize: 12, color: textP, lineHeight: 1.4 }}>{log.items}</Typography>
-                                      {(log.quantity || log.time) && (
-                                        <Typography sx={{ fontSize: 10, color: textS, mt: 0.25 }}>
-                                          {[log.time, log.quantity].filter(Boolean).join(" · ")}
+                                      {items.map((item, i) => (
+                                        <Typography key={i} sx={{ fontSize: 12, color: textP, lineHeight: 1.5 }}>
+                                          {item.name}{item.qty ? <span style={{ color: textS, fontSize: 11 }}> · {item.qty}</span> : ""}
                                         </Typography>
-                                      )}
+                                      ))}
+                                      {log.time && <Typography sx={{ fontSize: 10, color: textS, mt: 0.25 }}>{log.time}</Typography>}
                                     </>
                                   ) : "—"}
                                 </TableCell>
                               );
                             })}
+                            <TableCell sx={{ whiteSpace: "nowrap" }}>
+                              <IconButton size="small" onClick={() => handleEditHistOpen(row)} sx={{ color: safeColor, opacity: 0.7, "&:hover": { opacity: 1 } }}>
+                                <Edit sx={{ fontSize: 15 }} />
+                              </IconButton>
+                              <IconButton size="small" onClick={() => handleDeleteMealDay(row.day_date)} sx={{ color: textS, opacity: 0.5, "&:hover": { opacity: 1, color: "#CF4E4E" } }}>
+                                <Delete sx={{ fontSize: 15 }} />
+                              </IconButton>
+                            </TableCell>
                           </TableRow>
                         ))}
                       </TableBody>
@@ -877,6 +986,94 @@ export default function DietPage() {
           )}
         </TabPanel>
       </Box>
+
+      {/* Edit Meal History Dialog */}
+      <Dialog
+        open={!!editHistDay}
+        onClose={() => !editHistSaving && setEditHistDay(null)}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{ sx: { borderRadius: 4, background: isDark ? "#1A1915" : "#FFFDF9" } }}
+      >
+        <DialogTitle sx={{ fontSize: 18, fontFamily: '"Fraunces",serif', color: textP, pb: 0.5 }}>
+          Edit Meals · {editHistDay && dayjs(editHistDay).format("MMM D, YYYY")}
+        </DialogTitle>
+        <DialogContent sx={{ pt: "12px !important" }}>
+          {editHistLogs && MEAL_SLOTS.map((slot, idx) => {
+            const log = editHistLogs[slot.id] || { time: "", items: [] };
+            const draft = editHistDraft[slot.id];
+            return (
+              <Box key={slot.id}>
+                {idx > 0 && <Divider sx={{ my: 2, borderColor: border }} />}
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 1 }}>
+                  <Typography sx={{ fontSize: 13, fontWeight: 700, color: textP }}>{slot.emoji} {slot.label}</Typography>
+                  <TextField
+                    size="small" label="Time" type="time"
+                    value={log.time || ""}
+                    onChange={(e) => setEditHistLogs((p) => ({ ...p, [slot.id]: { ...p[slot.id], time: e.target.value } }))}
+                    InputLabelProps={{ shrink: true }}
+                    sx={{ ...fieldSx, width: 120, ml: "auto" }}
+                  />
+                </Box>
+                {log.items?.map((item, i) => (
+                  <Box key={i} sx={{ display: "flex", alignItems: "center", gap: 1, mb: 0.75, px: 1, py: 0.5, borderRadius: 2, background: isDark ? "rgba(255,255,255,0.04)" : "rgba(90,110,26,0.05)" }}>
+                    <Typography sx={{ fontSize: 13, color: textP, flex: 1 }}>{item.name}</Typography>
+                    {item.qty && <Typography sx={{ fontSize: 11, color: textS }}>{item.qty}</Typography>}
+                    <IconButton size="small"
+                      onClick={() => setEditHistLogs((p) => ({ ...p, [slot.id]: { ...p[slot.id], items: p[slot.id].items.filter((_, j) => j !== i) } }))}
+                      sx={{ p: 0.25, color: textS, opacity: 0.5, "&:hover": { opacity: 1, color: "#CF4E4E" } }}
+                    >
+                      <Delete sx={{ fontSize: 14 }} />
+                    </IconButton>
+                  </Box>
+                ))}
+                <Box sx={{ display: "flex", gap: 1, mt: 0.5 }}>
+                  <TextField
+                    size="small" placeholder="Add food item"
+                    value={draft.name}
+                    onChange={(e) => setEditHistDraft((p) => ({ ...p, [slot.id]: { ...p[slot.id], name: e.target.value } }))}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && draft.name.trim()) {
+                        setEditHistLogs((p) => ({ ...p, [slot.id]: { ...p[slot.id], items: [...(p[slot.id].items || []), { name: draft.name.trim(), qty: draft.qty.trim() }] } }));
+                        setEditHistDraft((p) => ({ ...p, [slot.id]: { name: "", qty: "" } }));
+                      }
+                    }}
+                    sx={{ ...fieldSx, flex: 1 }}
+                  />
+                  <TextField
+                    size="small" placeholder="Qty"
+                    value={draft.qty}
+                    onChange={(e) => setEditHistDraft((p) => ({ ...p, [slot.id]: { ...p[slot.id], qty: e.target.value } }))}
+                    sx={{ ...fieldSx, width: 80 }}
+                  />
+                  <Button
+                    size="small" variant="outlined"
+                    disabled={!draft.name.trim()}
+                    onClick={() => {
+                      setEditHistLogs((p) => ({ ...p, [slot.id]: { ...p[slot.id], items: [...(p[slot.id].items || []), { name: draft.name.trim(), qty: draft.qty.trim() }] } }));
+                      setEditHistDraft((p) => ({ ...p, [slot.id]: { name: "", qty: "" } }));
+                    }}
+                    sx={{ borderColor: `${COLOR}60`, color: safeColor, minWidth: 36, px: 1, "&:hover": { borderColor: COLOR, background: `${COLOR}10` } }}
+                  >
+                    <Add sx={{ fontSize: 16 }} />
+                  </Button>
+                </Box>
+              </Box>
+            );
+          })}
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2.5, gap: 1 }}>
+          <Button onClick={() => setEditHistDay(null)} disabled={editHistSaving} sx={{ color: textS, textTransform: "none" }}>Cancel</Button>
+          <Button
+            variant="contained"
+            onClick={handleEditHistSave}
+            disabled={editHistSaving}
+            sx={{ background: COLOR, color: "#fff", textTransform: "none", fontWeight: 600, borderRadius: 2, "&:hover": { background: "#4a5b14" } }}
+          >
+            {editHistSaving ? <CircularProgress size={16} sx={{ color: "#fff" }} /> : "Save"}
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {/* Add Pantry Item Dialog */}
       <Dialog
