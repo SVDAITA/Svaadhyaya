@@ -25,6 +25,12 @@ import {
   Select,
   MenuItem,
   IconButton,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
 } from "@mui/material";
 import {
   CloudUpload,
@@ -40,6 +46,7 @@ import {
   Add,
   Delete,
   Restaurant,
+  History,
 } from "@mui/icons-material";
 import { useAuth } from "../../hooks/useAuth";
 import { useThemeMode } from "../../hooks/useTheme";
@@ -136,6 +143,8 @@ export default function DietPage() {
   const [notesSaved, setNotesSaved] = useState(false);
   const [reflectionHistory, setReflectionHistory] = useState([]);
   const [reflectionPage, setReflectionPage] = useState(1);
+  const [mealHistory, setMealHistory] = useState([]);
+  const [mealHistoryPage, setMealHistoryPage] = useState(1);
   const notesTimerRef = useRef(null);
 
   // Macros
@@ -177,7 +186,7 @@ export default function DietPage() {
     if (!user) return;
     if (_annaCache === null) setLoading(true);
     try {
-      const [{ data: dayData }, { data: settingsData }, { data: historyData }] = await Promise.all([
+      const [{ data: dayData }, { data: settingsData }, { data: historyData }, { data: mealHistData }] = await Promise.all([
         supabase
           .from("days")
           .select("habits, journal")
@@ -199,6 +208,14 @@ export default function DietPage() {
           .neq("day_date", "2000-01-01")
           .order("day_date", { ascending: false })
           .limit(200),
+        supabase
+          .from("days")
+          .select("day_date, habits")
+          .eq("user_id", user.id)
+          .neq("day_date", "2000-01-01")
+          .not("habits", "is", null)
+          .order("day_date", { ascending: false })
+          .limit(90),
       ]);
 
       const ml = dayData?.habits?.meal_logs
@@ -214,6 +231,11 @@ export default function DietPage() {
       setFastingWindow(fw);
       setPantryItems(pi);
       setReflectionHistory(historyData || []);
+      const mh = (mealHistData || []).filter((d) =>
+        d.habits?.meal_logs &&
+        MEAL_SLOTS.some((s) => d.habits.meal_logs[s.id]?.items?.trim())
+      );
+      setMealHistory(mh);
     } finally {
       setLoading(false);
     }
@@ -562,6 +584,78 @@ export default function DietPage() {
               )}
             </Box>
           )}
+
+          {/* Meal History Table */}
+          {mealHistory.length > 0 && (() => {
+            const ROWS_PER_PAGE = 14;
+            const paged = mealHistory.slice((mealHistoryPage - 1) * ROWS_PER_PAGE, mealHistoryPage * ROWS_PER_PAGE);
+            return (
+              <Box sx={{ mb: 4 }}>
+                <Box sx={{ display: "flex", alignItems: "center", mb: 2, gap: 1 }}>
+                  <History sx={{ color: safeColor, fontSize: 16 }} />
+                  <Typography sx={{ fontSize: 15, fontWeight: 600, color: textP }}>
+                    Meal History
+                  </Typography>
+                  <Chip label={mealHistory.length} size="small" sx={{ height: 18, fontSize: 10, fontWeight: 700, bgcolor: `${COLOR}15`, color: safeColor }} />
+                </Box>
+                <Card sx={{ border: `1px solid ${border}`, borderRadius: 3, background: cardBg, boxShadow: "none", overflow: "hidden" }}>
+                  <TableContainer sx={{ overflowX: "auto" }}>
+                    <Table size="small">
+                      <TableHead>
+                        <TableRow sx={{ "& th": { borderColor: border, py: 1.25 } }}>
+                          <TableCell sx={{ fontSize: 11, fontWeight: 700, color: safeColor, textTransform: "uppercase", letterSpacing: 0.8, minWidth: 90, background: isDark ? "rgba(255,255,255,0.03)" : "rgba(90,110,26,0.04)" }}>Date</TableCell>
+                          {MEAL_SLOTS.map((s) => (
+                            <TableCell key={s.id} align="left" sx={{ fontSize: 11, fontWeight: 700, color: safeColor, textTransform: "uppercase", letterSpacing: 0.8, minWidth: 130, background: isDark ? "rgba(255,255,255,0.03)" : "rgba(90,110,26,0.04)" }}>
+                              {s.emoji} {s.label}
+                            </TableCell>
+                          ))}
+                        </TableRow>
+                      </TableHead>
+                      <TableBody>
+                        {paged.map((row) => (
+                          <TableRow key={row.day_date} sx={{ "&:last-child td": { border: 0 }, "& td": { borderColor: border, py: 1.25, verticalAlign: "top" } }}>
+                            <TableCell sx={{ fontSize: 12, fontWeight: 700, color: textP, whiteSpace: "nowrap" }}>
+                              {dayjs(row.day_date).format("MMM D")}
+                              <Typography component="div" sx={{ fontSize: 10, color: textS }}>{dayjs(row.day_date).format("ddd")}</Typography>
+                            </TableCell>
+                            {MEAL_SLOTS.map((s) => {
+                              const log = row.habits?.meal_logs?.[s.id];
+                              const hasData = log?.items?.trim();
+                              return (
+                                <TableCell key={s.id} sx={{ fontSize: 12, color: hasData ? textP : textS }}>
+                                  {hasData ? (
+                                    <>
+                                      <Typography sx={{ fontSize: 12, color: textP, lineHeight: 1.4 }}>{log.items}</Typography>
+                                      {(log.quantity || log.time) && (
+                                        <Typography sx={{ fontSize: 10, color: textS, mt: 0.25 }}>
+                                          {[log.time, log.quantity].filter(Boolean).join(" · ")}
+                                        </Typography>
+                                      )}
+                                    </>
+                                  ) : "—"}
+                                </TableCell>
+                              );
+                            })}
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </TableContainer>
+                </Card>
+                {mealHistory.length > ROWS_PER_PAGE && (
+                  <Box sx={{ display: "flex", justifyContent: "center", mt: 2 }}>
+                    <Pagination
+                      count={Math.ceil(mealHistory.length / ROWS_PER_PAGE)}
+                      page={mealHistoryPage}
+                      onChange={(_, p) => setMealHistoryPage(p)}
+                      size="small"
+                      sx={{ "& .MuiPaginationItem-root": { color: textS }, "& .MuiPaginationItem-root.Mui-selected": { background: `${COLOR}20`, color: safeColor } }}
+                    />
+                  </Box>
+                )}
+              </Box>
+            );
+          })()}
         </TabPanel>
 
         {/* ── TAB 1: VITAL MACROS ── */}
