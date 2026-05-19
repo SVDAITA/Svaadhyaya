@@ -93,15 +93,15 @@ const HABIT_LABELS = {
 const SIDDHI_WEIGHTS = { 1: 1, 2: 2, 3: 4, 4: 7, 5: 12, 6: 18, 7: 25, 8: 35 };
 const MAX_EXPECTED_MASS = 120;
 
-// Vedic weekday names (0 = Sunday)
+// Vasara (weekday) names — index 0 = Sunday
 const VARA_NAMES = [
-  "Ravivāra",
-  "Somavāra",
-  "Maṅgalavāra",
-  "Budhavāra",
-  "Guruvāra",
-  "Śukravāra",
-  "Śanivāra",
+  "Bhanu Vasara",
+  "Indu / Soma Vasara",
+  "Bhowma Vasara",
+  "Budha / Soumya Vasara",
+  "Guru Vasara",
+  "Shukra / Brugu Vasara",
+  "Sthira Vasara",
 ];
 
 function calculateDailyMass(dayData) {

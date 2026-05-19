@@ -4,6 +4,17 @@ import dayjs from 'dayjs'
 
 const CACHE_KEY = 'sv_panchang_cache'
 
+// Vasara (weekday) names — index 0 = Sunday
+const VASARA_NAMES = [
+  'Bhanu Vasara',        // Sunday
+  'Indu / Soma Vasara',  // Monday
+  'Bhowma Vasara',       // Tuesday
+  'Budha / Soumya Vasara', // Wednesday
+  'Guru Vasara',         // Thursday
+  'Shukra / Brugu Vasara', // Friday
+  'Sthira Vasara',       // Saturday
+]
+
 // ── COMPUTED FALLBACKS (used if API fields missing) ───────────────────────────
 
 const MASAMS = [
@@ -101,7 +112,7 @@ function normalizeResponse(json) {
                    ? ritu.ritu.name.replace(/\s*\(.*?\)/, '') // strip "(Spring)" suffix
                    : computeRitu(),
 
-    varam:       varam?.output?.vedic_weekday_name     || dayjs().format('dddd'),
+    varam:       VASARA_NAMES[dayjs().day()],
   }
 }
 
