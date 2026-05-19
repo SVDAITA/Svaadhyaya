@@ -2525,7 +2525,7 @@ export default function TodayPage() {
         >
           Today
         </Typography>
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
           <Box
             sx={{
               display: "flex",
@@ -2545,6 +2545,30 @@ export default function TodayPage() {
               {resonanceScore}% resonance
             </Typography>
           </Box>
+          {!isDisrupted && (
+            <Tooltip title="Mark today as disrupted — streaks protected">
+              <Box
+                onClick={() => setConfirmDisrupt(true)}
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 0.5,
+                  border: `1px solid rgba(207,78,78,0.35)`,
+                  borderRadius: 12,
+                  px: 1.25,
+                  py: 0.4,
+                  background: "rgba(207,78,78,0.06)",
+                  cursor: "pointer",
+                  "&:hover": { background: "rgba(207,78,78,0.12)" },
+                }}
+              >
+                <ReportProblem sx={{ fontSize: 11, color: "#CF4E4E" }} />
+                <Typography sx={{ fontSize: 11, color: "#CF4E4E", fontWeight: 600 }}>
+                  Mark Disrupted
+                </Typography>
+              </Box>
+            </Tooltip>
+          )}
           <Box
             sx={{
               display: "flex",
@@ -2689,48 +2713,10 @@ export default function TodayPage() {
             <Typography sx={{ fontSize: 13, color: isDark ? "#9C9A94" : "#64748b", flex: 1 }}>
               Weekend — Vritti work task is paused. Sacred practice continues.
             </Typography>
-            <Tooltip title="Mark today as disrupted">
-              <Button
-                size="small"
-                onClick={() => setConfirmDisrupt(true)}
-                sx={{
-                  fontSize: 11,
-                  color: "#CF4E4E",
-                  textTransform: "none",
-                  fontWeight: 600,
-                  px: 1.5,
-                  flexShrink: 0,
-                  "&:hover": { background: "#CF4E4E10" },
-                }}
-              >
-                Mark Disrupted
-              </Button>
-            </Tooltip>
           </Box>
         </Fade>
       )}
 
-      {/* ── MARK DISRUPTED button (working weekday only) ── */}
-      {!isDisrupted && !isWeekend && (
-        <Box sx={{ display: "flex", justifyContent: "flex-end", mb: 2 }}>
-          <Button
-            size="small"
-            startIcon={<ReportProblem sx={{ fontSize: 14 }} />}
-            onClick={() => setConfirmDisrupt(true)}
-            sx={{
-              fontSize: 11,
-              fontWeight: 600,
-              color: "text.disabled",
-              textTransform: "none",
-              borderRadius: 2,
-              px: 1.5,
-              "&:hover": { color: "#CF4E4E", background: "#CF4E4E08" },
-            }}
-          >
-            Mark as Disrupted
-          </Button>
-        </Box>
-      )}
 
       {/* ── CONFIRM DISRUPT DIALOG ── */}
       <Dialog
