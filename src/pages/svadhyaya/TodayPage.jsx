@@ -381,13 +381,19 @@ function CompletionDialog({
   heroColor,
   isDark,
 }) {
-  const [hours, setHours] = useState(1);
+  const [minutes, setMinutes] = useState(60);
   const [satisfaction, setSatisfaction] = useState(4);
 
   if (!item) return null;
-  const currentSiddhi = ASHTA_SIDDHI_SCALE.find(
-    (s) => s.value === satisfaction,
-  );
+  const currentSiddhi = ASHTA_SIDDHI_SCALE.find((s) => s.value === satisfaction);
+
+  const fmtTime = (m) => {
+    if (m < 60) return `${m}m`;
+    const h = Math.floor(m / 60);
+    const rem = m % 60;
+    return rem > 0 ? `${h}h ${rem}m` : `${h}h`;
+  };
+  const QUICK_TIMES = [10, 20, 30, 45, 60, 90, 120, 180];
 
   return (
     <Dialog
@@ -423,41 +429,43 @@ function CompletionDialog({
           Log your deep work metrics.
         </Typography>
 
-        <Typography
-          sx={{
-            fontSize: 11,
-            fontWeight: 700,
-            textTransform: "uppercase",
-            letterSpacing: 1,
-            color: heroColor,
-            mb: 2,
-          }}
-        >
+        <Typography sx={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, color: heroColor, mb: 1.5 }}>
           Time Invested
         </Typography>
-        <Box
-          sx={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: 2,
-            mb: 4,
-          }}
-        >
+        {/* Quick-select chips */}
+        <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.75, justifyContent: "center", mb: 2 }}>
+          {QUICK_TIMES.map((m) => (
+            <Box
+              key={m}
+              onClick={() => setMinutes(m)}
+              sx={{
+                px: 1.25, py: 0.4, borderRadius: 10, cursor: "pointer", fontSize: 12, fontWeight: 600,
+                border: `1px solid ${heroColor}60`,
+                background: minutes === m ? heroColor : "transparent",
+                color: minutes === m ? "#fff" : heroColor,
+                transition: "all 0.15s",
+              }}
+            >
+              {fmtTime(m)}
+            </Box>
+          ))}
+        </Box>
+        {/* Fine-tune ±10 min */}
+        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 2, mb: 3 }}>
           <IconButton
-            onClick={() => setHours(Math.max(0.5, hours - 0.5))}
-            sx={{ border: `1px solid ${heroColor}40`, color: heroColor }}
+            onClick={() => setMinutes((p) => Math.max(10, p - 10))}
+            sx={{ border: `1px solid ${heroColor}40`, color: heroColor, width: 36, height: 36 }}
           >
-            <Remove />
+            <Remove fontSize="small" />
           </IconButton>
-          <Typography sx={{ fontSize: 24, fontWeight: 300, width: 60 }}>
-            {hours}h
+          <Typography sx={{ fontSize: 22, fontWeight: 600, minWidth: 72, textAlign: "center", color: heroColor }}>
+            {fmtTime(minutes)}
           </Typography>
           <IconButton
-            onClick={() => setHours(hours + 0.5)}
-            sx={{ border: `1px solid ${heroColor}40`, color: heroColor }}
+            onClick={() => setMinutes((p) => p + 10)}
+            sx={{ border: `1px solid ${heroColor}40`, color: heroColor, width: 36, height: 36 }}
           >
-            <Add />
+            <Add fontSize="small" />
           </IconButton>
         </Box>
 
@@ -507,7 +515,7 @@ function CompletionDialog({
         <Button
           variant="contained"
           fullWidth
-          onClick={() => onConfirm(item, hours, satisfaction)}
+          onClick={() => onConfirm(item, minutes / 60, satisfaction)}
           sx={{
             background: heroColor,
             "&:hover": { background: heroColor, opacity: 0.9 },

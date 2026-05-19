@@ -16,6 +16,8 @@ import {
   keyframes,
   alpha,
   LinearProgress,
+  Stack,
+  Divider,
 } from "@mui/material";
 import {
   Close,
@@ -809,7 +811,7 @@ function HeroStatCard({ emoji, label, value, sub, color, isDark, delay = 0 }) {
 }
 
 // ── READING RHYTHM CARD ─────────────────────────────────────────────────────
-function ReadingCard({ books, readingSessions, isDark }) {
+function ReadingCard({ books, readingSessions, isDark, days = 30 }) {
   const rc = isDark ? "#D4845A" : "#8B3A2F";
   const textP = isDark ? "#F0EDE8" : "#2C2C2C";
   const textS = isDark ? "#7A7874" : "#9C9A94";
@@ -825,8 +827,8 @@ function ReadingCard({ books, readingSessions, isDark }) {
   const eta = velocity > 0 ? Math.ceil(remaining / velocity) : null;
   const booksRead = books.filter((b) => b.status === "completed").length;
 
-  const chartData = Array.from({ length: 30 }, (_, i) => {
-    const d = today.subtract(29 - i, "day").format("YYYY-MM-DD");
+  const chartData = Array.from({ length: days }, (_, i) => {
+    const d = today.subtract(days - 1 - i, "day").format("YYYY-MM-DD");
     const pages = readingSessions.filter((s) => s.session_date === d).reduce((s, r) => s + (r.pages_read || 0), 0);
     return { day: today.subtract(29 - i, "day").format("D"), pages };
   });
@@ -879,7 +881,7 @@ function ReadingCard({ books, readingSessions, isDark }) {
 }
 
 // ── JAPA MAHASANKALPAM CARD ─────────────────────────────────────────────────
-function JapaCard({ japaLogs, japaGoals, isDark }) {
+function JapaCard({ japaLogs, japaGoals, isDark, days = 14 }) {
   const jc = isDark ? "#D4A830" : "#C07830";
   const textP = isDark ? "#F0EDE8" : "#2C2C2C";
   const textS = isDark ? "#7A7874" : "#9C9A94";
@@ -901,8 +903,8 @@ function JapaCard({ japaLogs, japaGoals, isDark }) {
   const deadlineDays = activeGoal?.deadline_years ? activeGoal.deadline_years * 365 - daysLogged : null;
   const dailyPace = deadlineDays > 0 ? Math.round(remaining / deadlineDays) : null;
 
-  const chartData = Array.from({ length: 14 }, (_, i) => {
-    const d = dayjs().subtract(13 - i, "day").format("YYYY-MM-DD");
+  const chartData = Array.from({ length: days }, (_, i) => {
+    const d = dayjs().subtract(days - 1 - i, "day").format("YYYY-MM-DD");
     const count = activeGoal
       ? japaLogs.filter((l) => l.japa_name === activeGoal.japa_name && l.day_date === d).reduce((s, l) => s + l.count, 0) : 0;
     return { day: dayjs(d).format("D"), count };
@@ -967,14 +969,14 @@ function JapaCard({ japaLogs, japaGoals, isDark }) {
 }
 
 // ── FINANCE PULSE CARD ──────────────────────────────────────────────────────
-function FinanceCard({ financeLogs, financeBudgets, isDark }) {
+function FinanceCard({ financeLogs, financeBudgets, isDark, days = 30 }) {
   const fc = isDark ? "#4DC4B5" : "#1A7A6E";
   const textP = isDark ? "#F0EDE8" : "#2C2C2C";
   const textS = isDark ? "#7A7874" : "#9C9A94";
   const thisMonth = dayjs().format("YYYY-MM");
 
-  const monthlyData = Array.from({ length: 3 }, (_, i) => {
-    const m = dayjs().subtract(2 - i, "month");
+  const monthlyData = Array.from({ length: Math.max(1, Math.round(days / 30)) }, (_, i) => {
+    const m = dayjs().subtract(Math.max(1, Math.round(days / 30)) - 1 - i, "month");
     const key = m.format("YYYY-MM");
     const entries = financeLogs.filter((l) => (l.date || "").startsWith(key));
     const income  = entries.filter((l) =>  l.income_flag).reduce((s, l) => s + l.amount, 0);
@@ -1046,7 +1048,7 @@ function SleepStars({ quality, color }) {
   );
 }
 
-function MovementCard({ activityLogs, latestWeightKg, isDark }) {
+function MovementCard({ activityLogs, latestWeightKg, isDark, days = 14 }) {
   const mc   = isDark ? "#5EC98A" : "#2D7A4F";
   const sc   = isDark ? "#9B6CC4" : "#7C4DAB";
   const textP = isDark ? "#F0EDE8" : "#2C2C2C";
@@ -1066,8 +1068,8 @@ function MovementCard({ activityLogs, latestWeightKg, isDark }) {
 
   const stepTrend = todaySteps > 0 ? (todaySteps >= (yEntry?.steps || 0) ? "↑" : "↓") : null;
 
-  const chartData = Array.from({ length: 14 }, (_, i) => {
-    const d = dayjs().subtract(13 - i, "day").format("YYYY-MM-DD");
+  const chartData = Array.from({ length: days }, (_, i) => {
+    const d = dayjs().subtract(days - 1 - i, "day").format("YYYY-MM-DD");
     const e = activityLogs.find((a) => a.date === d);
     return {
       day: dayjs(d).format("D"),
@@ -1181,6 +1183,318 @@ function MovementCard({ activityLogs, latestWeightKg, isDark }) {
   );
 }
 
+// ── LIFE RHYTHM HEATMAP ──────────────────────────────────────────────────────
+const HEATMAP_AREAS = [
+  { key: "spirit",  habitId: "anushthanam", label: "Spirit",  emoji: "🪔", color: "#C07830", colorDark: "#D4A830" },
+  { key: "music",   habitId: "saadhana",    label: "Music",   emoji: "🎵", color: "#7C4DAB", colorDark: "#9B6CC4" },
+  { key: "health",  habitId: "walk",        label: "Body",    emoji: "💪", color: "#2D7A4F", colorDark: "#5EC98A" },
+  { key: "career",  habitId: "office",      label: "Career",  emoji: "🚀", color: "#1A5FB0", colorDark: "#6AAEE8" },
+  { key: "finance", habitId: "logs",        label: "Finance", emoji: "💰", color: "#1A7A6E", colorDark: "#4DC4B5" },
+  { key: "reading", habitId: "reading",     label: "Vidyā",   emoji: "📖", color: "#A0522D", colorDark: "#D4845A" },
+];
+
+function LifeRhythmHeatmap({ dayMap, isDark, onDayClick }) {
+  const textS = isDark ? "#7A7874" : "#9C9A94";
+  const DAYS = 35;
+  const todayStr = dayjs().format("YYYY-MM-DD");
+  const dates = Array.from({ length: DAYS }, (_, i) =>
+    dayjs().subtract(DAYS - 1 - i, "day").format("YYYY-MM-DD")
+  );
+  const weekStarts = [0, 7, 14, 21, 28].map((i) =>
+    dayjs(dates[i]).format("D MMM")
+  );
+
+  return (
+    <Card sx={{ border: `1px solid ${isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)"}`, borderRadius: 2.5, background: isDark ? "rgba(26,25,22,0.7)" : "#fff", boxShadow: "none", animation: `${fadeUp} 0.5s ease 0.1s both` }}>
+      <CardContent sx={{ p: { xs: 2, md: 3 } }}>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2.5 }}>
+          <Typography sx={{ fontFamily: '"Fraunces",serif', fontSize: 16, fontWeight: 600 }}>Life Rhythm</Typography>
+          <Typography sx={{ fontSize: 9.5, color: textS, fontWeight: 700, letterSpacing: 1, textTransform: "uppercase" }}>· Last 5 Weeks</Typography>
+          <Box sx={{ flex: 1 }} />
+          <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+            <Typography sx={{ fontSize: 8.5, color: textS }}>Less</Typography>
+            {[0.1, 0.3, 0.55, 0.75, 1].map((op, i) => (
+              <Box key={i} sx={{ width: 9, height: 9, borderRadius: "2px", background: alpha("#C07830", op) }} />
+            ))}
+            <Typography sx={{ fontSize: 8.5, color: textS }}>More</Typography>
+          </Box>
+        </Box>
+
+        {/* Week column headers */}
+        <Box sx={{ display: "flex", ml: "90px", mb: 0.75 }}>
+          {weekStarts.map((w, i) => (
+            <Typography key={i} sx={{ fontSize: 8, color: textS, flex: 7, textAlign: "center" }}>{w}</Typography>
+          ))}
+        </Box>
+
+        {HEATMAP_AREAS.map((area) => {
+          const color = isDark ? area.colorDark : area.color;
+          return (
+            <Box key={area.key} sx={{ display: "flex", alignItems: "center", mb: 1.25 }}>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, width: 90, flexShrink: 0 }}>
+                <Typography sx={{ fontSize: 14 }}>{area.emoji}</Typography>
+                <Typography sx={{ fontSize: 9.5, color: textS, fontWeight: 600 }}>{area.label}</Typography>
+              </Box>
+              <Box sx={{ display: "flex", gap: "3px", flex: 1 }}>
+                {dates.map((date) => {
+                  const d = dayMap[date];
+                  const done = d?.habits?.[area.habitId];
+                  const sat = d?.habits_data?.[area.habitId]?.satisfaction || 0;
+                  const isToday = date === todayStr;
+                  const bg = done
+                    ? alpha(color, sat > 0 ? 0.25 + (sat / 8) * 0.75 : 0.6)
+                    : isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)";
+                  return (
+                    <Box
+                      key={date}
+                      onClick={() => onDayClick(date)}
+                      title={`${dayjs(date).format("D MMM")} · ${area.label}: ${done ? (sat > 0 ? `Level ${sat}` : "Done") : "—"}`}
+                      sx={{
+                        flex: 1,
+                        aspectRatio: "1",
+                        borderRadius: "3px",
+                        background: bg,
+                        border: isToday ? `2px solid ${color}` : "1px solid transparent",
+                        cursor: "pointer",
+                        transition: "transform 0.1s",
+                        "&:hover": { transform: "scale(1.5)", zIndex: 2 },
+                      }}
+                    />
+                  );
+                })}
+              </Box>
+            </Box>
+          );
+        })}
+      </CardContent>
+    </Card>
+  );
+}
+
+// ── LIFE BALANCE RADAR ───────────────────────────────────────────────────────
+function LifeBalanceRadar({ dynamicStreaks, isDark, heroColor }) {
+  const textS = isDark ? "#7A7874" : "#9C9A94";
+  const AREA_ORDER = ["spirit", "music", "health", "career", "finance", "reading"];
+  const AREA_COLORS = {
+    spirit:  isDark ? "#D4A830" : "#C07830",
+    music:   isDark ? "#9B6CC4" : "#7C4DAB",
+    health:  isDark ? "#5EC98A" : "#2D7A4F",
+    career:  isDark ? "#6AAEE8" : "#1A5FB0",
+    finance: isDark ? "#4DC4B5" : "#1A7A6E",
+    reading: isDark ? "#D4845A" : "#A0522D",
+  };
+  const EMOJIS = { spirit: "🪔", music: "🎵", health: "💪", career: "🚀", finance: "💰", reading: "📖" };
+
+  const cx = 100, cy = 105, r = 72;
+  const MAX_STREAK = 21;
+  const angles = AREA_ORDER.map((_, i) => (i / 6) * 2 * Math.PI - Math.PI / 2);
+
+  const vals = AREA_ORDER.map((area) => {
+    const s = dynamicStreaks.find((d) => d.area === area);
+    return Math.min(1, (s?.count || 0) / MAX_STREAK);
+  });
+
+  const poly = (scale) =>
+    angles.map((a) => `${cx + r * scale * Math.cos(a)},${cy + r * scale * Math.sin(a)}`).join(" ");
+
+  const dataPts = angles.map((a, i) => ({
+    x: cx + r * vals[i] * Math.cos(a),
+    y: cy + r * vals[i] * Math.sin(a),
+  }));
+
+  const labelPts = angles.map((a) => ({
+    x: cx + (r + 22) * Math.cos(a),
+    y: cy + (r + 22) * Math.sin(a),
+  }));
+
+  return (
+    <Card sx={{ border: `1px solid ${isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)"}`, borderRadius: 2.5, background: isDark ? "rgba(26,25,22,0.7)" : "#fff", boxShadow: "none", height: "100%", animation: `${fadeUp} 0.5s ease 0.15s both` }}>
+      <CardContent sx={{ p: { xs: 2, md: 3 } }}>
+        <Typography sx={{ fontFamily: '"Fraunces",serif', fontSize: 16, fontWeight: 600, mb: 0.25 }}>Life Balance</Typography>
+        <Typography sx={{ fontSize: 9, color: textS, fontWeight: 700, letterSpacing: 1, textTransform: "uppercase", mb: 2 }}>
+          Streak Radar · {MAX_STREAK}d scale
+        </Typography>
+
+        <Box sx={{ display: "flex", justifyContent: "center" }}>
+          <svg width="200" height="210" viewBox="0 0 200 210" style={{ overflow: "visible" }}>
+            {/* Grid rings */}
+            {[0.25, 0.5, 0.75, 1].map((lvl) => (
+              <polygon key={lvl} points={poly(lvl)}
+                fill="none"
+                stroke={isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.07)"}
+                strokeWidth="1"
+              />
+            ))}
+            {/* Axis lines */}
+            {angles.map((a, i) => (
+              <line key={i} x1={cx} y1={cy}
+                x2={cx + r * Math.cos(a)} y2={cy + r * Math.sin(a)}
+                stroke={isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.07)"}
+                strokeWidth="1"
+              />
+            ))}
+            {/* Data fill */}
+            <polygon
+              points={dataPts.map((p) => `${p.x},${p.y}`).join(" ")}
+              fill={alpha(heroColor, 0.18)}
+              stroke={heroColor}
+              strokeWidth="2"
+              strokeLinejoin="round"
+            />
+            {/* Area dots */}
+            {dataPts.map((p, i) => (
+              <circle key={i} cx={p.x} cy={p.y} r={vals[i] > 0 ? 4 : 2.5}
+                fill={AREA_COLORS[AREA_ORDER[i]]}
+                stroke={isDark ? "#1A1916" : "#fff"}
+                strokeWidth="1.5"
+              />
+            ))}
+            {/* Emoji labels */}
+            {labelPts.map((p, i) => (
+              <text key={i} x={p.x} y={p.y} textAnchor="middle" dominantBaseline="middle" fontSize="14" style={{ userSelect: "none" }}>
+                {EMOJIS[AREA_ORDER[i]]}
+              </text>
+            ))}
+          </svg>
+        </Box>
+
+        {/* Streak counts */}
+        <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1, justifyContent: "center", mt: 0.5 }}>
+          {AREA_ORDER.map((area) => {
+            const s = dynamicStreaks.find((d) => d.area === area);
+            const count = s?.count || 0;
+            return (
+              <Box key={area} sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                <Box sx={{ width: 7, height: 7, borderRadius: "50%", background: AREA_COLORS[area] }} />
+                <Typography sx={{ fontSize: 9.5, color: textS, fontWeight: count > 0 ? 700 : 400 }}>
+                  {count}d
+                </Typography>
+              </Box>
+            );
+          })}
+        </Box>
+      </CardContent>
+    </Card>
+  );
+}
+
+// ── TODAY'S VITALS HERO ──────────────────────────────────────────────────────
+function VitalsHero({ massPct, mass, oneThing, todayJapa, japaGoal, todayActivity, activeBook, bookProgress, heroColor, isDark }) {
+  const textP = isDark ? "#F0EDE8" : "#1C1C1C";
+  const textS = isDark ? "#7A7874" : "#9C9A94";
+  const bg = isDark
+    ? `linear-gradient(135deg, rgba(18,16,12,0.98) 0%, rgba(26,22,14,0.96) 100%)`
+    : `linear-gradient(135deg, #fffef9 0%, #fff8ee 100%)`;
+
+  const stats = [
+    {
+      emoji: "🕉️", label: "Japa",
+      value: todayJapa > 0 ? todayJapa.toLocaleString() : "—",
+      sub: japaGoal?.japa_name || null,
+    },
+    {
+      emoji: "🏃", label: "Steps",
+      value: todayActivity?.steps ? todayActivity.steps.toLocaleString() : "—",
+      sub: todayActivity?.km_walked ? `${todayActivity.km_walked} km` : null,
+    },
+    {
+      emoji: "😴", label: "Sleep",
+      value: todayActivity?.sleep_hours ? `${todayActivity.sleep_hours}h` : "—",
+      sub: todayActivity?.sleep_quality ? ["Poor","Fair","Good","Great","Excellent"][todayActivity.sleep_quality - 1] : null,
+    },
+    {
+      emoji: "📖", label: "Reading",
+      value: bookProgress != null ? `${bookProgress}%` : "—",
+      sub: activeBook ? ((activeBook.title ?? "").slice(0, 18) + ((activeBook.title?.length ?? 0) > 18 ? "…" : "")) : null,
+    },
+  ];
+
+  return (
+    <Card sx={{
+      borderRadius: 3,
+      border: `1px solid ${alpha(heroColor, 0.22)}`,
+      background: bg,
+      boxShadow: `0 8px 48px ${alpha(heroColor, 0.1)}, 0 1px 0 ${alpha(heroColor, 0.12)}`,
+      overflow: "hidden",
+      position: "relative",
+      mb: 2.5,
+      animation: `${fadeUp} 0.5s ease both`,
+    }}>
+      <Box sx={{ position: "absolute", top: -60, right: -60, width: 280, height: 280, borderRadius: "50%", background: `radial-gradient(circle, ${alpha(heroColor, 0.09)}, transparent 70%)`, pointerEvents: "none" }} />
+      <Box sx={{ position: "absolute", bottom: -40, left: -40, width: 180, height: 180, borderRadius: "50%", background: `radial-gradient(circle, ${alpha(heroColor, 0.05)}, transparent 70%)`, pointerEvents: "none" }} />
+
+      <CardContent sx={{ p: { xs: 2.5, md: 3.5 }, position: "relative" }}>
+        <Grid container spacing={3} alignItems="center">
+          {/* Resonance gauge */}
+          <Grid item xs={12} sm={3} sx={{ textAlign: "center" }}>
+            <Box sx={{ position: "relative", display: "inline-flex" }}>
+              <CircularProgress variant="determinate" value={100} size={148} thickness={2.5}
+                sx={{ color: alpha(heroColor, 0.1) }} />
+              <CircularProgress variant="determinate" value={massPct} size={148} thickness={2.5}
+                sx={{ color: heroColor, position: "absolute", left: 0, strokeLinecap: "round",
+                  filter: `drop-shadow(0 0 10px ${alpha(heroColor, 0.45)})` }} />
+              <Box sx={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
+                <Typography sx={{ fontFamily: '"Fraunces",serif', fontSize: 40, fontWeight: 700, color: heroColor, lineHeight: 1 }}>
+                  {massPct}
+                </Typography>
+                <Typography sx={{ fontSize: 9, color: textS, fontWeight: 800, letterSpacing: 1.5, textTransform: "uppercase", mt: 0.25 }}>
+                  Resonance
+                </Typography>
+              </Box>
+            </Box>
+            <Typography sx={{ fontSize: 10, color: textS, mt: 1 }}>
+              {mass} / {MAX_EXPECTED_MASS} mass pts
+            </Typography>
+          </Grid>
+
+          {/* Intention */}
+          <Grid item xs={12} sm={5}>
+            <Box sx={{ borderLeft: `3px solid ${alpha(heroColor, 0.4)}`, pl: 2.5 }}>
+              <Typography sx={{ fontSize: 9, fontWeight: 800, letterSpacing: 1.5, textTransform: "uppercase", color: heroColor, mb: 1.5 }}>
+                Today's Intention
+              </Typography>
+              {oneThing ? (
+                <Typography sx={{ fontFamily: '"Fraunces",serif', fontSize: { xs: 17, md: 21 }, color: textP, lineHeight: 1.5, fontWeight: 400, fontStyle: "italic" }}>
+                  "{oneThing}"
+                </Typography>
+              ) : (
+                <Typography sx={{ fontSize: 13, color: textS, fontStyle: "italic" }}>
+                  Set your intention in Today's page →
+                </Typography>
+              )}
+            </Box>
+          </Grid>
+
+          {/* Live stats */}
+          <Grid item xs={12} sm={4}>
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+              {stats.map((s) => (
+                <Box key={s.label} sx={{
+                  display: "flex", alignItems: "center", gap: 1.25,
+                  p: "7px 12px", borderRadius: 1.5,
+                  background: alpha(heroColor, isDark ? 0.07 : 0.04),
+                  border: `1px solid ${alpha(heroColor, 0.09)}`,
+                }}>
+                  <Typography sx={{ fontSize: 17, lineHeight: 1, flexShrink: 0 }}>{s.emoji}</Typography>
+                  <Box sx={{ flex: 1, minWidth: 0 }}>
+                    <Typography sx={{ fontSize: 8.5, color: textS, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.8 }}>{s.label}</Typography>
+                    <Typography sx={{ fontSize: 15, fontWeight: 700, color: s.value === "—" ? textS : textP, lineHeight: 1.2 }}>{s.value}</Typography>
+                  </Box>
+                  {s.sub && (
+                    <Typography sx={{ fontSize: 9.5, color: textS, textAlign: "right", maxWidth: 72, lineHeight: 1.3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {s.sub}
+                    </Typography>
+                  )}
+                </Box>
+              ))}
+            </Box>
+          </Grid>
+        </Grid>
+      </CardContent>
+    </Card>
+  );
+}
+
 // ── MAIN DASHBOARD ─────────────────────────────────────────────────────────────
 
 export default function DashboardPage() {
@@ -1204,6 +1518,7 @@ export default function DashboardPage() {
   const [financeBudgets, setFinanceBudgets] = useState([]);
   const [activityLogs, setActivityLogs] = useState([]);
   const [latestWeightKg, setLatestWeightKg] = useState(null);
+  const [analyticsRange, setAnalyticsRange] = useState(30);
 
   const textP = isDark ? "#F0EDE8" : "#2C2C2C";
   const textS = isDark ? "#7A7874" : "#9C9A94";
@@ -1621,83 +1936,33 @@ export default function DashboardPage() {
                 lineHeight: 1.15,
               }}
             >
-              Progress
+              Dashboard
             </Typography>
           </Box>
-          <ToggleButtonGroup
-            value={viewMode}
-            exclusive
-            onChange={(e, v) => v && setViewMode(v)}
-            size="small"
-            sx={{
-              background: isDark ? "rgba(0,0,0,0.3)" : "rgba(255,255,255,0.5)",
-              backdropFilter: "blur(10px)",
-              p: 0.5,
-              borderRadius: 3,
-              border: `1px solid ${border}`,
-              "& .MuiToggleButton-root": {
-                border: "none",
-                borderRadius: 2,
-                textTransform: "none",
-                fontWeight: 600,
-                color: textS,
-                px: 2,
-                "&.Mui-selected": {
-                  background: alpha(heroColor, 0.15),
-                  color: heroColor,
-                },
-              },
-            }}
-          >
-            <ToggleButton value="week">
-              <ViewWeek sx={{ fontSize: 18, mr: 1 }} /> Week
-            </ToggleButton>
-            <ToggleButton value="month">
-              <CalendarMonth sx={{ fontSize: 18, mr: 1 }} /> Month
-            </ToggleButton>
-          </ToggleButtonGroup>
         </Box>
 
-        {/* HERO STATS ROW */}
-        <Grid container spacing={1.5} sx={{ mb: 3 }}>
-          {[
-            {
-              emoji: "🔥",
-              label: "Today's Resonance",
-              value: `${todayMassPct}%`,
-              sub: `${todayMass} / ${MAX_EXPECTED_MASS} mass`,
-              color: heroColor,
-              delay: 0,
-            },
-            {
-              emoji: "📖",
-              label: "Current Read",
-              value: bookProgress != null ? `${bookProgress}%` : "—",
-              sub: activeBook ? ((activeBook.title ?? "").slice(0, 24) + ((activeBook.title?.length ?? 0) > 24 ? "…" : "")) : "No book in progress",
-              color: isDark ? "#D4845A" : "#8B3A2F",
-              delay: 0.05,
-            },
-            {
-              emoji: "🕉️",
-              label: "Japa Today",
-              value: todayJapa > 0 ? todayJapa.toLocaleString() : "—",
-              sub: japaGoals[0]?.japa_name || "No active goal",
-              color: isDark ? "#D4A830" : "#C07830",
-              delay: 0.1,
-            },
-            {
-              emoji: "🏃",
-              label: "Steps Today",
-              value: todayActivity?.steps ? todayActivity.steps.toLocaleString() : "—",
-              sub: todayActivity?.km_walked ? `${todayActivity.km_walked} km walked` : "Log in Sharīram",
-              color: isDark ? "#5EC98A" : "#2D7A4F",
-              delay: 0.15,
-            },
-          ].map((s) => (
-            <Grid item xs={6} md={3} key={s.label}>
-              <HeroStatCard {...s} isDark={isDark} />
-            </Grid>
-          ))}
+        {/* VITALS HERO */}
+        <VitalsHero
+          massPct={todayMassPct}
+          mass={todayMass}
+          oneThing={dayMap[todayStr]?.one_thing || ""}
+          todayJapa={todayJapa}
+          japaGoal={japaGoals[0] || null}
+          todayActivity={todayActivity}
+          activeBook={activeBook}
+          bookProgress={bookProgress}
+          heroColor={heroColor}
+          isDark={isDark}
+        />
+
+        {/* HEATMAP + RADAR */}
+        <Grid container spacing={2.5} sx={{ mb: 2.5 }}>
+          <Grid item xs={12} lg={8}>
+            <LifeRhythmHeatmap dayMap={dayMap} isDark={isDark} onDayClick={setSelectedDate} />
+          </Grid>
+          <Grid item xs={12} lg={4}>
+            <LifeBalanceRadar dynamicStreaks={dynamicStreaks} isDark={isDark} heroColor={heroColor} />
+          </Grid>
         </Grid>
 
         {/* STREAKS GRID */}
@@ -1717,56 +1982,28 @@ export default function DashboardPage() {
 
         {/* THIS WEEK'S FOCUS */}
         {weeklyGoals.length > 0 && (() => {
-          // Group by area
           const byArea = {};
-          weeklyGoals.forEach((g) => {
-            if (!byArea[g.area]) byArea[g.area] = [];
-            byArea[g.area].push(g);
-          });
+          weeklyGoals.forEach((g) => { if (!byArea[g.area]) byArea[g.area] = []; byArea[g.area].push(g); });
           const areas = Object.keys(byArea);
           const totalGoals = weeklyGoals.length;
           const doneGoals = weeklyGoals.filter((g) => g.done).length;
           const pct = totalGoals > 0 ? Math.round((doneGoals / totalGoals) * 100) : 0;
           return (
-            <Card
-              sx={{
-                border: `1px solid ${border}`,
-                borderRadius: 2.5,
-                background: cardBg,
-                boxShadow: "none",
-                mb: 3,
-                animation: `${fadeUp} 0.4s ease 0.05s both`,
-              }}
-            >
+            <Card sx={{ border: `1px solid ${border}`, borderRadius: 2.5, background: cardBg, boxShadow: "none", mb: 3, animation: `${fadeUp} 0.4s ease 0.05s both` }}>
               <CardContent sx={{ p: { xs: 2.5, sm: 3 } }}>
                 <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2, flexWrap: "wrap", gap: 1 }}>
                   <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
                     <Box sx={{ p: 0.75, borderRadius: 1.5, background: alpha(heroColor, 0.12), color: heroColor }}>
                       <Insights sx={{ fontSize: 18 }} />
                     </Box>
-                    <Typography sx={{ fontFamily: '"Fraunces", serif', fontSize: 18, fontWeight: 600 }}>
-                      This Week's Focus
-                    </Typography>
+                    <Typography sx={{ fontFamily: '"Fraunces", serif', fontSize: 18, fontWeight: 600 }}>This Week's Focus</Typography>
                   </Box>
                   <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                    <Typography sx={{ fontSize: 12, color: textS }}>
-                      {doneGoals}/{totalGoals} done
-                    </Typography>
+                    <Typography sx={{ fontSize: 12, color: textS }}>{doneGoals}/{totalGoals} done</Typography>
                     <Box sx={{ width: 80 }}>
-                      <LinearProgress
-                        variant="determinate"
-                        value={pct}
-                        sx={{
-                          height: 5,
-                          borderRadius: 4,
-                          bgcolor: alpha(heroColor, 0.12),
-                          "& .MuiLinearProgress-bar": { background: heroColor, borderRadius: 4 },
-                        }}
-                      />
+                      <LinearProgress variant="determinate" value={pct} sx={{ height: 5, borderRadius: 4, bgcolor: alpha(heroColor, 0.12), "& .MuiLinearProgress-bar": { background: heroColor, borderRadius: 4 } }} />
                     </Box>
-                    <Typography sx={{ fontSize: 12, color: heroColor, fontWeight: 700, minWidth: 32 }}>
-                      {pct}%
-                    </Typography>
+                    <Typography sx={{ fontSize: 12, color: heroColor, fontWeight: 700, minWidth: 32 }}>{pct}%</Typography>
                   </Box>
                 </Box>
                 <Grid container spacing={1.5}>
@@ -1775,30 +2012,13 @@ export default function DashboardPage() {
                     const aColor = isDark ? theme?.colorDark : theme?.color;
                     return (
                       <Grid item xs={12} sm={6} md={4} key={area}>
-                        <Box
-                          sx={{
-                            p: 1.5,
-                            borderRadius: 2,
-                            border: `1px solid ${alpha(aColor || heroColor, 0.2)}`,
-                            background: alpha(aColor || heroColor, 0.04),
-                          }}
-                        >
+                        <Box sx={{ p: 1.5, borderRadius: 2, border: `1px solid ${alpha(aColor || heroColor, 0.2)}`, background: alpha(aColor || heroColor, 0.04) }}>
                           <Typography sx={{ fontSize: 11, fontWeight: 700, color: aColor || heroColor, letterSpacing: 0.6, textTransform: "uppercase", mb: 1 }}>
                             {theme?.emoji} {theme?.label || area}
                           </Typography>
                           <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
                             {byArea[area].map((g) => (
-                              <Typography
-                                key={g.id}
-                                sx={{
-                                  fontSize: 12,
-                                  color: g.done ? textS : textP,
-                                  textDecoration: g.done ? "line-through" : "none",
-                                  opacity: g.done ? 0.55 : 1,
-                                  lineHeight: 1.5,
-                                  "&::before": { content: '"·  "', color: aColor || heroColor },
-                                }}
-                              >
+                              <Typography key={g.id} sx={{ fontSize: 12, color: g.done ? textS : textP, textDecoration: g.done ? "line-through" : "none", opacity: g.done ? 0.55 : 1, lineHeight: 1.5, "&::before": { content: '"·  "', color: aColor || heroColor } }}>
                                 {g.title}
                               </Typography>
                             ))}
@@ -1813,282 +2033,36 @@ export default function DashboardPage() {
           );
         })()}
 
-        {/* MAIN METRICS */}
-        <Grid container spacing={3}>
-          {/* CALENDAR/WEEK VIEW */}
-          <Grid item xs={12} lg={8}>
-            <Card
-              sx={{
-                border: `1px solid ${border}`,
-                borderRadius: 2.5,
-                background: cardBg,
-                boxShadow: "none",
-                animation: `${fadeUp} 0.5s ease 0.1s both`,
-              }}
-            >
-              <CardContent sx={{ p: { xs: 3, sm: 4 } }}>
-                <Box
-                  sx={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    mb: 4,
-                  }}
-                >
-                  <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
-                    <Box
-                      sx={{
-                        p: 1,
-                        borderRadius: 2,
-                        background: alpha(heroColor, 0.1),
-                        color: heroColor,
-                      }}
-                    >
-                      <Insights sx={{ fontSize: 20 }} />
-                    </Box>
-                    <Typography
-                      sx={{
-                        fontFamily: '"Lora","Fraunces", serif',
-                        fontSize: 16,
-                        fontWeight: 600,
-                      }}
-                    >
-                      {viewMode === "month"
-                        ? currentDate.format("MMMM YYYY")
-                        : "Current Pulse"}
-                    </Typography>
-                  </Box>
-                  {viewMode === "month" && (
-                    <Box sx={{ display: "flex", gap: 1 }}>
-                      <IconButton
-                        size="small"
-                        onClick={() =>
-                          setCurrentDate(currentDate.subtract(1, "month"))
-                        }
-                        sx={{ border: `1px solid ${border}` }}
-                      >
-                        <ChevronLeft />
-                      </IconButton>
-                      <IconButton
-                        size="small"
-                        onClick={() =>
-                          setCurrentDate(currentDate.add(1, "month"))
-                        }
-                        sx={{ border: `1px solid ${border}` }}
-                      >
-                        <ChevronRight />
-                      </IconButton>
-                    </Box>
-                  )}
-                </Box>
-                {viewMode === "month" ? renderMonthView() : renderWeekView()}
-              </CardContent>
-            </Card>
-          </Grid>
-
-          {/* LAKSHYA (GOALS) CONSTELLATION */}
-          <Grid item xs={12} lg={4}>
-            <Card
-              sx={{
-                border: `1px solid ${border}`,
-                borderRadius: 2.5,
-                background: cardBg,
-                boxShadow: "none",
-                height: "100%",
-                animation: `${fadeUp} 0.5s ease 0.15s both`,
-              }}
-            >
-              <CardContent sx={{ p: { xs: 3, sm: 4 } }}>
-                <Box
-                  sx={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 1.5,
-                    mb: 4,
-                  }}
-                >
-                  <Box
-                    sx={{
-                      p: 1,
-                      borderRadius: 2,
-                      background: alpha(heroColor, 0.1),
-                      color: heroColor,
-                    }}
-                  >
-                    <AutoGraph sx={{ fontSize: 20 }} />
-                  </Box>
-                  <Typography
-                    sx={{
-                      fontFamily: '"Fraunces", serif',
-                      fontSize: 22,
-                      fontWeight: 600,
-                    }}
-                  >
-                    Constellation
-                  </Typography>
-                </Box>
-
-                {lakshyas.length === 0 ? (
-                  <Box
-                    sx={{
-                      textAlign: "center",
-                      py: 6,
-                      px: 2,
-                      border: `1px dashed ${border}`,
-                      borderRadius: 3,
-                      bgcolor: alpha(textS, 0.03),
-                    }}
-                  >
-                    <Typography
-                      variant="body2"
-                      sx={{ color: textS, fontStyle: "italic", mb: 2 }}
-                    >
-                      The sky is empty. Establish a Lakshya to map your stars
-                      here.
-                    </Typography>
-                  </Box>
-                ) : (
-                  <Box
-                    sx={{ display: "flex", flexDirection: "column", gap: 3 }}
-                  >
-                    {lakshyas.map((l, idx) => {
-                      const siddhis = l.siddhis || [];
-                      const activeSiddhis = siddhis.filter((s) => s.status !== "completed");
-                      const completedSiddhis = siddhis.filter((s) => s.status === "completed");
-                      const avg =
-                        siddhis.length > 0
-                          ? Math.round(
-                              siddhis.reduce(
-                                (s, d) => s + (d.progress_percent || 0),
-                                0,
-                              ) / siddhis.length,
-                            )
-                          : 0;
-                      // Count active Anshs for this Lakshya from today's load
-                      const lakshyaAnshs = todayAnshs.filter((a) => a.lakshya_id === l.id);
-                      const doneAnshs = lakshyaAnshs.filter((a) => a.status === "completed").length;
-                      const pillarTheme = Object.values(AREA_THEMES).find(
-                        (t, i) => Object.keys(AREA_THEMES)[i] === l.pillar,
-                      ) || { color: heroColor, emoji: "🎯" };
-
-                      return (
-                        <Box
-                          key={l.id}
-                          sx={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 2,
-                            animation: `${fadeUp} 0.4s ease-out ${0.6 + idx * 0.1}s both`,
-                          }}
-                        >
-                          <Box sx={{ position: "relative", display: "inline-flex", flexShrink: 0 }}>
-                            <CircularProgress
-                              variant="determinate"
-                              value={100}
-                              size={44}
-                              thickness={4}
-                              sx={{ color: alpha(textS, 0.1) }}
-                            />
-                            <CircularProgress
-                              variant="determinate"
-                              value={avg}
-                              size={44}
-                              thickness={4}
-                              sx={{
-                                color: (isDark ? AREA_THEMES[l.pillar]?.colorDark : AREA_THEMES[l.pillar]?.color) || heroColor,
-                                position: "absolute",
-                                left: 0,
-                                strokeLinecap: "round",
-                              }}
-                            />
-                            <Box
-                              sx={{
-                                top: 0, left: 0, bottom: 0, right: 0,
-                                position: "absolute",
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                              }}
-                            >
-                              <Typography
-                                variant="caption"
-                                sx={{ fontSize: 10, fontWeight: 800, color: textP }}
-                              >
-                                {avg}%
-                              </Typography>
-                            </Box>
-                          </Box>
-
-                          <Box sx={{ flex: 1, minWidth: 0 }}>
-                            <Typography
-                              sx={{
-                                fontSize: 13,
-                                fontWeight: 700,
-                                color: textP,
-                                mb: 0.4,
-                                overflow: "hidden",
-                                textOverflow: "ellipsis",
-                                whiteSpace: "nowrap",
-                              }}
-                            >
-                              {l.title}
-                            </Typography>
-                            {/* Siddhi progress */}
-                            <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
-                              {siddhis.length > 0 && (
-                                <Typography
-                                  sx={{ fontSize: 10, color: textS, fontWeight: 500 }}
-                                >
-                                  {completedSiddhis.length}/{siddhis.length} milestones
-                                </Typography>
-                              )}
-                              {lakshyaAnshs.length > 0 && (
-                                <Typography
-                                  sx={{
-                                    fontSize: 10,
-                                    color: (isDark ? AREA_THEMES[l.pillar]?.colorDark : AREA_THEMES[l.pillar]?.color) || heroColor,
-                                    fontWeight: 600,
-                                  }}
-                                >
-                                  · {doneAnshs}/{lakshyaAnshs.length} anshs
-                                </Typography>
-                              )}
-                            </Box>
-                            {/* Active Siddhi name — first incomplete one */}
-                            {activeSiddhis[0] && (
-                              <Typography
-                                sx={{
-                                  fontSize: 9,
-                                  color: textS,
-                                  mt: 0.3,
-                                  overflow: "hidden",
-                                  textOverflow: "ellipsis",
-                                  whiteSpace: "nowrap",
-                                  fontStyle: "italic",
-                                }}
-                              >
-                                ↳ {activeSiddhis[0].title}
-                              </Typography>
-                            )}
-                          </Box>
-                        </Box>
-                      );
-                    })}
-                  </Box>
-                )}
-              </CardContent>
-            </Card>
-          </Grid>
-        </Grid>
-
         {/* ANALYTICS SECTION */}
-        <Grid container spacing={2} sx={{ mt: 1 }}>
-          <Grid item xs={12} md={4}><ReadingCard books={books} readingSessions={readingSessions} isDark={isDark} /></Grid>
-          <Grid item xs={12} md={4}><JapaCard japaLogs={japaLogs} japaGoals={japaGoals} isDark={isDark} /></Grid>
-          <Grid item xs={12} md={4}><FinanceCard financeLogs={financeLogs} financeBudgets={financeBudgets} isDark={isDark} /></Grid>
-          <Grid item xs={12}><MovementCard activityLogs={activityLogs} latestWeightKg={latestWeightKg} isDark={isDark} /></Grid>
+        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2, mt: 1 }}>
+          <Typography sx={{ fontFamily: '"Fraunces",serif', fontSize: 18, fontWeight: 600 }}>Analytics</Typography>
+          <ToggleButtonGroup
+            value={analyticsRange}
+            exclusive
+            onChange={(_, v) => v && setAnalyticsRange(v)}
+            size="small"
+            sx={{
+              background: isDark ? "rgba(0,0,0,0.3)" : "rgba(255,255,255,0.6)",
+              backdropFilter: "blur(8px)",
+              p: 0.4,
+              borderRadius: 2.5,
+              border: `1px solid ${border}`,
+              "& .MuiToggleButton-root": { border: "none", borderRadius: 2, textTransform: "none", fontWeight: 600, fontSize: 12, color: textS, px: 1.5, py: 0.4, "&.Mui-selected": { background: alpha(heroColor, 0.15), color: heroColor } },
+            }}
+          >
+            <ToggleButton value={7}>7d</ToggleButton>
+            <ToggleButton value={30}>30d</ToggleButton>
+            <ToggleButton value={90}>3M</ToggleButton>
+          </ToggleButtonGroup>
+        </Box>
+        <Grid container spacing={2}>
+          <Grid item xs={12} md={4}><ReadingCard books={books} readingSessions={readingSessions} isDark={isDark} days={analyticsRange} /></Grid>
+          <Grid item xs={12} md={4}><JapaCard japaLogs={japaLogs} japaGoals={japaGoals} isDark={isDark} days={analyticsRange} /></Grid>
+          <Grid item xs={12} md={4}><FinanceCard financeLogs={financeLogs} financeBudgets={financeBudgets} isDark={isDark} days={analyticsRange} /></Grid>
+          <Grid item xs={12}><MovementCard activityLogs={activityLogs} latestWeightKg={latestWeightKg} isDark={isDark} days={analyticsRange} /></Grid>
         </Grid>
       </Box>
+
 
       <DayDialog
         date={selectedDate}
