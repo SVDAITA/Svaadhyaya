@@ -78,7 +78,7 @@ const DEFAULT_SACRED = [
     label: "Vyaayamam",
     emoji: "🏃",
     locked: true,
-    deep: true,
+    readOnly: true,
   },
   {
     id: "reading",
@@ -989,6 +989,12 @@ function LinkLakshyaDialog({
     </Dialog>
   );
 }
+
+// ── HAPTIC HELPER ──────────────────────────────────────────────────────────────
+// Short pulse on mobile (Android Chrome/Firefox); silently ignored on iOS/desktop
+const haptic = (ms = 10) => {
+  try { if (navigator?.vibrate) navigator.vibrate(ms); } catch (_) {}
+};
 
 // ── MORNING FLOW MODAL ─────────────────────────────────────────────────────────
 const SLEEP_LABELS = ["Poor", "Fair", "Good", "Great", "Excellent"];
@@ -1914,19 +1920,33 @@ function TaskRow({
 
   return (
     <Box
+      onClick={() => { haptic(8); onToggle?.(); }}
       sx={{
         display: "flex",
         alignItems: "center",
         gap: 1.5,
         py: 1.25,
+        px: 0.5,
         borderBottom: `1px solid ${border}`,
         "&:last-child": { borderBottom: "none" },
-        transition: "all 0.12s",
-        borderRadius: 0.5,
+        borderRadius: 1.5,
+        cursor: "pointer",
+        transition: "background 0.12s, transform 0.1s",
+        "&:hover": {
+          background: isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.025)",
+          "& .task-circle": {
+            borderColor: heroColor,
+            boxShadow: `0 0 0 3px ${heroColor}18`,
+          },
+        },
+        "&:active": {
+          transform: "scale(0.985)",
+          background: isDark ? "rgba(255,255,255,0.05)" : `${heroColor}08`,
+        },
       }}
     >
       <Box
-        onClick={onToggle}
+        className="task-circle"
         sx={{
           width: item.emoji ? 30 : 22,
           height: item.emoji ? 30 : 22,
@@ -1943,8 +1963,8 @@ function TaskRow({
           alignItems: "center",
           justifyContent: "center",
           flexShrink: 0,
-          transition: "all 0.15s",
-          cursor: "pointer",
+          transition: "border-color 0.15s, box-shadow 0.15s, background 0.15s",
+          pointerEvents: "none",
         }}
       >
         {item.emoji && !checked && (
@@ -1964,8 +1984,7 @@ function TaskRow({
       </Box>
 
       <Box
-        sx={{ flex: 1, cursor: "pointer", minWidth: 0, overflow: "hidden" }}
-        onClick={onToggle}
+        sx={{ flex: 1, minWidth: 0, overflow: "hidden" }}
       >
         <Box
           sx={{
@@ -2189,6 +2208,16 @@ export default function TodayPage() {
   const [seqItems, setSeqItems] = useState([]);
   const [seqCompletions, setSeqCompletions] = useState({});
   const [seqOpen, setSeqOpen] = useState(false);
+
+  // Vyaayamam popup
+  const [walkOpen, setWalkOpen] = useState(false);
+  const [walkExType, setWalkExType] = useState("walk");
+  const [walkSteps, setWalkSteps] = useState("");
+  const [walkKm, setWalkKm] = useState("");
+  const [walkCalories, setWalkCalories] = useState("");
+  const [walkSavingMov, setWalkSavingMov] = useState(false);
+  const [walkActivityLogs, setWalkActivityLogs] = useState([]);
+  const WALK_TARGETS = { steps: 10000, km: 6, calories: 500 };
   const isDark = mode === "dark";
   const { data: panchangam, loading: panchLoading } = usePanchang();
   const today = dayjs().format("YYYY-MM-DD");
@@ -2271,12 +2300,25 @@ export default function TodayPage() {
     }
     try {
       const yesterday = dayjs().subtract(1, "day").format("YYYY-MM-DD");
-      const [{ data: dayData }, { data: yData }, { data: seqItems }, { data: seqComps }] = await Promise.all([
+      const sevenAgo = dayjs().subtract(7, "day").format("YYYY-MM-DD");
+      const [{ data: dayData }, { data: yData }, { data: seqItems }, { data: seqComps }, { data: actData }] = await Promise.all([
         supabase.from("days").select("*").eq("user_id", user.id).eq("day_date", today).maybeSingle(),
         supabase.from("days").select("tomorrow_tasks").eq("user_id", user.id).eq("day_date", yesterday).maybeSingle(),
         supabase.from("daily_items").select("*").eq("user_id", user.id).order("order_index"),
         supabase.from("daily_item_completions").select("daily_item_id,is_completed").eq("user_id", user.id).eq("completion_date", today),
+        supabase.from("daily_activity").select("*").eq("user_id", user.id).gte("date", sevenAgo).order("date", { ascending: false }),
       ]);
+      // Load walk popup data
+      if (actData) {
+        setWalkActivityLogs(actData);
+        const todayAct = actData.find((a) => a.date === today);
+        if (todayAct) {
+          setWalkSteps(todayAct.steps != null ? String(todayAct.steps) : "");
+          setWalkKm(todayAct.km_walked != null ? String(todayAct.km_walked) : "");
+          setWalkCalories(todayAct.calories_burned != null ? String(todayAct.calories_burned) : "");
+          setWalkExType(todayAct.exercise_type || "walk");
+        }
+      }
       // Compute visible-today sequence stats
       if (seqItems) {
         const todayDay = dayjs();
@@ -2437,7 +2479,10 @@ export default function TodayPage() {
 
   const handleToggle = (item) => {
     if (dayClosed) return;
-    if (item.readOnly) { setSeqOpen(true); return; }
+    if (item.readOnly) {
+      if (item.id === "walk") { setWalkOpen(true); return; }
+      setSeqOpen(true); return;
+    }
     if (!habits[item.id]) {
       if (item.deep) {
         setCompletionItem(item);
@@ -2482,6 +2527,27 @@ export default function TodayPage() {
     if (allDone) {
       setHabits((prev) => ({ ...prev, anushthanam: true }));
     }
+  };
+
+  const handleWalkSave = async () => {
+    if (!walkSteps && !walkKm && !walkCalories) return;
+    setWalkSavingMov(true);
+    const payload = {
+      user_id: user.id,
+      date: today,
+      steps: walkSteps ? parseInt(walkSteps, 10) : null,
+      km_walked: walkKm ? parseFloat(walkKm) : null,
+      calories_burned: walkCalories ? parseInt(walkCalories, 10) : null,
+      exercise_type: walkExType || "walk",
+    };
+    const { error } = await supabase.from("daily_activity").upsert(payload, { onConflict: "user_id,date" });
+    setWalkSavingMov(false);
+    if (error) return;
+    // Mark Vyaayamam done for today
+    const nextHabits = { ...habits, walk: true };
+    setHabits(nextHabits);
+    sync({ habits: nextHabits });
+    setWalkOpen(false);
   };
 
   const handleCompletionConfirm = (item, hours, satisfaction) => {
@@ -2652,9 +2718,21 @@ export default function TodayPage() {
     const meta = habitsData[item.id];
     const richItem = meta ? { ...item, ...meta } : item;
     const isDeletable = !item.locked && section !== null;
-    const subtitle = item.readOnly && seqTotal > 0
-      ? `${seqDone} of ${seqTotal} rituals complete`
-      : item.readOnly ? "Open daily sequence →" : null;
+    let subtitle = null;
+    if (item.id === "anushthanam") {
+      subtitle = seqTotal > 0 ? `${seqDone} of ${seqTotal} rituals complete` : "Open daily sequence →";
+    } else if (item.id === "walk") {
+      const todayAct = walkActivityLogs.find((a) => a.date === today);
+      if (todayAct) {
+        const typeLabel = todayAct.exercise_type === "strength" ? "💪 Strength" : todayAct.exercise_type === "both" ? "🔥 Both" : "🚶 Walk";
+        const parts = [typeLabel];
+        if (todayAct.steps) parts.push(`${(todayAct.steps / 1000).toFixed(1)}k steps`);
+        if (todayAct.calories_burned) parts.push(`${todayAct.calories_burned} kcal`);
+        subtitle = parts.join(" · ");
+      } else {
+        subtitle = "Log today's exercise →";
+      }
+    }
     return (
       <TaskRow
         key={item.id}
@@ -3389,6 +3467,200 @@ export default function TodayPage() {
         }}
       />
 
+      {/* ── VYAAYAMAM POPUP ── */}
+      <Dialog
+        open={walkOpen}
+        onClose={() => setWalkOpen(false)}
+        fullWidth
+        maxWidth="xs"
+        PaperProps={{
+          sx: {
+            borderRadius: 3,
+            background: isDark ? "#1A1916" : "#FDFCFA",
+            border: `1px solid ${isDark ? "rgba(255,255,255,0.08)" : "#E2DDD6"}`,
+            overflow: "hidden",
+          },
+        }}
+      >
+        {/* header */}
+        <Box sx={{ px: 3, pt: 2.5, pb: 1.5, display: "flex", alignItems: "center", gap: 1.5, borderBottom: `1px solid ${isDark ? "rgba(255,255,255,0.06)" : "#EAE6E0"}` }}>
+          <Typography sx={{ fontSize: 18 }}>🏃</Typography>
+          <Box sx={{ flex: 1 }}>
+            <Typography sx={{ fontFamily: '"Fraunces","Lora",serif', fontWeight: 600, fontSize: 17, color: isDark ? "#F0EDE8" : "#2C2C2C", lineHeight: 1.2 }}>
+              Vyaayamam
+            </Typography>
+            {(() => {
+              const streak = (() => {
+                let s = 0;
+                for (let i = 0; i < 7; i++) {
+                  const d = dayjs().subtract(i, "day").format("YYYY-MM-DD");
+                  if (walkActivityLogs.find((a) => a.date === d)) s++;
+                  else break;
+                }
+                return s;
+              })();
+              return streak > 1 ? (
+                <Typography sx={{ fontSize: 11, color: "#C07830", fontWeight: 500, mt: 0.2 }}>🔥 {streak} day streak</Typography>
+              ) : null;
+            })()}
+          </Box>
+          <IconButton size="small" onClick={() => setWalkOpen(false)} sx={{ color: isDark ? "#7C7A74" : "#9C9A94" }}>
+            <Close sx={{ fontSize: 18 }} />
+          </IconButton>
+        </Box>
+
+        <DialogContent sx={{ px: 2.5, pt: 2, pb: 1 }}>
+          {/* 7-day dot strip */}
+          <Box sx={{ display: "flex", gap: 0.75, mb: 2.5, justifyContent: "center" }}>
+            {[6,5,4,3,2,1,0].map((daysAgo) => {
+              const d = dayjs().subtract(daysAgo, "day");
+              const entry = walkActivityLogs.find((a) => a.date === d.format("YYYY-MM-DD"));
+              const typeEmoji = entry ? (entry.exercise_type === "strength" ? "💪" : entry.exercise_type === "both" ? "🔥" : "🚶") : null;
+              const isToday = daysAgo === 0;
+              return (
+                <Box key={daysAgo} sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 0.3 }}>
+                  <Box sx={{
+                    width: 28, height: 28, borderRadius: "50%",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    fontSize: entry ? 14 : 10,
+                    background: entry ? (isDark ? "rgba(192,120,48,0.2)" : "rgba(192,120,48,0.12)") : (isDark ? "#1F1E1B" : "#F0EDE8"),
+                    border: isToday ? `2px solid #C07830` : `1px solid ${isDark ? "#3C3C3C" : "#D1D0CF"}`,
+                  }}>
+                    {entry ? typeEmoji : <Box sx={{ width: 6, height: 6, borderRadius: "50%", bgcolor: isDark ? "#3C3C3C" : "#D1D0CF" }} />}
+                  </Box>
+                  <Typography sx={{ fontSize: 9, color: isDark ? "#5C5A54" : "#B0AEA8", fontWeight: isToday ? 700 : 400 }}>
+                    {d.format("dd")[0]}
+                  </Typography>
+                </Box>
+              );
+            })}
+          </Box>
+
+          {/* Exercise type chips */}
+          <Typography sx={{ fontSize: 11, fontWeight: 700, color: isDark ? "#7C7A74" : "#9C9A94", textTransform: "uppercase", letterSpacing: 0.8, mb: 1 }}>
+            What did you do today?
+          </Typography>
+          <Box sx={{ display: "flex", gap: 1, mb: 2 }}>
+            {[
+              { value: "walk", label: "🚶 Walk", note: "Daily non-negotiable" },
+              { value: "strength", label: "💪 Strength", note: "Walk substitute" },
+              { value: "both", label: "🔥 Both", note: "Full day" },
+            ].map((opt) => (
+              <Box
+                key={opt.value}
+                onClick={() => setWalkExType(opt.value)}
+                sx={{
+                  flex: 1, py: 1, px: 0.5, borderRadius: 2, textAlign: "center",
+                  border: `1.5px solid ${walkExType === opt.value ? "#C07830" : isDark ? "#3C3C3C" : "#D1D0CF"}`,
+                  background: walkExType === opt.value ? (isDark ? "rgba(192,120,48,0.12)" : "rgba(192,120,48,0.08)") : "transparent",
+                  cursor: "pointer", transition: "all 0.15s",
+                }}
+              >
+                <Typography sx={{ fontSize: 15 }}>{opt.label.split(" ")[0]}</Typography>
+                <Typography sx={{ fontSize: 10, fontWeight: 700, color: walkExType === opt.value ? "#C07830" : isDark ? "#7C7A74" : "#9C9A94", mt: 0.2 }}>
+                  {opt.label.split(" ")[1]}
+                </Typography>
+                <Typography sx={{ fontSize: 9, color: isDark ? "#5C5A54" : "#B0AEA8" }}>{opt.note}</Typography>
+              </Box>
+            ))}
+          </Box>
+
+          {/* Steps + km — dimmed for strength */}
+          {walkExType !== "strength" && (
+            <Box sx={{ display: "flex", gap: 1.5, mb: 1.5 }}>
+              {[
+                { label: "Steps", val: walkSteps, set: setWalkSteps, placeholder: "e.g. 8000", step: 100 },
+                { label: "km", val: walkKm, set: setWalkKm, placeholder: "e.g. 5.2", step: 0.1 },
+              ].map((f) => (
+                <Box key={f.label} sx={{ flex: 1 }}>
+                  <Typography sx={{ fontSize: 11, fontWeight: 600, color: isDark ? "#9C9A94" : "#6B6962", mb: 0.5 }}>{f.label}</Typography>
+                  <Box
+                    component="input"
+                    type="number"
+                    placeholder={f.placeholder}
+                    value={f.val}
+                    onChange={(e) => f.set(e.target.value)}
+                    sx={{
+                      width: "100%", boxSizing: "border-box",
+                      px: 1.5, py: 1, borderRadius: 1.5,
+                      border: `1px solid ${isDark ? "#3C3C3C" : "#D1D0CF"}`,
+                      background: isDark ? "#141312" : "#F8F6F2",
+                      color: isDark ? "#F0EDE8" : "#2C2C2C",
+                      fontSize: 14, fontFamily: "inherit",
+                      outline: "none", "&:focus": { borderColor: "#C07830" },
+                    }}
+                  />
+                  {/* progress bar */}
+                  {(() => {
+                    const target = f.label === "Steps" ? WALK_TARGETS.steps : WALK_TARGETS.km;
+                    const val = f.label === "Steps" ? (walkSteps ? parseInt(walkSteps) : 0) : (walkKm ? parseFloat(walkKm) : 0);
+                    if (!val) return null;
+                    const pct = Math.min(val / target, 1);
+                    const clr = pct >= 1 ? "#2D7A4F" : pct >= 0.7 ? "#4A90E2" : pct >= 0.4 ? "#DDA74F" : "#CF4E4E";
+                    return (
+                      <Box sx={{ mt: 0.75 }}>
+                        <Box sx={{ height: 4, borderRadius: 2, bgcolor: isDark ? "#2A2926" : "#EAE6E0", overflow: "hidden" }}>
+                          <Box sx={{ width: `${pct * 100}%`, height: "100%", bgcolor: clr, borderRadius: 2, transition: "width 0.3s" }} />
+                        </Box>
+                        <Typography sx={{ fontSize: 9, color: clr, mt: 0.3 }}>{Math.round(pct * 100)}% of target</Typography>
+                      </Box>
+                    );
+                  })()}
+                </Box>
+              ))}
+            </Box>
+          )}
+
+          {/* Calories */}
+          <Box sx={{ mb: 0.5 }}>
+            <Typography sx={{ fontSize: 11, fontWeight: 600, color: isDark ? "#9C9A94" : "#6B6962", mb: 0.5 }}>🔥 Active Calories (kcal)</Typography>
+            <Box
+              component="input"
+              type="number"
+              placeholder="e.g. 450"
+              value={walkCalories}
+              onChange={(e) => setWalkCalories(e.target.value)}
+              sx={{
+                width: "100%", boxSizing: "border-box",
+                px: 1.5, py: 1, borderRadius: 1.5,
+                border: `1px solid ${isDark ? "#3C3C3C" : "#D1D0CF"}`,
+                background: isDark ? "#141312" : "#F8F6F2",
+                color: isDark ? "#F0EDE8" : "#2C2C2C",
+                fontSize: 14, fontFamily: "inherit",
+                outline: "none",
+              }}
+            />
+            {walkCalories && parseInt(walkCalories) > 0 && (() => {
+              const pct = Math.min(parseInt(walkCalories) / WALK_TARGETS.calories, 1);
+              const clr = pct >= 1 ? "#2D7A4F" : pct >= 0.7 ? "#4A90E2" : pct >= 0.4 ? "#DDA74F" : "#CF4E4E";
+              return (
+                <Box sx={{ mt: 0.75 }}>
+                  <Box sx={{ height: 4, borderRadius: 2, bgcolor: isDark ? "#2A2926" : "#EAE6E0", overflow: "hidden" }}>
+                    <Box sx={{ width: `${pct * 100}%`, height: "100%", bgcolor: clr, borderRadius: 2, transition: "width 0.3s" }} />
+                  </Box>
+                  <Typography sx={{ fontSize: 9, color: clr, mt: 0.3 }}>{Math.round(pct * 100)}% of {WALK_TARGETS.calories} kcal target</Typography>
+                </Box>
+              );
+            })()}
+          </Box>
+        </DialogContent>
+
+        <DialogActions sx={{ px: 2.5, pb: 2, pt: 1 }}>
+          <Button size="small" onClick={() => setWalkOpen(false)} sx={{ color: isDark ? "#7C7A74" : "#9C9A94", textTransform: "none" }}>
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            size="small"
+            disabled={walkSavingMov || (!walkSteps && !walkKm && !walkCalories)}
+            onClick={handleWalkSave}
+            sx={{ background: "#2D7A4F", color: "#fff", textTransform: "none", fontWeight: 600, borderRadius: 2, fontSize: 13, "&:hover": { background: "#1A5F3A" }, ml: "auto" }}
+          >
+            {walkSavingMov ? "Saving…" : "Log it ✓"}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
       {/* ── DAILY SEQUENCE POPUP ── */}
       <Dialog
         open={seqOpen}
@@ -3466,7 +3738,7 @@ export default function TodayPage() {
               return (
                 <Box
                   key={item.id}
-                  onClick={() => handleSeqToggle(item.id)}
+                  onClick={() => { haptic(8); handleSeqToggle(item.id); }}
                   sx={{
                     display: "flex",
                     alignItems: "center",

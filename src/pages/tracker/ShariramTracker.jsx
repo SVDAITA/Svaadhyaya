@@ -142,9 +142,13 @@ export default function ShariramHealthOS() {
   const [movSteps, setMovSteps]     = useState("");
   const [movKm, setMovKm]           = useState("");
   const [movCalories, setMovCalories] = useState("");
+  const [movExType, setMovExType]   = useState("walk");
   const [movSleep, setMovSleep]     = useState("");
   const [movSleepQ, setMovSleepQ]   = useState(0);
   const [savingMov, setSavingMov]   = useState(false);
+
+  // Activity targets (defaults, can be made user-configurable later)
+  const ACT_TARGETS = { steps: 10000, km: 6, calories: 500 };
 
   const fetchLogs = useCallback(async () => {
     if (!user) return;
@@ -169,6 +173,7 @@ export default function ShariramHealthOS() {
           setMovSteps(todayEntry.steps != null ? String(todayEntry.steps) : "");
           setMovKm(todayEntry.km_walked != null ? String(todayEntry.km_walked) : "");
           setMovCalories(todayEntry.calories_burned != null ? String(todayEntry.calories_burned) : "");
+          setMovExType(todayEntry.exercise_type || "walk");
           setMovSleep(todayEntry.sleep_hours != null ? String(todayEntry.sleep_hours) : "");
           setMovSleepQ(todayEntry.sleep_quality ?? 0);
         }
@@ -179,7 +184,7 @@ export default function ShariramHealthOS() {
   }, [user]);
 
   const saveMovement = async () => {
-    if (!movSteps && !movKm && !movCalories && !movSleep) {
+    if (!movSteps && !movKm && !movCalories && !movSleep && !movExType) {
       showSnack("Enter at least one value to save.", "error");
       return;
     }
@@ -190,6 +195,7 @@ export default function ShariramHealthOS() {
       steps: movSteps ? parseInt(movSteps, 10) : null,
       km_walked: movKm ? parseFloat(movKm) : null,
       calories_burned: movCalories ? parseInt(movCalories, 10) : null,
+      exercise_type: movExType || "walk",
       sleep_hours: movSleep ? parseFloat(movSleep) : null,
       sleep_quality: movSleepQ || null,
     };
@@ -787,12 +793,52 @@ export default function ShariramHealthOS() {
                         setMovSteps(ex?.steps != null ? String(ex.steps) : "");
                         setMovKm(ex?.km_walked != null ? String(ex.km_walked) : "");
                         setMovCalories(ex?.calories_burned != null ? String(ex.calories_burned) : "");
+                        setMovExType(ex?.exercise_type || "walk");
                         setMovSleep(ex?.sleep_hours != null ? String(ex.sleep_hours) : "");
                         setMovSleepQ(ex?.sleep_quality ?? 0);
                       }}
                       InputLabelProps={{ shrink: true }}
                       fullWidth
                     />
+
+                    {/* Exercise type */}
+                    <Typography variant="caption" sx={{ fontWeight: 700, color: "text.secondary", textTransform: "uppercase", letterSpacing: 0.5, pt: 0.5 }}>
+                      Exercise Type
+                    </Typography>
+                    <Stack direction="row" spacing={1}>
+                      {[
+                        { value: "walk", label: "🚶 Walk", desc: "Daily non-negotiable" },
+                        { value: "strength", label: "💪 Strength", desc: "Walk substitute" },
+                        { value: "both", label: "🔥 Both", desc: "Full day" },
+                      ].map((opt) => (
+                        <Box
+                          key={opt.value}
+                          onClick={() => setMovExType(opt.value)}
+                          sx={{
+                            flex: 1,
+                            py: 1,
+                            px: 0.5,
+                            borderRadius: 2,
+                            border: `1.5px solid ${movExType === opt.value ? theme.palette.primary.main : theme.palette.divider}`,
+                            background: movExType === opt.value ? alpha(theme.palette.primary.main, 0.08) : "transparent",
+                            cursor: "pointer",
+                            textAlign: "center",
+                            transition: "all 0.15s",
+                            "&:hover": { borderColor: theme.palette.primary.main, background: alpha(theme.palette.primary.main, 0.04) },
+                          }}
+                        >
+                          <Typography sx={{ fontSize: 16, lineHeight: 1 }}>{opt.label.split(" ")[0]}</Typography>
+                          <Typography sx={{ fontSize: 10, fontWeight: 700, color: movExType === opt.value ? theme.palette.primary.main : "text.secondary", mt: 0.25 }}>
+                            {opt.label.split(" ")[1]}
+                          </Typography>
+                        </Box>
+                      ))}
+                    </Stack>
+                    {movExType === "strength" && (
+                      <Typography sx={{ fontSize: 11, color: COLOR_ALERT, fontStyle: "italic" }}>
+                        💪 Strength training counts as your daily exercise substitute
+                      </Typography>
+                    )}
 
                     {/* Movement group */}
                     <Typography variant="caption" sx={{ fontWeight: 700, color: "text.secondary", textTransform: "uppercase", letterSpacing: 0.5, pt: 0.5 }}>
@@ -807,7 +853,7 @@ export default function ShariramHealthOS() {
                         value={movSteps}
                         onChange={(e) => setMovSteps(e.target.value)}
                         inputProps={{ min: 0 }}
-                        sx={{ flex: 1 }}
+                        sx={{ flex: 1, opacity: movExType === "strength" ? 0.55 : 1 }}
                       />
                       <TextField
                         label="km Walked"
@@ -817,7 +863,7 @@ export default function ShariramHealthOS() {
                         value={movKm}
                         onChange={(e) => setMovKm(e.target.value)}
                         inputProps={{ min: 0, step: 0.1 }}
-                        sx={{ flex: 1 }}
+                        sx={{ flex: 1, opacity: movExType === "strength" ? 0.55 : 1 }}
                       />
                     </Stack>
                     <TextField
@@ -894,8 +940,43 @@ export default function ShariramHealthOS() {
                   </Stack>
                 </Grid>
 
-                {/* Recent log */}
+                {/* Stats + Recent log */}
                 <Grid item xs={12} md={7}>
+                  {/* Today's visual progress — shown when movDate === today */}
+                  {movDate === dayjs().format("YYYY-MM-DD") && (movSteps || movKm || movCalories) && (() => {
+                    const actColor = (val, target) => {
+                      const pct = target > 0 ? val / target : 0;
+                      if (pct >= 1) return "#2D7A4F";
+                      if (pct >= 0.7) return "#4A90E2";
+                      if (pct >= 0.4) return "#DDA74F";
+                      return "#CF4E4E";
+                    };
+                    const stats = [
+                      { label: "Steps", emoji: "👣", val: movSteps ? parseInt(movSteps) : 0, target: ACT_TARGETS.steps, unit: "steps", fmt: (v) => v >= 1000 ? `${(v/1000).toFixed(1)}k` : String(v) },
+                      { label: "Distance", emoji: "📍", val: movKm ? parseFloat(movKm) : 0, target: ACT_TARGETS.km, unit: "km", fmt: (v) => `${v}km` },
+                      { label: "Calories", emoji: "🔥", val: movCalories ? parseInt(movCalories) : 0, target: ACT_TARGETS.calories, unit: "kcal", fmt: (v) => `${v} kcal` },
+                    ].filter((s) => s.val > 0);
+                    if (stats.length === 0) return null;
+                    return (
+                      <Stack direction="row" spacing={1.5} sx={{ mb: 2 }}>
+                        {stats.map((s) => {
+                          const pct = Math.min(s.val / s.target, 1);
+                          const clr = actColor(s.val, s.target);
+                          return (
+                            <Box key={s.label} sx={{ flex: 1, p: 1.5, borderRadius: 2, border: `1px solid ${alpha(clr, 0.3)}`, bgcolor: alpha(clr, 0.06) }}>
+                              <Typography sx={{ fontSize: 11, fontWeight: 700, color: clr, mb: 0.5 }}>{s.emoji} {s.label}</Typography>
+                              <Typography sx={{ fontSize: 17, fontWeight: 700, color: clr, lineHeight: 1 }}>{s.fmt(s.val)}</Typography>
+                              <Box sx={{ mt: 1, height: 4, borderRadius: 2, bgcolor: alpha(clr, 0.15), overflow: "hidden" }}>
+                                <Box sx={{ width: `${pct * 100}%`, height: "100%", bgcolor: clr, borderRadius: 2, transition: "width 0.4s ease" }} />
+                              </Box>
+                              <Typography sx={{ fontSize: 9, color: "text.secondary", mt: 0.4 }}>{Math.round(pct * 100)}% of {s.target.toLocaleString()} {s.unit}</Typography>
+                            </Box>
+                          );
+                        })}
+                      </Stack>
+                    );
+                  })()}
+
                   <Typography variant="body2" sx={{ color: "text.secondary", mb: 1.5 }}>Last 10 entries · click a row to edit</Typography>
                   {activityLogs.length === 0 ? (
                     <Typography variant="body2" sx={{ color: "text.secondary", fontStyle: "italic" }}>No activity logged yet.</Typography>
@@ -905,10 +986,11 @@ export default function ShariramHealthOS() {
                         <TableHead>
                           <TableRow>
                             <TableCell sx={{ fontSize: 11, fontWeight: 700 }}>Date</TableCell>
+                            <TableCell align="center" sx={{ fontSize: 11, fontWeight: 700 }}>Type</TableCell>
                             <TableCell align="right" sx={{ fontSize: 11, fontWeight: 700 }}>Steps</TableCell>
                             <TableCell align="right" sx={{ fontSize: 11, fontWeight: 700 }}>kcal</TableCell>
                             <TableCell align="right" sx={{ fontSize: 11, fontWeight: 700 }}>Sleep</TableCell>
-                            <TableCell align="center" sx={{ fontSize: 11, fontWeight: 700 }}>Quality</TableCell>
+                            <TableCell align="center" sx={{ fontSize: 11, fontWeight: 700 }}>💤</TableCell>
                           </TableRow>
                         </TableHead>
                         <TableBody>
@@ -921,12 +1003,16 @@ export default function ShariramHealthOS() {
                                 setMovSteps(row.steps != null ? String(row.steps) : "");
                                 setMovKm(row.km_walked != null ? String(row.km_walked) : "");
                                 setMovCalories(row.calories_burned != null ? String(row.calories_burned) : "");
+                                setMovExType(row.exercise_type || "walk");
                                 setMovSleep(row.sleep_hours != null ? String(row.sleep_hours) : "");
                                 setMovSleepQ(row.sleep_quality ?? 0);
                               }}
                               sx={{ cursor: "pointer" }}
                             >
                               <TableCell sx={{ fontSize: 12 }}>{dayjs(row.date).format("D MMM")}</TableCell>
+                              <TableCell align="center" sx={{ fontSize: 14 }}>
+                                {row.exercise_type === "strength" ? "💪" : row.exercise_type === "both" ? "🔥" : "🚶"}
+                              </TableCell>
                               <TableCell align="right" sx={{ fontSize: 12, fontWeight: 600 }}>{row.steps?.toLocaleString() ?? "—"}</TableCell>
                               <TableCell align="right" sx={{ fontSize: 12, fontWeight: 600, color: row.calories_burned ? (isDark ? "#F59E6A" : "#C07830") : "text.secondary" }}>
                                 {row.calories_burned?.toLocaleString() ?? "—"}
