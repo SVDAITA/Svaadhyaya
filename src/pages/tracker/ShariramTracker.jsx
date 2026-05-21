@@ -119,7 +119,7 @@ const itemVariants = {
 
 let _shariramCache = null;
 
-export default function ShariramHealthOS() {
+export default function ShariramHealthOS({ embedded = false }) {
   const theme = useTheme();
   const isDark = theme.palette.mode === "dark";
   const { user } = useAuth();
@@ -382,13 +382,7 @@ export default function ShariramHealthOS() {
 
 
   return (
-    <Box
-      sx={{
-        p: { xs: 2, md: 4 },
-        minHeight: "100vh",
-        color: "text.primary",
-      }}
-    >
+    <Box sx={embedded ? { color: "text.primary" } : { p: { xs: 2, md: 4 }, minHeight: "100vh", color: "text.primary" }}>
       <Box
         component={motion.div}
         variants={containerVariants}

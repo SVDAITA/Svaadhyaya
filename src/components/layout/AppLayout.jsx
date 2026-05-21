@@ -33,9 +33,7 @@ import {
   LightMode,
   Menu as MenuIcon,
   ChevronRight,
-  FlashOn,
   SettingsOutlined,
-  BoltOutlined,
   Spa,
 } from "@mui/icons-material";
 import { useAuth } from "../../hooks/useAuth";
@@ -51,13 +49,6 @@ const NAV_ITEMS = [
     label: "Dashboard",
     icon: <Dashboard />,
     path: "/svadhyaya/dashboard",
-    color: "#C07830",
-  },
-  { label: "Track", icon: <FlashOn />, path: "/tracker", color: "#1A5FB0" },
-  {
-    label: "Disruption",
-    icon: <BoltOutlined />,
-    path: "/svadhyaya/disruption",
     color: "#C07830",
   },
   { divider: true, label: "Life Areas" },
@@ -115,7 +106,7 @@ const NAV_ITEMS = [
 const BOTTOM_NAV = [
   { label: "Today", icon: <Today fontSize="small" />, path: "/svadhyaya" },
   { label: "Dashboard", icon: <Dashboard fontSize="small" />, path: "/svadhyaya/dashboard" },
-  { label: "Track", icon: <FlashOn fontSize="small" />, path: "/tracker" },
+  { label: "Vritti", icon: <Work fontSize="small" />, path: "/svadhyaya/vrutti" },
   { label: "Settings", icon: <SettingsOutlined fontSize="small" />, path: "/svadhyaya/settings" },
 ];
 

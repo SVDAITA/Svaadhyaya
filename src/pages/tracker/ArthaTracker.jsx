@@ -310,7 +310,7 @@ function SectionLabel({ children, icon }) {
 let _arthaCache = null;
 
 // ─── MAIN COMPONENT ───────────────────────────────────────────────────────────
-export default function FinanceOSPage() {
+export default function FinanceOSPage({ embedded = false }) {
   const { user } = useAuth();
   const theme = useTheme();
   const isDark = theme.palette.mode === "dark";
@@ -974,7 +974,7 @@ export default function FinanceOSPage() {
 
   return (
     <Box
-      sx={{
+      sx={embedded ? { pb: 3 } : {
         position: "relative",
         minHeight: "100vh",
         background: isDark

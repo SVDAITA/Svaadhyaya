@@ -85,7 +85,7 @@ const DEFAULT_SACRED = [
     label: "Pustaka Pathanam",
     emoji: "📖",
     locked: true,
-    deep: true,
+    readOnly: true,
   },
   {
     id: "eat_healthy",
@@ -109,7 +109,7 @@ const DEFAULT_CORE = [
     label: "Vritti",
     emoji: "🚀",
     locked: true,
-    deep: true,
+    readOnly: true,
   },
   {
     id: "vidya",
@@ -2216,6 +2216,16 @@ export default function TodayPage() {
   const [naadaSeqDone, setNaadaSeqDone] = useState(0);
   const [naadaSeqTotal, setNaadaSeqTotal] = useState(0);
 
+  // Vritti popup
+  const [vrittiOpen, setVrittiOpen] = useState(false);
+  const [vrittiProjects, setVrittiProjects] = useState([]);
+
+  // Reading/Vidya popup
+  const [readingOpen, setReadingOpen] = useState(false);
+  const [currentBooks, setCurrentBooks] = useState([]);
+  const [vidyaPracItems, setVidyaPracItems] = useState([]);
+  const [vidyaPracComps, setVidyaPracComps] = useState({});
+
   // Vyaayamam popup
   const [walkOpen, setWalkOpen] = useState(false);
   const [walkExType, setWalkExType] = useState("walk");
@@ -2308,7 +2318,7 @@ export default function TodayPage() {
     try {
       const yesterday = dayjs().subtract(1, "day").format("YYYY-MM-DD");
       const sevenAgo = dayjs().subtract(7, "day").format("YYYY-MM-DD");
-      const [{ data: dayData }, { data: yData }, { data: seqItems }, { data: seqComps }, { data: actData }, { data: naadaItems }, { data: naadaComps }] = await Promise.all([
+      const [{ data: dayData }, { data: yData }, { data: seqItems }, { data: seqComps }, { data: actData }, { data: naadaItems }, { data: naadaComps }, { data: vProjects }, { data: rBooks }, { data: vPracItems }, { data: vPracComps }] = await Promise.all([
         supabase.from("days").select("*").eq("user_id", user.id).eq("day_date", today).maybeSingle(),
         supabase.from("days").select("tomorrow_tasks").eq("user_id", user.id).eq("day_date", yesterday).maybeSingle(),
         supabase.from("daily_items").select("*").eq("user_id", user.id).order("order_index"),
@@ -2316,6 +2326,10 @@ export default function TodayPage() {
         supabase.from("daily_activity").select("*").eq("user_id", user.id).gte("date", sevenAgo).order("date", { ascending: false }),
         supabase.from("naada_sequence_items").select("*").eq("user_id", user.id).order("order_index"),
         supabase.from("naada_sequence_completions").select("naada_item_id,is_completed").eq("user_id", user.id).eq("completion_date", today),
+        supabase.from("vritti_projects").select("id,title,status,priority").eq("user_id", user.id).eq("status", "active").order("order_index"),
+        supabase.from("books").select("id,title,author,current_page,total_pages,status").eq("user_id", user.id).eq("status", "reading").limit(5),
+        supabase.from("vidya_practice_items").select("*").eq("user_id", user.id).order("order_index"),
+        supabase.from("vidya_practice_completions").select("vidya_item_id,is_completed").eq("user_id", user.id).eq("completion_date", today),
       ]);
       // Load walk popup data
       if (actData) {
@@ -2357,6 +2371,14 @@ export default function TodayPage() {
         setNaadaSeqCompletions(naadaCompMap);
         setNaadaSeqTotal(naadaVisible.length);
         setNaadaSeqDone(naadaVisible.filter((s) => naadaCompMap[s.id]).length);
+      }
+      // Vritti active projects
+      if (vProjects) setVrittiProjects(vProjects);
+      // Reading / Vidya
+      if (rBooks) setCurrentBooks(rBooks);
+      if (vPracItems) {
+        setVidyaPracItems(vPracItems);
+        setVidyaPracComps(Object.fromEntries((vPracComps || []).map((c) => [c.vidya_item_id, c.is_completed])));
       }
 
       if (dayData) {
@@ -2504,8 +2526,10 @@ export default function TodayPage() {
   const handleToggle = (item) => {
     if (dayClosed) return;
     if (item.readOnly) {
-      if (item.id === "walk") { setWalkOpen(true); return; }
+      if (item.id === "walk")     { setWalkOpen(true);    return; }
       if (item.id === "saadhana") { setNaadaSeqOpen(true); return; }
+      if (item.id === "office")   { setVrittiOpen(true);  return; }
+      if (item.id === "reading")  { setReadingOpen(true); return; }
       setSeqOpen(true); return;
     }
     if (!habits[item.id]) {
@@ -2776,6 +2800,18 @@ export default function TodayPage() {
       subtitle = seqTotal > 0 ? `${seqDone} of ${seqTotal} rituals complete` : "Open daily sequence →";
     } else if (item.id === "saadhana") {
       subtitle = naadaSeqTotal > 0 ? `${naadaSeqDone} of ${naadaSeqTotal} complete` : "Open music practice →";
+    } else if (item.id === "office") {
+      subtitle = vrittiProjects.length > 0
+        ? `${vrittiProjects.length} active project${vrittiProjects.length > 1 ? "s" : ""} → log today's work`
+        : "Log today's work →";
+    } else if (item.id === "reading") {
+      const book = currentBooks[0];
+      if (book) {
+        const prog = book.total_pages > 0 ? `${book.current_page || 0}/${book.total_pages} pages` : null;
+        subtitle = [book.title, prog].filter(Boolean).join(" · ");
+      } else {
+        subtitle = "Open reading tracker →";
+      }
     } else if (item.id === "walk") {
       const todayAct = walkActivityLogs.find((a) => a.date === today);
       if (todayAct) {
@@ -3712,6 +3748,135 @@ export default function TodayPage() {
             sx={{ background: "#2D7A4F", color: "#fff", textTransform: "none", fontWeight: 600, borderRadius: 2, fontSize: 13, "&:hover": { background: "#1A5F3A" }, ml: "auto" }}
           >
             {walkSavingMov ? "Saving…" : "Log it ✓"}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* ── VRITTI POPUP ── */}
+      <Dialog open={vrittiOpen} onClose={() => setVrittiOpen(false)} fullWidth maxWidth="xs"
+        PaperProps={{ sx: { borderRadius: 3, background: isDark ? "#0E1420" : "#F8FAFE", border: `1px solid ${isDark ? "rgba(26,95,176,0.22)" : "rgba(26,95,176,0.18)"}`, overflow: "hidden" } }}>
+        <Box sx={{ px: 3, pt: 2.5, pb: 1.5, display: "flex", alignItems: "center", gap: 1.5, borderBottom: `1px solid ${isDark ? "rgba(26,95,176,0.15)" : "#E0E8F8"}` }}>
+          <Typography sx={{ fontSize: 18 }}>🚀</Typography>
+          <Box sx={{ flex: 1 }}>
+            <Typography sx={{ fontFamily: '"Fraunces","Lora",serif', fontWeight: 600, fontSize: 17, color: isDark ? "#F0EDE8" : "#0A1628", lineHeight: 1.2 }}>
+              Vṛtti
+            </Typography>
+            <Typography sx={{ fontSize: 11, color: "#1A5FB0", fontWeight: 500, mt: 0.2 }}>
+              {vrittiProjects.length > 0 ? `${vrittiProjects.length} active project${vrittiProjects.length > 1 ? "s" : ""}` : "No active projects"}
+            </Typography>
+          </Box>
+          <IconButton size="small" onClick={() => setVrittiOpen(false)} sx={{ color: isDark ? "#7C7A74" : "#9C9A94" }}><Close sx={{ fontSize: 18 }} /></IconButton>
+        </Box>
+        <DialogContent sx={{ px: 2.5, py: 1.5 }}>
+          {vrittiProjects.length === 0 ? (
+            <Box sx={{ py: 4, textAlign: "center" }}>
+              <Typography sx={{ fontSize: 13, color: isDark ? "#7C7A74" : "#9C9A94" }}>No active projects.</Typography>
+              <Typography sx={{ fontSize: 12, color: isDark ? "#5C5A54" : "#B0AEA8", mt: 0.5 }}>Add projects in the Vṛtti tracker.</Typography>
+            </Box>
+          ) : vrittiProjects.map((p) => (
+            <Box key={p.id} sx={{ display: "flex", alignItems: "center", gap: 1.5, py: 1.25, px: 1, borderRadius: 2,
+              borderBottom: `1px solid ${isDark ? "rgba(255,255,255,0.04)" : "#EEF2FA"}`, "&:last-child": { borderBottom: "none" } }}>
+              <Typography sx={{ fontSize: 16, lineHeight: 1 }}>{p.priority === 3 ? "🔴" : p.priority === 1 ? "🟢" : "🟡"}</Typography>
+              <Typography sx={{ flex: 1, fontSize: 13, fontWeight: 500, color: isDark ? "#E0E8F8" : "#0A1628" }}>{p.title}</Typography>
+            </Box>
+          ))}
+        </DialogContent>
+        <DialogActions sx={{ px: 2.5, pb: 2, pt: 0.5, justifyContent: "space-between" }}>
+          <Button size="small" onClick={() => { setVrittiOpen(false); navigate("/svadhyaya/vrutti"); }}
+            sx={{ color: isDark ? "#7C7A74" : "#9C9A94", textTransform: "none", fontSize: 12 }}>Open full tracker →</Button>
+          <Button variant="contained" size="small" onClick={() => setVrittiOpen(false)}
+            sx={{ background: "#1A5FB0", color: "#fff", textTransform: "none", fontWeight: 600, borderRadius: 2, fontSize: 13, "&:hover": { background: "#1050A0" } }}>
+            Done
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* ── READING / VIDYA POPUP ── */}
+      <Dialog open={readingOpen} onClose={() => setReadingOpen(false)} fullWidth maxWidth="xs"
+        PaperProps={{ sx: { borderRadius: 3, background: isDark ? "#1A1610" : "#FDFAF5", border: `1px solid ${isDark ? "rgba(160,82,45,0.22)" : "rgba(160,82,45,0.20)"}`, overflow: "hidden" } }}>
+        <Box sx={{ px: 3, pt: 2.5, pb: 1.5, display: "flex", alignItems: "center", gap: 1.5, borderBottom: `1px solid ${isDark ? "rgba(160,82,45,0.15)" : "#F0E8E0"}` }}>
+          <Typography sx={{ fontSize: 18 }}>📖</Typography>
+          <Box sx={{ flex: 1 }}>
+            <Typography sx={{ fontFamily: '"Fraunces","Lora",serif', fontWeight: 600, fontSize: 17, color: isDark ? "#F0EDE8" : "#2C2C2C", lineHeight: 1.2 }}>
+              Pustaka Pathanam
+            </Typography>
+            {currentBooks[0] && (
+              <Typography sx={{ fontSize: 11, color: "#C07830", fontWeight: 500, mt: 0.2 }}>{currentBooks[0].title}</Typography>
+            )}
+          </Box>
+          <IconButton size="small" onClick={() => setReadingOpen(false)} sx={{ color: isDark ? "#7C7A74" : "#9C9A94" }}><Close sx={{ fontSize: 18 }} /></IconButton>
+        </Box>
+        <DialogContent sx={{ px: 2.5, py: 1.5 }}>
+          {/* Current books */}
+          {currentBooks.map((b) => {
+            const prog = b.total_pages > 0 ? Math.round(((b.current_page || 0) / b.total_pages) * 100) : 0;
+            const barColor = prog >= 90 ? "#2D7A4F" : prog >= 60 ? "#C07830" : "#A0522D";
+            return (
+              <Box key={b.id} sx={{ mb: 2, p: 1.5, borderRadius: 2, bgcolor: isDark ? "rgba(160,82,45,0.08)" : "rgba(160,82,45,0.06)", border: `1px solid ${isDark ? "rgba(160,82,45,0.18)" : "rgba(160,82,45,0.15)"}` }}>
+                <Typography sx={{ fontSize: 13, fontWeight: 700, color: isDark ? "#F0EDE8" : "#2C2C2C" }}>{b.title}</Typography>
+                {b.author && <Typography sx={{ fontSize: 11, color: isDark ? "#9C8A74" : "#7A5A3A", mt: 0.2 }}>by {b.author}</Typography>}
+                {b.total_pages > 0 && (
+                  <Box sx={{ mt: 1 }}>
+                    <Box sx={{ display: "flex", justifyContent: "space-between", mb: 0.3 }}>
+                      <Typography sx={{ fontSize: 10, color: isDark ? "#9C8A74" : "#7A5A3A" }}>Page {b.current_page || 0} of {b.total_pages}</Typography>
+                      <Typography sx={{ fontSize: 10, color: barColor, fontWeight: 700 }}>{prog}%</Typography>
+                    </Box>
+                    <Box sx={{ height: 4, borderRadius: 2, bgcolor: `${barColor}22`, overflow: "hidden" }}>
+                      <Box sx={{ height: "100%", width: `${prog}%`, bgcolor: barColor, borderRadius: 2, transition: "width 0.3s" }} />
+                    </Box>
+                  </Box>
+                )}
+              </Box>
+            );
+          })}
+          {/* Today's vidya practice */}
+          {vidyaPracItems.filter((s) => {
+            const t = dayjs();
+            if (s.frequency === "daily") return true;
+            if (s.frequency === "weekly") return t.day() === (s.frequency_day ?? 0);
+            if (s.frequency === "monthly") return t.date() === (s.frequency_day ?? 1);
+            return true;
+          }).map((item) => {
+            const done = !!vidyaPracComps[item.id];
+            return (
+              <Box key={item.id} onClick={() => {
+                haptic(8);
+                const isDone = !vidyaPracComps[item.id];
+                setVidyaPracComps((prev) => ({ ...prev, [item.id]: isDone }));
+                supabase.from("vidya_practice_completions").upsert(
+                  { user_id: user.id, vidya_item_id: item.id, completion_date: today, is_completed: isDone },
+                  { onConflict: "user_id,vidya_item_id,completion_date" }
+                );
+              }} sx={{ display: "flex", alignItems: "center", gap: 1.5, py: 1.1, px: 1, borderRadius: 2, cursor: "pointer",
+                borderBottom: `1px solid ${isDark ? "rgba(255,255,255,0.04)" : "#F0EDE8"}`, "&:last-child": { borderBottom: "none" },
+                "&:hover": { bgcolor: isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.02)" }, opacity: done ? 0.6 : 1 }}>
+                <Box sx={{ width: 24, height: 24, borderRadius: "50%", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center",
+                  bgcolor: done ? "#C07830" : isDark ? "#1F1E1B" : "#F0EDE8", border: `1.5px solid ${done ? "#C07830" : isDark ? "#3C3C3C" : "#D1D0CF"}`, transition: "all 0.15s" }}>
+                  {done ? <CheckCircle sx={{ fontSize: 13, color: "#fff" }} /> : <RadioButtonUnchecked sx={{ fontSize: 13, color: isDark ? "#5C5A54" : "#C8C6C0" }} />}
+                </Box>
+                <Box sx={{ flex: 1, minWidth: 0 }}>
+                  <Typography noWrap sx={{ fontSize: 13, fontWeight: 500, color: done ? (isDark ? "#5C5A54" : "#9C9A94") : (isDark ? "#F0EDE8" : "#2C2C2C"),
+                    textDecoration: done ? "line-through" : "none" }}>
+                    {item.emoji ? `${item.emoji} ` : ""}{item.label}
+                  </Typography>
+                  {item.duration_minutes && <Typography sx={{ fontSize: 10, color: isDark ? "#6C6A64" : "#B0AEA8", mt: 0.1 }}>{item.duration_minutes} min</Typography>}
+                </Box>
+              </Box>
+            );
+          })}
+          {currentBooks.length === 0 && vidyaPracItems.length === 0 && (
+            <Box sx={{ py: 4, textAlign: "center" }}>
+              <Typography sx={{ fontSize: 13, color: isDark ? "#7C7A74" : "#9C9A94" }}>Nothing set up yet.</Typography>
+              <Typography sx={{ fontSize: 12, color: isDark ? "#5C5A54" : "#B0AEA8", mt: 0.5 }}>Add books and practice items in the Vidyā tracker.</Typography>
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ px: 2.5, pb: 2, pt: 0.5, justifyContent: "space-between" }}>
+          <Button size="small" onClick={() => { setReadingOpen(false); navigate("/svadhyaya/vidya"); }}
+            sx={{ color: isDark ? "#7C7A74" : "#9C9A94", textTransform: "none", fontSize: 12 }}>Open full tracker →</Button>
+          <Button variant="contained" size="small" onClick={() => setReadingOpen(false)}
+            sx={{ background: "#C07830", color: "#fff", textTransform: "none", fontWeight: 600, borderRadius: 2, fontSize: 13, "&:hover": { background: "#A0621A" } }}>
+            Done
           </Button>
         </DialogActions>
       </Dialog>

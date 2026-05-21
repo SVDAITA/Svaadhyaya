@@ -84,7 +84,7 @@ function StatusChip({ status }) {
 }
 
 // ── MAIN COMPONENT ────────────────────────────────────────────────────────────
-export default function NaadaTracker() {
+export default function NaadaTracker({ embedded = false }) {
   const { user }          = useAuth();
   const { mode }          = useThemeMode();
   const isDark            = mode==="dark";
@@ -464,21 +464,23 @@ export default function NaadaTracker() {
 
   // ── RENDER ────────────────────────────────────────────────────────────────
   return (
-    <Box sx={{ p:{xs:2,md:3},minHeight:"100vh",color:textP }}>
-      {/* ── PAGE HEADER ── */}
-      <Box sx={{ mb:3,display:"flex",alignItems:"center",gap:2 }}>
-        <Box sx={{ width:48,height:48,borderRadius:"50%",bgcolor:`${NAADA_GOLD}20`,border:`2px solid ${NAADA_GOLD}60`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:24,boxShadow:`0 0 18px ${NAADA_GOLD}30` }}>
-          🎵
+    <Box sx={embedded ? { color:textP } : { p:{xs:2,md:3},minHeight:"100vh",color:textP }}>
+      {/* ── PAGE HEADER (hidden when embedded) ── */}
+      {!embedded && (
+        <Box sx={{ mb:3,display:"flex",alignItems:"center",gap:2 }}>
+          <Box sx={{ width:48,height:48,borderRadius:"50%",bgcolor:`${NAADA_GOLD}20`,border:`2px solid ${NAADA_GOLD}60`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:24,boxShadow:`0 0 18px ${NAADA_GOLD}30` }}>
+            🎵
+          </Box>
+          <Box>
+            <Typography sx={{ fontFamily:'"Fraunces","Lora",serif',fontSize:{xs:24,md:30},fontWeight:500,color:textP,lineHeight:1.1 }}>
+              Naada Saadhana
+            </Typography>
+            <Typography sx={{ fontSize:11,color:NAADA_GOLD,fontWeight:600,letterSpacing:0.8 }}>
+              नाद साधना — The Practice of Sound
+            </Typography>
+          </Box>
         </Box>
-        <Box>
-          <Typography sx={{ fontFamily:'"Fraunces","Lora",serif',fontSize:{xs:24,md:30},fontWeight:500,color:textP,lineHeight:1.1 }}>
-            Naada Saadhana
-          </Typography>
-          <Typography sx={{ fontSize:11,color:NAADA_GOLD,fontWeight:600,letterSpacing:0.8 }}>
-            नाद साधना — The Practice of Sound
-          </Typography>
-        </Box>
-      </Box>
+      )}
 
       {/* ── TABS ── */}
       <Tabs

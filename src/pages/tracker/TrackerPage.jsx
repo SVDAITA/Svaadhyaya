@@ -11,7 +11,6 @@ import {
 import {
   AccountBalance,
   FitnessCenter,
-  MenuBook,
   Flight,
   AutoAwesome,
   ChevronRight,
@@ -48,15 +47,6 @@ const TRACKERS = [
     quote: "Eat with the same intentionality you bring to your practice. What you consume shapes what you express.",
     color: "#5A6E1A",
     chartData: "M0,20 C20,15 30,25 50,10 C60,2 75,20 85,15 C95,10 98,25 100,12",
-  },
-  {
-    key: "reading",
-    path: "/tracker/reading",
-    icon: <MenuBook sx={{ fontSize: 24 }} />,
-    title: "Pathanam",
-    quote: "Books are the only friends who never interrupt. Log the ones that changed you.",
-    color: "#8C5839",
-    chartData: "M0,30 C10,30 20,10 40,15 C50,18 70,2 85,10 C95,15 98,5 100,5",
   },
   {
     key: "career",

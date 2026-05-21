@@ -1,1358 +1,872 @@
 import { useState, useEffect, useCallback } from "react";
 import {
-  Box,
-  Typography,
-  Card,
-  CardContent,
-  Grid,
-  Button,
-  TextField,
-  Chip,
-  LinearProgress,
-  CircularProgress,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  Tabs,
-  Tab,
-  IconButton,
-  Stack,
-  Rating,
-  ToggleButtonGroup,
-  ToggleButton,
-  Tooltip,
-  Snackbar,
-  Alert,
-  Fade,
-  Collapse,
-  Avatar,
-  Pagination,
+  Box, Typography, Card, CardContent, Grid, Button, TextField,
+  Select, MenuItem, FormControl, InputLabel, Chip, CircularProgress,
+  IconButton, Dialog, DialogTitle, DialogContent, DialogActions,
+  Snackbar, Alert, Tabs, Tab, Stack, Pagination, ToggleButtonGroup,
+  ToggleButton, Tooltip, LinearProgress, Divider,
 } from "@mui/material";
 import {
-  Add,
-  Delete,
-  CheckCircle,
-  BusinessCenter,
-  School,
-  BarChart,
-  AutoAwesome,
-  WorkspacePremium,
-  KeyboardArrowDown,
-  KeyboardArrowUp,
-  TipsAndUpdates,
-  Category,
-  Code,
-  Psychology,
-  Dns,
-  Build,
-  Groups,
-  EmojiEvents,
-  Lightbulb,
-  TrendingUp,
-  FilterNone,
-  BookmarkBorder,
-  Timeline,
-  Star,
-  Verified,
-  Rocket,
-  Close,
+  Add, Delete, Edit, Close, CheckCircle, RadioButtonUnchecked,
+  Work, Group, Code, Psychology, Dns, Build, TrendingUp,
+  EmojiEvents, Flag, AutoAwesome, Lightbulb, Article,
 } from "@mui/icons-material";
 import { useAuth } from "../../hooks/useAuth";
 import { useThemeMode } from "../../hooks/useTheme";
 import { supabase } from "../../lib/supabase";
+import dayjs from "dayjs";
 
-// ─── BUG FIX: moved defaults outside component to avoid stale closure issues ──
-const DEFAULT_PROJ_FORM = {
-  title: "",
-  client: "",
-  company: "",
-  type: "official",
-  learnings: "",
-  tech: "",
-  journal: "",
-};
-const DEFAULT_SKILL_FORM = { name: "", category: "Technical", rating: 3 };
-const DEFAULT_CERT_FORM = { title: "", issuer: "", progress: 0 };
+// ── CONSTANTS ─────────────────────────────────────────────────────────────────
+const VRITTI_BLUE    = "#1A5FB0";
+const VRITTI_INDIGO  = "#3D3A8A";
+const VRITTI_TEAL    = "#1A7A7A";
 
-// ─── Design Tokens ──────────────────────────────────────────────────────────
-const C = {
-  blue: "#1A5FB0",
-  blueLight: "#4A8FE0",
-  blueDim: "#1A5FB018",
-  purple: "#7C4DAB",
-  purpleLight: "#9B6CC4",
-  purpleDim: "#7C4DAB18",
-  green: "#2D7A4F",
-  greenLight: "#3A9A64",
-  greenDim: "#2D7A4F18",
-  gold: "#C5972E",
-  goldDim: "#C5972E18",
-  red: "#CF4E4E",
-  teal: "#1A7A7A",
-  tealDim: "#1A7A7A18",
-  orange: "#C0622E",
-};
-
-const SKILL_CATEGORIES = [
-  { key: "Technical", icon: <Code sx={{ fontSize: 14 }} />, color: C.blue, colorDark: C.blueLight },
-  { key: "Soft Skills", icon: <Psychology sx={{ fontSize: 14 }} />, color: C.purple, colorDark: C.purpleLight },
-  { key: "Domain", icon: <Dns sx={{ fontSize: 14 }} />, color: C.teal, colorDark: "#4DC4C4" },
-  { key: "Tools", icon: <Build sx={{ fontSize: 14 }} />, color: C.gold, colorDark: "#D4A830" },
-  { key: "Leadership", icon: <Groups sx={{ fontSize: 14 }} />, color: C.green, colorDark: C.greenLight },
+const PROJ_STATUS = [
+  { value: "active",    label: "Active",    color: VRITTI_BLUE,  emoji: "🚀" },
+  { value: "paused",    label: "Paused",    color: "#DDA74F",    emoji: "⏸️" },
+  { value: "completed", label: "Completed", color: "#2D7A4F",    emoji: "✅" },
+  { value: "archived",  label: "Archived",  color: "#888",       emoji: "📦" },
 ];
+const PRIORITIES = [
+  { value: 3, label: "High",   color: "#CF4E4E", emoji: "🔴" },
+  { value: 2, label: "Medium", color: "#DDA74F", emoji: "🟡" },
+  { value: 1, label: "Low",    color: "#2D7A4F", emoji: "🟢" },
+];
+const CLIENT_TYPES = ["employer", "client", "collaborator"];
+const SKILL_CATS = [
+  { key: "Technical",    icon: "💻", color: VRITTI_BLUE },
+  { key: "Architecture", icon: "🏗️", color: VRITTI_INDIGO },
+  { key: "Soft Skills",  icon: "🧠", color: "#7C4DAB" },
+  { key: "Domain",       icon: "📊", color: VRITTI_TEAL },
+  { key: "Tools",        icon: "🔧", color: "#C07830" },
+  { key: "Leadership",   icon: "👥", color: "#2D7A4F" },
+];
+const PROF_LABELS = ["", "Beginner", "Basic", "Intermediate", "Advanced", "Expert"];
+const MOODS = ["Focused 🎯", "Creative 💡", "Grinding ⚙️", "Inspired ✨", "Tired 😓", "Overwhelmed 😰"];
+const PER_PAGE = 10;
 
-const SKILL_CATEGORY_KEYS = SKILL_CATEGORIES.map((c) => c.key);
+// ── HELPERS ───────────────────────────────────────────────────────────────────
+const haptic = (ms = 8) => { try { if (navigator?.vibrate) navigator.vibrate(ms); } catch (_) {} };
 
-const PROFICIENCY_LABELS = ["", "Beginner", "Basic", "Intermediate", "Advanced", "Expert"];
-const PROFICIENCY_COLORS = ["", C.red, C.orange, C.gold, C.blue, C.green];
-const PROFICIENCY_COLORS_DARK = ["", "#FF7070", "#E08A4A", "#D4A830", C.blueLight, C.greenLight];
+// ── CACHE ─────────────────────────────────────────────────────────────────────
+let _vrittiCache = null;
 
-// ─── Helper ──────────────────────────────────────────────────────────────────
-function safeParseNotes(raw) {
-  try {
-    return JSON.parse(raw || "{}");
-  } catch {
-    return {};
-  }
-}
-
-function getCategoryMeta(key) {
-  return SKILL_CATEGORIES.find((c) => c.key === key) || {
-    key,
-    icon: <Category sx={{ fontSize: 14 }} />,
-    color: C.blue,
-  };
-}
-
-// ─── Radar / Skill Chart ─────────────────────────────────────────────────────
-function SkillRadar({ skills, isDark }) {
-  const size = 180;
-  const cx = size / 2;
-  const cy = size / 2;
-  const r = 70;
-
-  const catData = SKILL_CATEGORIES.map((cat) => {
-    const catSkills = skills.filter((s) => s.type === cat.key);
-    const avg = catSkills.length
-      ? catSkills.reduce((sum, s) => sum + Math.min(5, Math.max(0, Number(s.note) || 0)), 0) / catSkills.length
-      : 0;
-    return { ...cat, avg, count: catSkills.length };
-  });
-
-  const n = catData.length;
-  const points = catData.map((d, i) => {
-    const angle = (i * 2 * Math.PI) / n - Math.PI / 2;
-    const val = (d.avg / 5) * r;
-    return {
-      x: cx + val * Math.cos(angle),
-      y: cy + val * Math.sin(angle),
-      lx: cx + (r + 22) * Math.cos(angle),
-      ly: cy + (r + 22) * Math.sin(angle),
-      ...d,
-    };
-  });
-
-  const gridPoints = (factor) =>
-    catData.map((_, i) => {
-      const angle = (i * 2 * Math.PI) / n - Math.PI / 2;
-      return `${cx + r * factor * Math.cos(angle)},${cy + r * factor * Math.sin(angle)}`;
-    }).join(" ");
-
-  const polyPath = points.map((p) => `${p.x},${p.y}`).join(" ");
-  const gridColor = isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.07)";
-  const axisColor = isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.1)";
-
-  if (skills.length === 0) return null;
-
+// ── STARS ─────────────────────────────────────────────────────────────────────
+function Stars({ value, onChange, size = 16 }) {
   return (
-    <Box sx={{ display: "flex", justifyContent: "center", py: 2 }}>
-      <svg width={size} height={size} style={{ overflow: "visible" }}>
-        {[0.25, 0.5, 0.75, 1].map((f) => (
-          <polygon
-            key={f}
-            points={gridPoints(f)}
-            fill="none"
-            stroke={gridColor}
-            strokeWidth={1}
-          />
-        ))}
-        {catData.map((_, i) => {
-          const angle = (i * 2 * Math.PI) / n - Math.PI / 2;
-          return (
-            <line
-              key={i}
-              x1={cx}
-              y1={cy}
-              x2={cx + r * Math.cos(angle)}
-              y2={cy + r * Math.sin(angle)}
-              stroke={axisColor}
-              strokeWidth={1}
-            />
-          );
-        })}
-        <polygon
-          points={polyPath}
-          fill={`${C.blue}30`}
-          stroke={C.blue}
-          strokeWidth={2}
-          strokeLinejoin="round"
-        />
-        {points.map((p, i) => (
-          <circle key={i} cx={p.x} cy={p.y} r={3} fill={p.color} />
-        ))}
-        {points.map((p, i) => (
-          <text
-            key={i}
-            x={p.lx}
-            y={p.ly}
-            textAnchor="middle"
-            dominantBaseline="middle"
-            fontSize={9}
-            fontFamily="'DM Sans', sans-serif"
-            fontWeight={600}
-            fill={isDark ? "#aaa" : "#666"}
-          >
-            {p.key.split(" ")[0]}
-          </text>
-        ))}
-      </svg>
-    </Box>
-  );
-}
-
-// ─── Sub-components ──────────────────────────────────────────────────────────
-function TabPanel({ value, index, children }) {
-  // BUG FIX: Always render children to avoid remount cost, but hide with CSS
-  return (
-    <Box
-      role="tabpanel"
-      hidden={value !== index}
-      sx={{
-        display: value === index ? "block" : "none",
-        pt: 3,
-        animation: value === index ? "fadeIn 0.25s ease" : "none",
-        "@keyframes fadeIn": { from: { opacity: 0, transform: "translateY(6px)" }, to: { opacity: 1, transform: "none" } },
-      }}
-    >
-      {children}
-    </Box>
-  );
-}
-
-function StatCard({ label, value, color, icon, subtext, isDark, cardBg, border, trend }) {
-  return (
-    <Card
-      sx={{
-        bgcolor: cardBg,
-        border: `1px solid ${border}`,
-        borderRadius: 3,
-        overflow: "hidden",
-        position: "relative",
-        transition: "transform 0.22s cubic-bezier(.4,0,.2,1), box-shadow 0.22s",
-        "&:hover": {
-          transform: "translateY(-3px)",
-          boxShadow: isDark ? `0 12px 40px ${color}25` : `0 8px 28px ${color}20`,
-        },
-      }}
-    >
-      <Box sx={{ height: 3, background: `linear-gradient(90deg, ${color}, ${color}88)`, width: "100%" }} />
-      <CardContent sx={{ p: 2.5 }}>
-        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-          <Box>
-            <Typography sx={{ color: isDark ? "#9C9A94" : "#5F5F5F", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1.2, mb: 0.5 }}>
-              {label}
-            </Typography>
-            <Typography sx={{ fontSize: 40, fontWeight: 200, fontFamily: "'DM Serif Display', serif", color, lineHeight: 1 }}>
-              {value}
-            </Typography>
-            {subtext && (
-              <Typography sx={{ fontSize: 11, color: isDark ? "#9C9A94" : "#7A7A7A", mt: 0.5, fontWeight: 500 }}>
-                {subtext}
-              </Typography>
-            )}
-          </Box>
-          <Box sx={{ p: 1.25, borderRadius: 2.5, bgcolor: `${color}18`, color, mt: 0.5, display: "flex", alignItems: "center", justifyContent: "center" }}>
-            {icon}
-          </Box>
+    <Stack direction="row" spacing={0.2}>
+      {[1,2,3,4,5].map((n) => (
+        <Box key={n} onClick={() => onChange?.(n)}
+          sx={{ cursor: onChange ? "pointer" : "default", color: n <= value ? VRITTI_BLUE : "#888", fontSize: size, lineHeight: 1 }}>
+          {n <= value ? "★" : "☆"}
         </Box>
-        {trend !== undefined && (
-          <Box sx={{ mt: 1.5, pt: 1.5, borderTop: `1px solid ${border}`, display: "flex", alignItems: "center", gap: 0.5 }}>
-            <TrendingUp sx={{ fontSize: 12, color: isDark ? C.greenLight : C.green }} />
-            <Typography sx={{ fontSize: 10, color: isDark ? C.greenLight : C.green, fontWeight: 600 }}>{trend}</Typography>
-          </Box>
-        )}
-      </CardContent>
-    </Card>
+      ))}
+    </Stack>
   );
 }
 
-function ProjectCard({ project, onDelete, isDark, cardBg, border, textP, textS }) {
-  const [expanded, setExpanded] = useState(false);
-  const data = safeParseNotes(project.notes);
-  const techs = data.tech
-    ? data.tech.split(",").map((t) => t.trim()).filter(Boolean)
-    : [];
-  const isPersonal = data.type === "personal";
-
+// ── STATUS CHIP ───────────────────────────────────────────────────────────────
+function ProjStatusChip({ status }) {
+  const s = PROJ_STATUS.find((x) => x.value === status) || PROJ_STATUS[0];
   return (
-    <Card
-      sx={{
-        bgcolor: cardBg,
-        border: `1px solid ${border}`,
-        borderRadius: 3,
-        overflow: "hidden",
-        transition: "box-shadow 0.22s, border-color 0.22s",
-        "&:hover": {
-          boxShadow: isDark ? "0 6px 32px #00000055" : "0 6px 24px #00000014",
-          borderColor: isPersonal ? `${C.gold}40` : `${C.blue}30`,
-        },
-      }}
-    >
-      <Box sx={{ display: "flex" }}>
-        <Box sx={{ width: 4, flexShrink: 0, background: `linear-gradient(180deg, ${isPersonal ? C.gold : C.blue}, ${isPersonal ? C.orange : C.blueLight})` }} />
-        <CardContent sx={{ p: 2.5, flex: 1, "&:last-child": { pb: 2.5 } }}>
-          {/* Header */}
-          <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-            <Box sx={{ flex: 1, mr: 1 }}>
-              <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 0.75 }}>
-                <Chip
-                  label={isPersonal ? "Personal" : "Official"}
-                  size="small"
-                  icon={isPersonal ? <Lightbulb sx={{ fontSize: "12px !important" }} /> : <BusinessCenter sx={{ fontSize: "12px !important" }} />}
-                  sx={{
-                    fontSize: 10,
-                    fontWeight: 700,
-                    height: 22,
-                    bgcolor: isPersonal ? C.goldDim : C.blueDim,
-                    color: isPersonal ? C.gold : C.blue,
-                    border: `1px solid ${isPersonal ? C.gold + "40" : C.blue + "40"}`,
-                    "& .MuiChip-icon": { color: "inherit" },
-                  }}
-                />
-              </Box>
-              <Typography sx={{ fontSize: 17, fontWeight: 700, color: textP, lineHeight: 1.3, fontFamily: "'DM Serif Display', serif" }}>
-                {project.title}
-              </Typography>
-              {(data.client || data.company) && (
-                <Typography sx={{ fontSize: 12, color: textS, mt: 0.5, display: "flex", alignItems: "center", gap: 0.5 }}>
-                  <BusinessCenter sx={{ fontSize: 11 }} />
-                  {[data.client, data.company].filter(Boolean).join(" @ ")}
-                </Typography>
-              )}
-            </Box>
-            <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-              <Tooltip title={expanded ? "Collapse" : "View Details"}>
-                <IconButton
-                  size="small"
-                  onClick={() => setExpanded((x) => !x)}
-                  sx={{
-                    color: textS,
-                    opacity: 0.5,
-                    "&:hover": { opacity: 1, bgcolor: isDark ? "#ffffff10" : "#00000008" },
-                    transition: "transform 0.2s",
-                    transform: expanded ? "rotate(180deg)" : "none",
-                  }}
-                >
-                  <KeyboardArrowDown fontSize="small" />
-                </IconButton>
-              </Tooltip>
-              <Tooltip title="Delete project">
-                <IconButton
-                  size="small"
-                  onClick={() => onDelete(project.id, project.title || "this project")}
-                  sx={{ color: C.red, opacity: 0.3, "&:hover": { opacity: 1, bgcolor: `${C.red}15` } }}
-                >
-                  <Delete fontSize="small" />
-                </IconButton>
-              </Tooltip>
-            </Box>
-          </Box>
-
-          {/* Tech chips */}
-          {techs.length > 0 && (
-            <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5, mt: 1.5 }}>
-              {techs.map((t, i) => (
-                <Chip
-                  key={i}
-                  label={t}
-                  size="small"
-                  sx={{
-                    fontSize: 10,
-                    height: 20,
-                    bgcolor: isDark ? "#ffffff08" : "#f0f0f0",
-                    color: textS,
-                    fontWeight: 500,
-                    border: "none",
-                    fontFamily: "'DM Mono', monospace",
-                  }}
-                />
-              ))}
-            </Box>
-          )}
-
-          {/* Expanded */}
-          <Collapse in={expanded}>
-            <Grid container spacing={2} sx={{ mt: 0.5 }}>
-              {data.learnings && (
-                <Grid item xs={12} md={6}>
-                  <Box
-                    sx={{
-                      p: 2,
-                      borderRadius: 2,
-                      bgcolor: isDark ? "#ffffff06" : `${C.blue}06`,
-                      border: `1px solid ${isDark ? "#ffffff10" : `${C.blue}15`}`,
-                    }}
-                  >
-                    <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, mb: 1 }}>
-                      <Lightbulb sx={{ fontSize: 13, color: C.blue }} />
-                      <Typography sx={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, color: C.blue }}>
-                        Key Learnings
-                      </Typography>
-                    </Box>
-                    <Typography sx={{ fontSize: 13, lineHeight: 1.7, color: textP }}>
-                      {data.learnings}
-                    </Typography>
-                  </Box>
-                </Grid>
-              )}
-              {data.journal && (
-                <Grid item xs={12} md={6}>
-                  <Box
-                    sx={{
-                      p: 2,
-                      borderRadius: 2,
-                      bgcolor: isDark ? "#ffffff06" : `${C.gold}06`,
-                      border: `1px solid ${isDark ? "#ffffff10" : `${C.gold}20`}`,
-                    }}
-                  >
-                    <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, mb: 1 }}>
-                      <TipsAndUpdates sx={{ fontSize: 13, color: C.gold }} />
-                      <Typography sx={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, color: C.gold }}>
-                        Journal
-                      </Typography>
-                    </Box>
-                    <Typography sx={{ fontSize: 13, fontStyle: "italic", lineHeight: 1.7, color: textS }}>
-                      {data.journal}
-                    </Typography>
-                  </Box>
-                </Grid>
-              )}
-              {!data.learnings && !data.journal && (
-                <Grid item xs={12}>
-                  <Typography sx={{ fontSize: 12, color: textS, fontStyle: "italic", py: 1 }}>
-                    No additional notes for this project.
-                  </Typography>
-                </Grid>
-              )}
-            </Grid>
-          </Collapse>
-        </CardContent>
-      </Box>
-    </Card>
+    <Chip label={`${s.emoji} ${s.label}`} size="small"
+      sx={{ bgcolor: `${s.color}22`, color: s.color, fontWeight: 700, fontSize: 10, height: 20, border: `1px solid ${s.color}44` }} />
   );
 }
 
-// ─── Skill Row (extracted to avoid duplication bug) ──────────────────────────
-function SkillRow({ skill, onDelete, isDark, textP, textS, border }) {
-  const rating = Math.min(5, Math.max(0, Number(skill.note) || 0));
-  const profLabel = PROFICIENCY_LABELS[rating] || "";
-  const profColor = (isDark ? PROFICIENCY_COLORS_DARK : PROFICIENCY_COLORS)[rating] || (isDark ? C.blueLight : C.blue);
-
+// ── SECTION HEAD ──────────────────────────────────────────────────────────────
+function SectionHead({ title, onAdd, color, isDark, addLabel = "Add" }) {
   return (
-    <Box>
-      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 0.75 }}>
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1.25 }}>
-          <Typography sx={{ fontSize: 14, fontWeight: 600, color: textP }}>{skill.value}</Typography>
-          {profLabel && (
-            <Chip
-              label={profLabel}
-              size="small"
-              sx={{
-                height: 18,
-                fontSize: 9,
-                fontWeight: 700,
-                bgcolor: `${profColor}18`,
-                color: profColor,
-                border: `1px solid ${profColor}35`,
-              }}
-            />
-          )}
-        </Box>
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-          <Rating
-            value={rating}
-            readOnly
-            size="small"
-            sx={{ "& .MuiRating-iconFilled": { color: profColor }, "& .MuiRating-iconEmpty": { color: isDark ? "#444" : "#DDD" } }}
-          />
-          <Typography sx={{ fontSize: 11, color: textS, minWidth: 24, textAlign: "right" }}>{rating}/5</Typography>
-          <Tooltip title="Remove skill">
-            <IconButton
-              onClick={() => onDelete("logs", skill.id, skill.value || "this skill")}
-              size="small"
-              sx={{ opacity: 0.2, "&:hover": { opacity: 1, color: C.red } }}
-            >
-              <Delete sx={{ fontSize: 14 }} />
-            </IconButton>
-          </Tooltip>
-        </Box>
-      </Box>
-      <LinearProgress
-        variant="determinate"
-        value={rating * 20}
-        sx={{
-          height: 5,
-          borderRadius: 3,
-          bgcolor: isDark ? "#2a2a2a" : "#EEECF8",
-          "& .MuiLinearProgress-bar": {
-            background: `linear-gradient(90deg, ${profColor}CC, ${profColor})`,
-            borderRadius: 3,
-            transition: "transform 0.8s cubic-bezier(.4,0,.2,1)",
-          },
-        }}
-      />
-    </Box>
-  );
-}
-
-// ─── Empty State ─────────────────────────────────────────────────────────────
-function EmptyState({ icon, title, body, action, color, isDark }) {
-  return (
-    <Box
-      sx={{
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-        py: 9,
-        px: 3,
-        textAlign: "center",
-        gap: 2,
-        borderRadius: 3,
-        border: `1.5px dashed ${isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.1)"}`,
-      }}
-    >
-      <Box sx={{ p: 2.5, borderRadius: "50%", bgcolor: `${color}12`, display: "flex" }}>
-        {icon}
-      </Box>
-      <Box>
-        <Typography sx={{ fontFamily: "'DM Serif Display', serif", fontSize: 20, fontWeight: 400, color: isDark ? "#888" : "#666", mb: 0.5 }}>
-          {title}
-        </Typography>
-        <Typography sx={{ fontSize: 13, color: isDark ? "#666" : "#999", maxWidth: 320 }}>
-          {body}
-        </Typography>
-      </Box>
-      {action && (
-        <Button
-          variant="outlined"
-          onClick={action.onClick}
-          size="small"
-          startIcon={<Add />}
-          sx={{
-            mt: 0.5,
-            textTransform: "none",
-            borderColor: color,
-            color,
-            fontWeight: 600,
-            borderRadius: 2,
-            "&:hover": { bgcolor: `${color}10`, borderColor: color },
-          }}
-        >
-          {action.label}
+    <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2 }}>
+      <Typography sx={{ fontFamily: '"Fraunces","Lora",serif', fontSize: 17, fontWeight: 600,
+        color: isDark ? "#F0EDE8" : "#1A1A1A" }}>{title}</Typography>
+      {onAdd && (
+        <Button size="small" startIcon={<Add sx={{ fontSize: 14 }} />} onClick={() => { haptic(); onAdd(); }}
+          sx={{ textTransform: "none", fontSize: 12, fontWeight: 600, color: "#fff", bgcolor: color,
+            px: 1.5, py: 0.5, borderRadius: 2, "&:hover": { bgcolor: color, opacity: 0.88 } }}>
+          {addLabel}
         </Button>
       )}
     </Box>
   );
 }
 
-// ─── Mini progress ring ───────────────────────────────────────────────────────
-function ProgressRing({ value, size = 44, color, isDark }) {
-  const r = (size - 6) / 2;
-  const circ = 2 * Math.PI * r;
-  const filled = ((value ?? 0) / 100) * circ;
+// ── STAT CARD ─────────────────────────────────────────────────────────────────
+function StatCard({ value, label, sub, color, isDark }) {
+  const bg   = isDark ? `${color}18` : `${color}10`;
+  const bdr  = isDark ? `${color}35` : `${color}28`;
   return (
-    <Box sx={{ position: "relative", width: size, height: size, flexShrink: 0 }}>
-      <svg width={size} height={size} style={{ transform: "rotate(-90deg)" }}>
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={isDark ? "#2a2a2a" : "#EEE"} strokeWidth={5} />
-        <circle
-          cx={size / 2} cy={size / 2} r={r} fill="none"
-          stroke={color} strokeWidth={5}
-          strokeDasharray={circ}
-          strokeDashoffset={circ - filled}
-          strokeLinecap="round"
-          style={{ transition: "stroke-dashoffset 0.8s cubic-bezier(.4,0,.2,1)" }}
-        />
-      </svg>
-      <Box sx={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <Typography sx={{ fontSize: 9, fontWeight: 800, color, lineHeight: 1 }}>{value ?? 0}%</Typography>
-      </Box>
-    </Box>
+    <Card sx={{ borderRadius: 3, bgcolor: bg, border: `1px solid ${bdr}`, boxShadow: "none" }}>
+      <CardContent sx={{ py: 1.5, px: 2, "&:last-child": { pb: 1.5 } }}>
+        <Typography sx={{ fontFamily: '"Fraunces",serif', fontSize: 28, fontWeight: 600, color, lineHeight: 1.1 }}>{value}</Typography>
+        <Typography sx={{ fontSize: 11, fontWeight: 600, color, mt: 0.2 }}>{label}</Typography>
+        {sub && <Typography sx={{ fontSize: 10, color: isDark ? "#7C7A74" : "#9C9A94", mt: 0.1 }}>{sub}</Typography>}
+      </CardContent>
+    </Card>
   );
 }
 
-let _vrittiCache = null;
+// ── MAIN COMPONENT ─────────────────────────────────────────────────────────────
+export default function VrittiTracker({ embedded = false }) {
+  const { user }    = useAuth();
+  const { mode }    = useThemeMode();
+  const isDark      = mode === "dark";
+  const today       = dayjs().format("YYYY-MM-DD");
 
-// ─── Main Component ──────────────────────────────────────────────────────────
-export default function VrittiTracker() {
-  const { user } = useAuth();
-  const { mode } = useThemeMode();
-  const isDark = mode === "dark";
+  const blue   = VRITTI_BLUE;
+  const textP  = isDark ? "#F0EDE8" : "#0A1628";
+  const textS  = isDark ? "#8A9AB8" : "#5A7090";
+  const cardBg = isDark ? "#0E1420" : "#F8FAFE";
+  const bdr    = isDark ? `rgba(26,95,176,0.22)` : `rgba(26,95,176,0.18)`;
 
-  const [tab, setTab] = useState(0);
-  const [projPage, setProjPage] = useState(1);
-  const [skillPage, setSkillPage] = useState(1);
-  const [certPage, setCertPage] = useState(1);
-  const PROJ_PER_PAGE = 10;
-  const SKILL_PER_PAGE = 20;
-  const CERT_PER_PAGE = 6;
+  // ── GLOBAL STATE ──────────────────────────────────────────────────────────
+  const [tab,     setTab]     = useState(0);
   const [loading, setLoading] = useState(_vrittiCache === null);
-  const [saving, setSaving] = useState(false);
-  const [toast, setToast] = useState({ open: false, msg: "", severity: "success" });
+  const [snack,   setSnack]   = useState({ open: false, msg: "", sev: "success" });
+  const [delDlg,  setDelDlg]  = useState({ open: false, title: "", fn: null });
 
-  const [projects, setProjects] = useState(_vrittiCache?.projects || []);
-  const [skills, setSkills] = useState(_vrittiCache?.skills || []);
-  const [certs, setCerts] = useState(_vrittiCache?.certs || []);
+  const ok  = (msg) => setSnack({ open: true, msg, sev: "success" });
+  const err = (msg) => setSnack({ open: true, msg, sev: "error" });
+  const confirmDel = (title, fn) => { haptic(15); setDelDlg({ open: true, title, fn }); };
 
-  const [openProj, setOpenProj] = useState(false);
-  const [openSkill, setOpenSkill] = useState(false);
-  const [openCert, setOpenCert] = useState(false);
-  const [deleteConfirm, setDeleteConfirm] = useState({ open: false, table: null, id: null, label: "" });
+  // ── PROJECTS STATE ────────────────────────────────────────────────────────
+  const emptyProj = { title: "", description: "", client_id: "", status: "active", tech_stack: "", start_date: today, target_date: "", priority: 2, notes: "" };
+  const [projects,    setProjects]    = useState(_vrittiCache?.projects || []);
+  const [projForm,    setProjForm]    = useState(emptyProj);
+  const [editProj,    setEditProj]    = useState(null);
+  const [projDlg,     setProjDlg]     = useState(false);
+  const [projFilter,  setProjFilter]  = useState("active");
+  const [projPage,    setProjPage]    = useState(1);
 
-  // BUG FIX: use the module-level defaults to avoid stale closures
-  const [projForm, setProjForm] = useState(DEFAULT_PROJ_FORM);
-  const [skillForm, setSkillForm] = useState(DEFAULT_SKILL_FORM);
-  const [certForm, setCertForm] = useState(DEFAULT_CERT_FORM);
+  // ── DAILY LOG STATE ───────────────────────────────────────────────────────
+  const emptyLog = { date: today, project_id: "", hours: "", notes: "" };
+  const [logs,    setLogs]    = useState(_vrittiCache?.logs || []);
+  const [logForm, setLogForm] = useState(emptyLog);
+  const [logDlg,  setLogDlg]  = useState(false);
+  const [logPage, setLogPage] = useState(1);
 
-  // ─── Theme Tokens ────────────────────────────────────────────────────────
-  const bg = isDark
-    ? `radial-gradient(ellipse 90% 35% at 50% -5%, ${C.blue}14 0%, #0D0C0A 65%)`
-    : `radial-gradient(ellipse 90% 35% at 50% -5%, ${C.blue}09 0%, #F8FAFC 65%)`;
-  const border = isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)";
-  const cardBg = isDark ? "#1C1A18" : "#FDFCFA";
-  const surfaceBg = isDark ? "#16140F" : "#F2EFE9";
-  const textP = isDark ? "#F0EDE8" : "#1A1A1A";
-  const textS = isDark ? "#9C9A94" : "#636059";
-  const dialogBg = isDark ? "#1E1C1A" : "#FDFCFA";
-  // Dark-mode safe variants of deep brand colors (dark originals are invisible on dark backgrounds)
-  const cBlue = isDark ? C.blueLight : C.blue;
-  const cGreen = isDark ? C.greenLight : C.green;
-  const cTeal = isDark ? "#4DC4C4" : C.teal;
+  // ── CLIENTS STATE ─────────────────────────────────────────────────────────
+  const emptyClient = { name: "", company: "", type: "client", role: "", start_date: "", notes: "", is_active: true };
+  const [clients,     setClients]     = useState(_vrittiCache?.clients || []);
+  const [clientForm,  setClientForm]  = useState(emptyClient);
+  const [editClient,  setEditClient]  = useState(null);
+  const [clientDlg,   setClientDlg]   = useState(false);
 
-  // ─── Data Loading ─────────────────────────────────────────────────────────
-  const loadData = useCallback(async () => {
+  // ── SKILLS STATE ──────────────────────────────────────────────────────────
+  const emptySkill = { category: "Technical", name: "", proficiency: 3, notes: "" };
+  const [skills,     setSkills]    = useState(_vrittiCache?.skills || []);
+  const [skillForm,  setSkillForm] = useState(emptySkill);
+  const [editSkill,  setEditSkill] = useState(null);
+  const [skillDlg,   setSkillDlg]  = useState(false);
+  const [skillPage,  setSkillPage] = useState(1);
+
+  // ── JOURNAL STATE ─────────────────────────────────────────────────────────
+  const emptyJ = { date: today, content: "", mood: "Focused 🎯", wins: "", challenges: "" };
+  const [journals, setJournals]  = useState(_vrittiCache?.journals || []);
+  const [jForm,    setJForm]     = useState(emptyJ);
+  const [editJ,    setEditJ]     = useState(null);
+  const [jDlg,     setJDlg]      = useState(false);
+  const [jPage,    setJPage]     = useState(1);
+
+  // ── LOAD ──────────────────────────────────────────────────────────────────
+  const load = useCallback(async () => {
     if (!user) return;
     if (_vrittiCache === null) setLoading(true);
     try {
-      const [p, s, c] = await Promise.all([
-        supabase.from("milestones").select("*").eq("user_id", user.id).eq("area", "career_project").order("created_at", { ascending: false }),
-        supabase.from("logs").select("*").eq("user_id", user.id).eq("area", "skill").order("created_at", { ascending: false }),
-        supabase.from("milestones").select("*").eq("user_id", user.id).eq("area", "certification").order("progress", { ascending: false }),
+      const [projR, logR, clientR, skillR, jR] = await Promise.all([
+        supabase.from("vritti_projects").select("*").eq("user_id", user.id).order("order_index").order("created_at", { ascending: false }),
+        supabase.from("vritti_daily_log").select("*,vritti_projects(title)").eq("user_id", user.id).order("date", { ascending: false }),
+        supabase.from("vritti_clients").select("*").eq("user_id", user.id).order("created_at", { ascending: false }),
+        supabase.from("vritti_skills").select("*").eq("user_id", user.id).order("category").order("name"),
+        supabase.from("vritti_journal").select("*").eq("user_id", user.id).order("date", { ascending: false }),
       ]);
-      _vrittiCache = { projects: p.data || [], skills: s.data || [], certs: c.data || [] };
-      setProjects(p.data || []);
-      setSkills(s.data || []);
-      setCerts(c.data || []);
-    } catch {
-      // silently fail — UI already shows empty state
+      const data = {
+        projects: projR.data || [],
+        logs:     logR.data  || [],
+        clients:  clientR.data || [],
+        skills:   skillR.data  || [],
+        journals: jR.data      || [],
+      };
+      _vrittiCache = data;
+      setProjects(data.projects);
+      setLogs(data.logs);
+      setClients(data.clients);
+      setSkills(data.skills);
+      setJournals(data.journals);
+    } catch (e) {
+      err("Load failed");
     } finally {
       setLoading(false);
     }
   }, [user]);
 
-  useEffect(() => {
-    loadData();
-  }, [loadData]);
+  useEffect(() => { load(); }, [load]);
 
-  // ─── Handlers ─────────────────────────────────────────────────────────────
-  const showToast = (msg, severity = "success") => setToast({ open: true, msg, severity });
+  const bust = () => { _vrittiCache = null; load(); };
 
+  // ── PROJECT CRUD ──────────────────────────────────────────────────────────
   const saveProject = async () => {
     if (!projForm.title.trim()) return;
-    setSaving(true);
-    const meta = JSON.stringify({
-      learnings: projForm.learnings,
-      tech: projForm.tech,
-      journal: projForm.journal,
-      company: projForm.company,
-      client: projForm.client,
-      type: projForm.type,
-    });
-    const { error } = await supabase.from("milestones").insert({
-      user_id: user.id,
-      area: "career_project",
-      title: projForm.title.trim(),
-      notes: meta,
-    });
-    if (error) {
-      showToast("Failed to save project", "error");
+    haptic(10);
+    const payload = { ...projForm, user_id: user.id };
+    if (editProj) {
+      const { error } = await supabase.from("vritti_projects").update(payload).eq("id", editProj);
+      if (error) { err("Save failed"); return; }
+      ok("Project updated");
     } else {
-      showToast("Project logged successfully!");
-      setOpenProj(false);
-      setProjForm(DEFAULT_PROJ_FORM);
-      await loadData();
+      const { error } = await supabase.from("vritti_projects").insert(payload);
+      if (error) { err("Save failed"); return; }
+      ok("Project added");
     }
-    setSaving(false);
+    setProjDlg(false); setProjForm(emptyProj); setEditProj(null); bust();
   };
 
+  const deleteProject = async (id, title) => {
+    confirmDel(`Delete "${title}"?`, async () => {
+      await supabase.from("vritti_projects").delete().eq("id", id);
+      ok("Deleted"); bust();
+    });
+  };
+
+  // ── LOG CRUD ──────────────────────────────────────────────────────────────
+  const saveLog = async () => {
+    if (!logForm.notes?.trim() && !logForm.hours) return;
+    haptic(10);
+    const { error } = await supabase.from("vritti_daily_log").insert({ ...logForm, user_id: user.id });
+    if (error) { err("Save failed"); return; }
+    ok("Log added"); setLogDlg(false); setLogForm(emptyLog); bust();
+  };
+
+  const deleteLog = async (id) => {
+    confirmDel("Delete this log entry?", async () => {
+      await supabase.from("vritti_daily_log").delete().eq("id", id);
+      ok("Deleted"); bust();
+    });
+  };
+
+  // ── CLIENT CRUD ───────────────────────────────────────────────────────────
+  const saveClient = async () => {
+    if (!clientForm.name.trim()) return;
+    haptic(10);
+    const payload = { ...clientForm, user_id: user.id };
+    if (editClient) {
+      const { error } = await supabase.from("vritti_clients").update(payload).eq("id", editClient);
+      if (error) { err("Save failed"); return; }
+      ok("Client updated");
+    } else {
+      const { error } = await supabase.from("vritti_clients").insert(payload);
+      if (error) { err("Save failed"); return; }
+      ok("Client added");
+    }
+    setClientDlg(false); setClientForm(emptyClient); setEditClient(null); bust();
+  };
+
+  const deleteClient = async (id, name) => {
+    confirmDel(`Delete "${name}"?`, async () => {
+      await supabase.from("vritti_clients").delete().eq("id", id);
+      ok("Deleted"); bust();
+    });
+  };
+
+  // ── SKILL CRUD ────────────────────────────────────────────────────────────
   const saveSkill = async () => {
     if (!skillForm.name.trim()) return;
-    setSaving(true);
-    const { error } = await supabase.from("logs").insert({
-      user_id: user.id,
-      area: "skill",
-      type: skillForm.category,
-      value: skillForm.name.trim(),
-      note: String(skillForm.rating ?? 3),
+    haptic(10);
+    const payload = { ...skillForm, user_id: user.id };
+    if (editSkill) {
+      const { error } = await supabase.from("vritti_skills").update(payload).eq("id", editSkill);
+      if (error) { err("Save failed"); return; }
+      ok("Skill updated");
+    } else {
+      const { error } = await supabase.from("vritti_skills").upsert(payload, { onConflict: "user_id,category,name" });
+      if (error) { err("Save failed"); return; }
+      ok("Skill added");
+    }
+    setSkillDlg(false); setSkillForm(emptySkill); setEditSkill(null); bust();
+  };
+
+  const deleteSkill = async (id, name) => {
+    confirmDel(`Delete "${name}"?`, async () => {
+      await supabase.from("vritti_skills").delete().eq("id", id);
+      ok("Deleted"); bust();
     });
-    if (error) {
-      showToast("Failed to save skill", "error");
-    } else {
-      showToast("Skill added!");
-      setOpenSkill(false);
-      setSkillForm(DEFAULT_SKILL_FORM);
-      await loadData();
-    }
-    setSaving(false);
   };
 
-  const saveCert = async () => {
-    if (!certForm.title.trim()) return;
-    setSaving(true);
-    // BUG FIX: guard against NaN progress
-    const safeProgress = Math.min(100, Math.max(0, Number(certForm.progress) || 0));
-    const { error } = await supabase.from("milestones").insert({
-      user_id: user.id,
-      area: "certification",
-      title: certForm.title.trim(),
-      notes: JSON.stringify({ issuer: certForm.issuer?.trim() || "" }),
-      progress: safeProgress,
+  // ── JOURNAL CRUD ──────────────────────────────────────────────────────────
+  const saveJournal = async () => {
+    if (!jForm.content?.trim()) return;
+    haptic(10);
+    const payload = { ...jForm, user_id: user.id };
+    if (editJ) {
+      const { error } = await supabase.from("vritti_journal").update(payload).eq("id", editJ);
+      if (error) { err("Save failed"); return; }
+      ok("Journal updated");
+    } else {
+      const { error } = await supabase.from("vritti_journal").upsert(payload, { onConflict: "user_id,date" });
+      if (error) { err("Save failed"); return; }
+      ok("Journal saved");
+    }
+    setJDlg(false); setJForm(emptyJ); setEditJ(null); bust();
+  };
+
+  const deleteJournal = async (id) => {
+    confirmDel("Delete this journal entry?", async () => {
+      await supabase.from("vritti_journal").delete().eq("id", id);
+      ok("Deleted"); bust();
     });
-    if (error) {
-      showToast("Failed to save certification", "error");
-    } else {
-      showToast("Certification saved!");
-      setOpenCert(false);
-      setCertForm(DEFAULT_CERT_FORM);
-      await loadData();
-    }
-    setSaving(false);
   };
 
-  const deleteItem = (table, id, label = "this item") => {
-    setDeleteConfirm({ open: true, table, id, label });
-  };
+  // ── STATS ─────────────────────────────────────────────────────────────────
+  const activeProjects   = projects.filter((p) => p.status === "active").length;
+  const completedProjects= projects.filter((p) => p.status === "completed").length;
+  const activeClients    = clients.filter((c) => c.is_active).length;
+  const totalHoursMonth  = logs
+    .filter((l) => dayjs(l.date).isAfter(dayjs().subtract(30, "day")))
+    .reduce((s, l) => s + (Number(l.hours) || 0), 0);
 
-  const confirmDeleteItem = async () => {
-    const { table, id } = deleteConfirm;
-    setDeleteConfirm({ open: false, table: null, id: null, label: "" });
-    const { error } = await supabase.from(table).delete().eq("id", id);
-    if (error) {
-      showToast("Delete failed", "error");
-    } else {
-      showToast("Removed", "info");
-      await loadData();
-    }
-  };
-
-  // ─── Derived Stats ────────────────────────────────────────────────────────
-  const completedCerts = certs.filter((c) => c.progress === 100).length;
-  const inProgressCerts = certs.filter((c) => c.progress > 0 && c.progress < 100).length;
-  const avgSkillRating = skills.length
-    ? (skills.reduce((sum, s) => sum + Math.min(5, Number(s.note) || 0), 0) / skills.length).toFixed(1)
-    : "—";
-  const officialProjects = projects.filter((p) => safeParseNotes(p.notes).type !== "personal").length;
-  const personalProjects = projects.length - officialProjects;
-
-  // ─── Loading ──────────────────────────────────────────────────────────────
-  if (loading) {
+  // ── LOADING ───────────────────────────────────────────────────────────────
+  if (loading && !embedded)
     return (
-      <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "60vh", gap: 2.5 }}>
-        <Box sx={{ position: "relative" }}>
-          <CircularProgress sx={{ color: C.blue }} size={44} thickness={2} />
-          <Box sx={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <Rocket sx={{ fontSize: 18, color: C.blue }} />
-          </Box>
-        </Box>
-        <Typography sx={{ color: textS, fontSize: 13, fontFamily: "'DM Sans', sans-serif", letterSpacing: 0.5 }}>
-          Loading your professional ledger…
-        </Typography>
-      </Box>
-    );
-  }
-
-  // ─── Render ───────────────────────────────────────────────────────────────
-  return (
-    <Box sx={{ p: { xs: 2, sm: 3, md: 5 }, maxWidth: 1100, mx: "auto", minHeight: "100vh", background: bg }}>
-
-      {/* ── Header ── */}
-      <Box sx={{ mb: 4, display: "flex", justifyContent: "space-between", alignItems: "flex-end", flexWrap: "wrap", gap: 2 }}>
-        <Box>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 0.75 }}>
-            <Box sx={{ p: 0.5, borderRadius: 1, bgcolor: `${C.blue}18`, display: "flex" }}>
-              <AutoAwesome sx={{ fontSize: 13, color: C.blue }} />
-            </Box>
-            <Typography variant="overline" sx={{ color: C.blue, fontWeight: 700, letterSpacing: 2.5, fontSize: 10 }}>
-              Vṛtti Tracker
-            </Typography>
-          </Box>
-          <Typography sx={{ fontFamily: "'DM Serif Display', serif", fontSize: { xs: 30, md: 42 }, fontWeight: 400, color: textP, lineHeight: 1.1, letterSpacing: -0.5 }}>
-            Professional Ledger
-          </Typography>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mt: 0.75, flexWrap: "wrap" }}>
-            {[
-              { val: projects.length, label: "projects", color: cBlue },
-              { val: skills.length, label: "skills", color: C.purple },
-              { val: certs.length, label: "certifications", color: cGreen },
-            ].map(({ val, label, color }) => (
-              <Box key={label} sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                <Box sx={{ width: 6, height: 6, borderRadius: "50%", bgcolor: color }} />
-                <Typography sx={{ fontSize: 12, color: textS, fontWeight: 500 }}>
-                  <b style={{ color: textP }}>{val}</b> {label}
-                </Typography>
-              </Box>
-            ))}
-          </Box>
-        </Box>
-        <Stack direction="row" spacing={1.5} flexWrap="wrap" useFlexGap>
-          <Button
-            variant="outlined"
-            startIcon={<Add />}
-            onClick={() => setOpenSkill(true)}
-            sx={{ color: C.purple, borderColor: `${C.purple}50`, textTransform: "none", borderRadius: 2, fontWeight: 600, fontSize: 13, "&:hover": { bgcolor: C.purpleDim, borderColor: C.purple } }}
-          >
-            Skill
-          </Button>
-          <Button
-            variant="outlined"
-            startIcon={<Add />}
-            onClick={() => setOpenCert(true)}
-            sx={{ color: cGreen, borderColor: `${cGreen}50`, textTransform: "none", borderRadius: 2, fontWeight: 600, fontSize: 13, "&:hover": { bgcolor: C.greenDim, borderColor: cGreen } }}
-          >
-            Cert
-          </Button>
-          <Button
-            variant="contained"
-            startIcon={<Add />}
-            onClick={() => setOpenProj(true)}
-            sx={{ bgcolor: C.blue, textTransform: "none", borderRadius: 2, fontWeight: 600, fontSize: 13, px: 2.5, boxShadow: `0 4px 16px ${C.blue}40`, "&:hover": { bgcolor: C.blueLight, boxShadow: `0 6px 20px ${C.blue}50` } }}
-          >
-            Add Project
-          </Button>
+      <Box sx={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <Stack alignItems="center" spacing={2}>
+          <CircularProgress sx={{ color: blue }} />
+          <Typography sx={{ color: textS, fontSize: 13 }}>Loading Vṛtti…</Typography>
         </Stack>
       </Box>
+    );
 
-      {/* ── Stats Grid ── */}
-      <Grid container spacing={2} sx={{ mb: 4 }}>
-        <Grid item xs={6} sm={3}>
-          <StatCard label="Projects" value={projects.length} color={cBlue} icon={<BusinessCenter sx={{ fontSize: 20 }} />}
-            subtext={`${officialProjects} official · ${personalProjects} personal`} isDark={isDark} cardBg={cardBg} border={border} />
-        </Grid>
-        <Grid item xs={6} sm={3}>
-          <StatCard label="Skills" value={skills.length} color={C.purple} icon={<Star sx={{ fontSize: 20 }} />}
-            subtext={`avg rating ${avgSkillRating}/5`} isDark={isDark} cardBg={cardBg} border={border} />
-        </Grid>
-        <Grid item xs={6} sm={3}>
-          <StatCard label="Certified" value={completedCerts} color={cGreen} icon={<Verified sx={{ fontSize: 20 }} />}
-            subtext={`of ${certs.length} total`} isDark={isDark} cardBg={cardBg} border={border} />
-        </Grid>
-        <Grid item xs={6} sm={3}>
-          <StatCard label="In Progress" value={inProgressCerts} color={C.gold} icon={<Timeline sx={{ fontSize: 20 }} />}
-            subtext="certifications ongoing" isDark={isDark} cardBg={cardBg} border={border} />
-        </Grid>
-      </Grid>
+  // ── RENDER ────────────────────────────────────────────────────────────────
+  return (
+    <Box sx={embedded ? { color: textP } : { p: { xs: 2, md: 3 }, minHeight: "100vh", color: textP }}>
+      {/* ── PAGE HEADER (standalone only) ── */}
+      {!embedded && (
+        <Box sx={{ mb: 3, display: "flex", alignItems: "center", gap: 2 }}>
+          <Box sx={{ width: 48, height: 48, borderRadius: "50%", bgcolor: `${blue}20`, border: `2px solid ${blue}60`,
+            display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, boxShadow: `0 0 18px ${blue}30` }}>
+            🚀
+          </Box>
+          <Box>
+            <Typography sx={{ fontFamily: '"Fraunces","Lora",serif', fontSize: { xs: 24, md: 30 }, fontWeight: 500, color: textP, lineHeight: 1.1 }}>
+              Vṛtti Tracker
+            </Typography>
+            <Typography sx={{ fontSize: 11, color: blue, fontWeight: 600, letterSpacing: 0.8 }}>
+              वृत्ति — Your Professional Practice
+            </Typography>
+          </Box>
+        </Box>
+      )}
 
-      {/* ── Tabs ── */}
-      <Box sx={{ borderBottom: `1px solid ${border}`, mb: 0 }}>
-        <Tabs
-          value={tab}
-          onChange={(_, v) => setTab(v)}
-          sx={{
-            "& .MuiTab-root": { textTransform: "none", fontWeight: 600, fontSize: 13, minHeight: 46, color: textS, gap: 0.75, px: 2.5 },
-            "& .Mui-selected": { color: `${cBlue} !important` },
-            "& .MuiTabs-indicator": { bgcolor: cBlue, height: 2.5, borderRadius: "2px 2px 0 0" },
-          }}
-        >
-          <Tab label="Projects" icon={<BusinessCenter sx={{ fontSize: 15 }} />} iconPosition="start" />
-          <Tab label="Skills" icon={<BarChart sx={{ fontSize: 15 }} />} iconPosition="start" />
-          <Tab label="Certifications" icon={<WorkspacePremium sx={{ fontSize: 15 }} />} iconPosition="start" />
-        </Tabs>
-      </Box>
+      {/* ── TABS ── */}
+      <Tabs value={tab} onChange={(_, v) => setTab(v)} variant="scrollable" scrollButtons="auto"
+        sx={{ mb: 3, borderBottom: `1px solid ${bdr}`,
+          "& .MuiTab-root": { textTransform: "none", fontWeight: 500, fontSize: 13, color: textS, minWidth: "unset", px: 2 },
+          "& .Mui-selected": { color: `${blue} !important`, fontWeight: 700 },
+          "& .MuiTabs-indicator": { bgcolor: blue },
+        }}>
+        {[["🚀","Projects"],["📋","Daily Log"],["🤝","Clients"],["🎯","Skills"],["📓","Journal"]].map(([e,l],i) => (
+          <Tab key={i} label={<Box sx={{ display: "flex", alignItems: "center", gap: 0.6 }}><span>{e}</span><span>{l}</span></Box>} />
+        ))}
+      </Tabs>
 
-      {/* ── PROJECTS TAB ── */}
-      <TabPanel value={tab} index={0}>
-        {projects.length === 0 ? (
-          <EmptyState
-            icon={<BusinessCenter sx={{ fontSize: 36, color: C.blue }} />}
-            title="No projects yet"
-            body="Start documenting your work — log the tech stack, key learnings, and reflections from each project."
-            action={{ label: "Add First Project", onClick: () => setOpenProj(true) }}
-            color={C.blue}
-            isDark={isDark}
-          />
-        ) : (
-          <>
-            <Stack spacing={2}>
-              {projects.slice((projPage - 1) * PROJ_PER_PAGE, projPage * PROJ_PER_PAGE).map((p) => (
-                <ProjectCard
-                  key={p.id}
-                  project={p}
-                  onDelete={(id, label) => deleteItem("milestones", id, label)}
-                  isDark={isDark}
-                  cardBg={cardBg}
-                  border={border}
-                  textP={textP}
-                  textS={textS}
-                />
+      {/* ══════════════════════════════════════════════════════════════════════
+          TAB 0 — PROJECTS
+      ══════════════════════════════════════════════════════════════════════ */}
+      {tab === 0 && (
+        <Grid container spacing={3}>
+          {/* Stats */}
+          <Grid item xs={6} sm={3}><StatCard value={activeProjects} label="Active" sub="Projects" color={blue} isDark={isDark} /></Grid>
+          <Grid item xs={6} sm={3}><StatCard value={completedProjects} label="Completed" sub="All time" color="#2D7A4F" isDark={isDark} /></Grid>
+          <Grid item xs={6} sm={3}><StatCard value={activeClients} label="Active" sub="Clients / Orgs" color={VRITTI_TEAL} isDark={isDark} /></Grid>
+          <Grid item xs={6} sm={3}><StatCard value={`${totalHoursMonth.toFixed(0)}h`} label="Hours logged" sub="Last 30 days" color="#C07830" isDark={isDark} /></Grid>
+
+          {/* Projects list */}
+          <Grid item xs={12}>
+            <SectionHead title="Projects" onAdd={() => { setProjForm(emptyProj); setEditProj(null); setProjDlg(true); }} color={blue} isDark={isDark} addLabel="New Project" />
+
+            {/* Filter chips */}
+            <Stack direction="row" spacing={1} sx={{ mb: 2, flexWrap: "wrap", gap: 0.5 }}>
+              {["all", ...PROJ_STATUS.map((s) => s.value)].map((f) => (
+                <Chip key={f} label={f === "all" ? "All" : PROJ_STATUS.find((s) => s.value === f)?.label || f}
+                  size="small" onClick={() => { haptic(6); setProjFilter(f); setProjPage(1); }}
+                  sx={{ cursor: "pointer", fontWeight: 600, fontSize: 11,
+                    bgcolor: projFilter === f ? `${blue}22` : "transparent",
+                    color: projFilter === f ? blue : textS,
+                    border: `1px solid ${projFilter === f ? blue : bdr}` }} />
               ))}
             </Stack>
-            {projects.length > PROJ_PER_PAGE && (
-              <Box sx={{ display: "flex", justifyContent: "center", mt: 3 }}>
-                <Pagination count={Math.ceil(projects.length / PROJ_PER_PAGE)} page={projPage} onChange={(_, p) => setProjPage(p)} size="small" />
-              </Box>
-            )}
-          </>
-        )}
-      </TabPanel>
 
-      {/* ── SKILLS TAB ── */}
-      <TabPanel value={tab} index={1}>
-        {skills.length === 0 ? (
-          <EmptyState
-            icon={<BarChart sx={{ fontSize: 36, color: C.purple }} />}
-            title="No skills logged"
-            body="Track your technical and soft skills with proficiency ratings to visualize your growth."
-            action={{ label: "Add First Skill", onClick: () => setOpenSkill(true) }}
-            color={C.purple}
-            isDark={isDark}
-          />
-        ) : (
-          <Grid container spacing={3}>
-            {/* Radar chart panel */}
-            <Grid item xs={12} sm={4}>
-              <Card sx={{ bgcolor: cardBg, border: `1px solid ${border}`, borderRadius: 3, p: 2.5, height: "100%", display: "flex", flexDirection: "column" }}>
-                <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
-                  <FilterNone sx={{ fontSize: 14, color: textS }} />
-                  <Typography sx={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, color: textS }}>
-                    Skill Coverage
-                  </Typography>
-                </Box>
-                <SkillRadar skills={skills} isDark={isDark} />
-                <Box sx={{ mt: "auto", pt: 2, display: "flex", flexDirection: "column", gap: 1 }}>
-                  {SKILL_CATEGORIES.map((cat) => {
-                    const catSkills = skills.filter((s) => s.type === cat.key);
-                    if (!catSkills.length) return null;
-                    const avg = catSkills.reduce((sum, s) => sum + Math.min(5, Number(s.note) || 0), 0) / catSkills.length;
-                    return (
-                      <Box key={cat.key} sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                        <Box sx={{ color: cat.color, display: "flex", width: 14, flexShrink: 0 }}>{cat.icon}</Box>
-                        <Typography sx={{ fontSize: 11, color: textS, flex: 1 }}>{cat.key}</Typography>
-                        <Typography sx={{ fontSize: 11, fontWeight: 700, color: cat.color }}>{avg.toFixed(1)}</Typography>
-                      </Box>
-                    );
-                  })}
-                </Box>
-              </Card>
-            </Grid>
-
-            {/* Skills list */}
-            <Grid item xs={12} sm={8}>
-              <Box sx={{ display: "flex", justifyContent: "flex-end", mb: 2 }}>
-                <Button startIcon={<Add />} onClick={() => setOpenSkill(true)} size="small" sx={{ color: C.purple, textTransform: "none", fontWeight: 600 }}>
-                  Add Skill
-                </Button>
-              </Box>
-              {(() => {
-                // Flat ordered list: grouped skills + ungrouped, then slice for page
-                const grouped = SKILL_CATEGORY_KEYS.flatMap((cat) => skills.filter((s) => s.type === cat));
-                const ungrouped = skills.filter((s) => !SKILL_CATEGORY_KEYS.includes(s.type));
-                const allSkills = [...grouped, ...ungrouped];
-                const paged = allSkills.slice((skillPage - 1) * SKILL_PER_PAGE, skillPage * SKILL_PER_PAGE);
-                // Re-group only the paged skills so category headers still appear
-                const pagedCats = [...new Set(paged.map((s) => SKILL_CATEGORY_KEYS.includes(s.type) ? s.type : "__other__"))];
-                return (
-                  <>
-                    <Stack spacing={2.5}>
-                      {pagedCats.map((cat) => {
-                        const isOther = cat === "__other__";
-                        const meta = isOther ? null : getCategoryMeta(cat);
-                        const catSkills = paged.filter((s) => isOther ? !SKILL_CATEGORY_KEYS.includes(s.type) : s.type === cat);
-                        return (
-                          <Box key={cat}>
-                            <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1.5 }}>
-                              {isOther ? <Category sx={{ fontSize: 14, color: textS }} /> : <Box sx={{ color: meta.color, display: "flex" }}>{meta.icon}</Box>}
-                              <Typography sx={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, color: textS }}>
-                                {isOther ? "Other" : cat}
-                              </Typography>
-                              <Chip label={skills.filter((s) => isOther ? !SKILL_CATEGORY_KEYS.includes(s.type) : s.type === cat).length} size="small" sx={{ height: 18, fontSize: 9, fontWeight: 700, bgcolor: isOther ? `${textS}15` : `${meta.color}15`, color: isOther ? textS : meta.color, border: "none" }} />
-                            </Box>
-                            <Card sx={{ bgcolor: cardBg, border: `1px solid ${border}`, borderRadius: 3, p: 2.5 }}>
-                              <Stack spacing={2.5}>
-                                {catSkills.map((s) => (
-                                  <SkillRow key={s.id} skill={s} onDelete={deleteItem} isDark={isDark} textP={textP} textS={textS} border={border} />
-                                ))}
-                              </Stack>
-                            </Card>
-                          </Box>
-                        );
-                      })}
-                    </Stack>
-                    {allSkills.length > SKILL_PER_PAGE && (
-                      <Box sx={{ display: "flex", justifyContent: "center", mt: 3 }}>
-                        <Pagination count={Math.ceil(allSkills.length / SKILL_PER_PAGE)} page={skillPage} onChange={(_, p) => setSkillPage(p)} size="small" />
-                      </Box>
-                    )}
-                  </>
-                );
-              })()}
-            </Grid>
-          </Grid>
-        )}
-      </TabPanel>
-
-      {/* ── CERTS TAB ── */}
-      <TabPanel value={tab} index={2}>
-        {certs.length === 0 ? (
-          <EmptyState
-            icon={<WorkspacePremium sx={{ fontSize: 36, color: C.green }} />}
-            title="No certifications yet"
-            body="Track certifications you're pursuing or have completed. Add progress to stay motivated."
-            action={{ label: "Add Certification", onClick: () => setOpenCert(true) }}
-            color={C.green}
-            isDark={isDark}
-          />
-        ) : (
-          <>
-            <Box sx={{ mb: 3, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <Box sx={{ display: "flex", gap: 2 }}>
-                <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
-                  <CheckCircle sx={{ fontSize: 14, color: C.green }} />
-                  <Typography sx={{ fontSize: 12, color: textS, fontWeight: 600 }}>{completedCerts} completed</Typography>
-                </Box>
-                <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
-                  <Timeline sx={{ fontSize: 14, color: C.gold }} />
-                  <Typography sx={{ fontSize: 12, color: textS, fontWeight: 600 }}>{inProgressCerts} in progress</Typography>
-                </Box>
-              </Box>
-              <Button startIcon={<Add />} onClick={() => setOpenCert(true)} size="small" sx={{ color: C.green, textTransform: "none", fontWeight: 600 }}>
-                Add Certification
-              </Button>
-            </Box>
-            <Grid container spacing={2.5}>
-              {certs.slice((certPage - 1) * CERT_PER_PAGE, certPage * CERT_PER_PAGE).map((c) => {
-                const done = c.progress === 100;
-                const certColor = done ? C.green : c.progress > 50 ? C.blue : C.gold;
-                const certMeta = safeParseNotes(c.notes);
-                return (
-                  <Grid item xs={12} sm={6} key={c.id}>
-                    <Card
-                      sx={{
-                        bgcolor: cardBg,
-                        border: `1px solid ${done ? `${C.green}30` : border}`,
-                        borderRadius: 3,
-                        overflow: "hidden",
-                        transition: "box-shadow 0.22s, transform 0.22s",
-                        "&:hover": {
-                          boxShadow: isDark ? `0 8px 32px ${certColor}20` : `0 6px 24px ${certColor}15`,
-                          transform: "translateY(-2px)",
-                        },
-                      }}
-                    >
-                      <Box sx={{ height: 3, background: `linear-gradient(90deg, ${certColor}, ${certColor}60)` }} />
-                      <Box sx={{ p: 2.5 }}>
-                        <Box sx={{ display: "flex", gap: 2, alignItems: "flex-start" }}>
-                          <ProgressRing value={c.progress ?? 0} color={certColor} isDark={isDark} />
-                          <Box sx={{ flex: 1, minWidth: 0 }}>
-                            <Typography sx={{ fontSize: 14, fontWeight: 700, color: textP, lineHeight: 1.3, fontFamily: "'DM Serif Display', serif" }}>
-                              {c.title}
-                            </Typography>
-                            {certMeta.issuer && (
-                              <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, mt: 0.4 }}>
-                                <BookmarkBorder sx={{ fontSize: 11, color: textS }} />
-                                <Typography sx={{ fontSize: 11, color: textS }}>{certMeta.issuer}</Typography>
+            {(() => {
+              const filtered = projects.filter((p) => projFilter === "all" || p.status === projFilter);
+              const paged    = filtered.slice((projPage - 1) * PER_PAGE, projPage * PER_PAGE);
+              if (filtered.length === 0)
+                return <Typography sx={{ fontSize: 13, color: textS, py: 3, textAlign: "center" }}>No projects yet. Add your first project →</Typography>;
+              return (
+                <>
+                  <Stack spacing={1.5}>
+                    {paged.map((p) => {
+                      const pri = PRIORITIES.find((x) => x.value === p.priority) || PRIORITIES[1];
+                      const client = clients.find((c) => c.id === p.client_id);
+                      return (
+                        <Card key={p.id} sx={{ borderRadius: 3, bgcolor: cardBg, border: `1px solid ${bdr}`, boxShadow: "none",
+                          "&:hover": { borderColor: blue, boxShadow: `0 0 0 1px ${blue}30` }, transition: "all 0.15s" }}>
+                          <CardContent sx={{ py: 1.5, px: 2, "&:last-child": { pb: 1.5 } }}>
+                            <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1.5 }}>
+                              <Box sx={{ flex: 1, minWidth: 0 }}>
+                                <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
+                                  <Typography sx={{ fontWeight: 700, fontSize: 14, color: textP }}>{p.title}</Typography>
+                                  <ProjStatusChip status={p.status} />
+                                  <Chip label={pri.emoji} size="small"
+                                    sx={{ height: 18, fontSize: 10, bgcolor: `${pri.color}18`, color: pri.color, border: `1px solid ${pri.color}40` }} />
+                                </Box>
+                                {p.description && (
+                                  <Typography sx={{ fontSize: 12, color: textS, mt: 0.3, lineHeight: 1.5 }}>{p.description}</Typography>
+                                )}
+                                <Stack direction="row" spacing={1.5} sx={{ mt: 0.8, flexWrap: "wrap", gap: 0.5 }}>
+                                  {client && <Typography sx={{ fontSize: 11, color: VRITTI_TEAL }}>🤝 {client.name}{client.company ? ` · ${client.company}` : ""}</Typography>}
+                                  {p.tech_stack && <Typography sx={{ fontSize: 11, color: textS }}>🔧 {p.tech_stack}</Typography>}
+                                  {p.target_date && <Typography sx={{ fontSize: 11, color: "#DDA74F" }}>🎯 {dayjs(p.target_date).format("D MMM YY")}</Typography>}
+                                </Stack>
                               </Box>
-                            )}
-                            {done && (
-                              <Chip
-                                label="Completed"
-                                size="small"
-                                icon={<Verified sx={{ fontSize: "11px !important" }} />}
-                                sx={{ height: 20, fontSize: 9, fontWeight: 700, bgcolor: C.greenDim, color: C.green, border: `1px solid ${C.green}35`, mt: 0.75, "& .MuiChip-icon": { color: "inherit" } }}
-                              />
-                            )}
-                          </Box>
-                          <Tooltip title="Delete">
-                            <IconButton
-                              onClick={() => deleteItem("milestones", c.id, c.title || "this certification")}
-                              size="small"
-                              sx={{ opacity: 0.2, flexShrink: 0, "&:hover": { opacity: 1, color: C.red } }}
-                            >
-                              <Delete sx={{ fontSize: 14 }} />
-                            </IconButton>
-                          </Tooltip>
-                        </Box>
-                        {!done && (
-                          <Box sx={{ mt: 2 }}>
-                            <Box sx={{ display: "flex", justifyContent: "space-between", mb: 0.75 }}>
-                              <Typography sx={{ fontSize: 10, fontWeight: 600, color: textS, textTransform: "uppercase", letterSpacing: 0.8 }}>
-                                Progress
-                              </Typography>
-                              <Typography sx={{ fontSize: 10, fontWeight: 700, color: certColor }}>{c.progress ?? 0}%</Typography>
+                              <Stack direction="row" spacing={0.5}>
+                                <IconButton size="small" onClick={() => { haptic(); setProjForm({ ...p, client_id: p.client_id || "" }); setEditProj(p.id); setProjDlg(true); }}
+                                  sx={{ color: textS, "&:hover": { color: blue } }}><Edit sx={{ fontSize: 15 }} /></IconButton>
+                                <IconButton size="small" onClick={() => deleteProject(p.id, p.title)}
+                                  sx={{ color: textS, "&:hover": { color: "#CF4E4E" } }}><Delete sx={{ fontSize: 15 }} /></IconButton>
+                              </Stack>
                             </Box>
-                            <LinearProgress
-                              variant="determinate"
-                              value={c.progress ?? 0}
-                              sx={{
-                                height: 5,
-                                borderRadius: 3,
-                                bgcolor: isDark ? "#2a2a2a" : "#EEE",
-                                "& .MuiLinearProgress-bar": {
-                                  background: `linear-gradient(90deg, ${certColor}CC, ${certColor})`,
-                                  borderRadius: 3,
-                                  transition: "transform 0.8s cubic-bezier(.4,0,.2,1)",
-                                },
-                              }}
-                            />
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
+                  </Stack>
+                  {filtered.length > PER_PAGE && (
+                    <Box sx={{ display: "flex", justifyContent: "center", mt: 2 }}>
+                      <Pagination count={Math.ceil(filtered.length / PER_PAGE)} page={projPage} onChange={(_, v) => setProjPage(v)}
+                        size="small" sx={{ "& .MuiPaginationItem-root": { color: textS }, "& .Mui-selected": { bgcolor: `${blue}22 !important`, color: blue } }} />
+                    </Box>
+                  )}
+                </>
+              );
+            })()}
+          </Grid>
+        </Grid>
+      )}
+
+      {/* ══════════════════════════════════════════════════════════════════════
+          TAB 1 — DAILY LOG
+      ══════════════════════════════════════════════════════════════════════ */}
+      {tab === 1 && (
+        <Grid container spacing={3}>
+          <Grid item xs={12}>
+            <SectionHead title="Daily Work Log" onAdd={() => { setLogForm(emptyLog); setLogDlg(true); }} color={blue} isDark={isDark} addLabel="Log Today" />
+
+            {logs.length === 0 ? (
+              <Typography sx={{ fontSize: 13, color: textS, py: 3, textAlign: "center" }}>No work logs yet. Start tracking your daily progress →</Typography>
+            ) : (
+              <>
+                <Stack spacing={1}>
+                  {logs.slice((logPage - 1) * PER_PAGE, logPage * PER_PAGE).map((l) => (
+                    <Card key={l.id} sx={{ borderRadius: 2.5, bgcolor: cardBg, border: `1px solid ${bdr}`, boxShadow: "none" }}>
+                      <CardContent sx={{ py: 1.25, px: 2, "&:last-child": { pb: 1.25 } }}>
+                        <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1.5 }}>
+                          <Box sx={{ flex: 1, minWidth: 0 }}>
+                            <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexWrap: "wrap" }}>
+                              <Typography sx={{ fontSize: 12, fontWeight: 700, color: blue }}>
+                                {dayjs(l.date).format("ddd, D MMM")}
+                              </Typography>
+                              {l.vritti_projects && (
+                                <Chip label={l.vritti_projects.title} size="small"
+                                  sx={{ height: 18, fontSize: 10, bgcolor: `${blue}15`, color: blue, border: `1px solid ${blue}30` }} />
+                              )}
+                              {l.hours && (
+                                <Typography sx={{ fontSize: 11, color: "#2D7A4F" }}>⏱ {l.hours}h</Typography>
+                              )}
+                            </Box>
+                            {l.notes && <Typography sx={{ fontSize: 12.5, color: textP, mt: 0.4, lineHeight: 1.5 }}>{l.notes}</Typography>}
                           </Box>
-                        )}
-                      </Box>
+                          <IconButton size="small" onClick={() => deleteLog(l.id)}
+                            sx={{ color: textS, "&:hover": { color: "#CF4E4E" } }}><Delete sx={{ fontSize: 14 }} /></IconButton>
+                        </Box>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </Stack>
+                {logs.length > PER_PAGE && (
+                  <Box sx={{ display: "flex", justifyContent: "center", mt: 2 }}>
+                    <Pagination count={Math.ceil(logs.length / PER_PAGE)} page={logPage} onChange={(_, v) => setLogPage(v)}
+                      size="small" sx={{ "& .MuiPaginationItem-root": { color: textS }, "& .Mui-selected": { bgcolor: `${blue}22 !important`, color: blue } }} />
+                  </Box>
+                )}
+              </>
+            )}
+          </Grid>
+        </Grid>
+      )}
+
+      {/* ══════════════════════════════════════════════════════════════════════
+          TAB 2 — CLIENTS
+      ══════════════════════════════════════════════════════════════════════ */}
+      {tab === 2 && (
+        <Grid container spacing={3}>
+          <Grid item xs={12}>
+            <SectionHead title="Clients & Organisations" onAdd={() => { setClientForm(emptyClient); setEditClient(null); setClientDlg(true); }} color={VRITTI_TEAL} isDark={isDark} addLabel="Add Client" />
+
+            {clients.length === 0 ? (
+              <Typography sx={{ fontSize: 13, color: textS, py: 3, textAlign: "center" }}>No clients yet. Add your employer or clients →</Typography>
+            ) : (
+              <Grid container spacing={2}>
+                {clients.map((c) => (
+                  <Grid item xs={12} sm={6} key={c.id}>
+                    <Card sx={{ borderRadius: 3, bgcolor: cardBg, border: `1px solid ${bdr}`, boxShadow: "none",
+                      opacity: c.is_active ? 1 : 0.6, "&:hover": { borderColor: VRITTI_TEAL }, transition: "border-color 0.15s" }}>
+                      <CardContent sx={{ py: 1.5, px: 2, "&:last-child": { pb: 1.5 } }}>
+                        <Box sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
+                          <Box sx={{ flex: 1, minWidth: 0 }}>
+                            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                              <Typography sx={{ fontWeight: 700, fontSize: 14, color: textP }}>{c.name}</Typography>
+                              <Chip label={c.type} size="small"
+                                sx={{ height: 18, fontSize: 10, bgcolor: `${VRITTI_TEAL}18`, color: VRITTI_TEAL, border: `1px solid ${VRITTI_TEAL}40` }} />
+                              {!c.is_active && <Chip label="Inactive" size="small" sx={{ height: 18, fontSize: 10, bgcolor: "#88888820", color: "#888" }} />}
+                            </Box>
+                            {c.company && <Typography sx={{ fontSize: 12, color: textS, mt: 0.3 }}>🏢 {c.company}</Typography>}
+                            {c.role && <Typography sx={{ fontSize: 12, color: textS, mt: 0.2 }}>👤 {c.role}</Typography>}
+                            {c.start_date && <Typography sx={{ fontSize: 11, color: textS, mt: 0.3 }}>Since {dayjs(c.start_date).format("MMM YYYY")}</Typography>}
+                            {c.notes && <Typography sx={{ fontSize: 11, color: textS, mt: 0.4, fontStyle: "italic" }}>{c.notes}</Typography>}
+                          </Box>
+                          <Stack direction="row" spacing={0.5}>
+                            <IconButton size="small" onClick={() => { haptic(); setClientForm(c); setEditClient(c.id); setClientDlg(true); }}
+                              sx={{ color: textS, "&:hover": { color: VRITTI_TEAL } }}><Edit sx={{ fontSize: 14 }} /></IconButton>
+                            <IconButton size="small" onClick={() => deleteClient(c.id, c.name)}
+                              sx={{ color: textS, "&:hover": { color: "#CF4E4E" } }}><Delete sx={{ fontSize: 14 }} /></IconButton>
+                          </Stack>
+                        </Box>
+                      </CardContent>
                     </Card>
                   </Grid>
-                );
-              })}
-            </Grid>
-            {certs.length > CERT_PER_PAGE && (
-              <Box sx={{ display: "flex", justifyContent: "center", mt: 3 }}>
-                <Pagination count={Math.ceil(certs.length / CERT_PER_PAGE)} page={certPage} onChange={(_, p) => setCertPage(p)} size="small" />
-              </Box>
+                ))}
+              </Grid>
             )}
-          </>
-        )}
-      </TabPanel>
+          </Grid>
+        </Grid>
+      )}
 
-      {/* ── DIALOG: Add Project ── */}
-      <Dialog
-        open={openProj}
-        onClose={() => { setOpenProj(false); setProjForm(DEFAULT_PROJ_FORM); }}
-        fullWidth
-        maxWidth="sm"
-        PaperProps={{ sx: { borderRadius: 3, bgcolor: dialogBg, backgroundImage: "none" } }}
-      >
-        <DialogTitle sx={{ fontFamily: "'DM Serif Display', serif", fontWeight: 400, fontSize: 24, pb: 0.5, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          Log New Project
-          <IconButton onClick={() => { setOpenProj(false); setProjForm(DEFAULT_PROJ_FORM); }} size="small" sx={{ opacity: 0.4, "&:hover": { opacity: 1 } }}>
-            <Close fontSize="small" />
-          </IconButton>
+      {/* ══════════════════════════════════════════════════════════════════════
+          TAB 3 — SKILLS
+      ══════════════════════════════════════════════════════════════════════ */}
+      {tab === 3 && (
+        <Grid container spacing={3}>
+          <Grid item xs={12}>
+            <SectionHead title="Professional Skills" onAdd={() => { setSkillForm(emptySkill); setEditSkill(null); setSkillDlg(true); }} color={blue} isDark={isDark} addLabel="Add Skill" />
+
+            {skills.length === 0 ? (
+              <Typography sx={{ fontSize: 13, color: textS, py: 3, textAlign: "center" }}>No skills tracked yet →</Typography>
+            ) : (
+              <>
+                {SKILL_CATS.map((cat) => {
+                  const catSkills = skills.filter((s) => s.category === cat.key);
+                  if (catSkills.length === 0) return null;
+                  return (
+                    <Box key={cat.key} sx={{ mb: 3 }}>
+                      <Typography sx={{ fontSize: 12, fontWeight: 700, color: cat.color, mb: 1.5, letterSpacing: 0.5,
+                        textTransform: "uppercase", display: "flex", alignItems: "center", gap: 0.8 }}>
+                        <span>{cat.icon}</span> {cat.key}
+                      </Typography>
+                      <Stack spacing={1}>
+                        {catSkills.slice((skillPage - 1) * 20, skillPage * 20).map((s) => (
+                          <Box key={s.id} sx={{ display: "flex", alignItems: "center", gap: 1.5, py: 1, px: 1.5, borderRadius: 2,
+                            bgcolor: cardBg, border: `1px solid ${bdr}`,
+                            "&:hover": { borderColor: cat.color, boxShadow: `0 0 0 1px ${cat.color}25` }, transition: "all 0.12s" }}>
+                            <Box sx={{ flex: 1, minWidth: 0 }}>
+                              <Typography sx={{ fontSize: 13, fontWeight: 600, color: textP }}>{s.name}</Typography>
+                              <Box sx={{ display: "flex", alignItems: "center", gap: 1, mt: 0.3 }}>
+                                <Stars value={s.proficiency} size={13} />
+                                <Typography sx={{ fontSize: 10, color: textS }}>{PROF_LABELS[s.proficiency]}</Typography>
+                              </Box>
+                              {s.notes && <Typography sx={{ fontSize: 11, color: textS, mt: 0.2, fontStyle: "italic" }}>{s.notes}</Typography>}
+                            </Box>
+                            <Stack direction="row" spacing={0.3}>
+                              <IconButton size="small" onClick={() => { haptic(); setSkillForm(s); setEditSkill(s.id); setSkillDlg(true); }}
+                                sx={{ color: textS, "&:hover": { color: cat.color } }}><Edit sx={{ fontSize: 13 }} /></IconButton>
+                              <IconButton size="small" onClick={() => deleteSkill(s.id, s.name)}
+                                sx={{ color: textS, "&:hover": { color: "#CF4E4E" } }}><Delete sx={{ fontSize: 13 }} /></IconButton>
+                            </Stack>
+                          </Box>
+                        ))}
+                      </Stack>
+                    </Box>
+                  );
+                })}
+                {skills.length > 20 && (
+                  <Box sx={{ display: "flex", justifyContent: "center", mt: 1 }}>
+                    <Pagination count={Math.ceil(skills.length / 20)} page={skillPage} onChange={(_, v) => setSkillPage(v)}
+                      size="small" sx={{ "& .Mui-selected": { bgcolor: `${blue}22 !important`, color: blue } }} />
+                  </Box>
+                )}
+              </>
+            )}
+          </Grid>
+        </Grid>
+      )}
+
+      {/* ══════════════════════════════════════════════════════════════════════
+          TAB 4 — JOURNAL
+      ══════════════════════════════════════════════════════════════════════ */}
+      {tab === 4 && (
+        <Grid container spacing={3}>
+          <Grid item xs={12}>
+            <SectionHead title="Career Journal" onAdd={() => { setJForm({ ...emptyJ, date: today }); setEditJ(null); setJDlg(true); }} color={blue} isDark={isDark} addLabel="New Entry" />
+
+            {journals.length === 0 ? (
+              <Typography sx={{ fontSize: 13, color: textS, py: 3, textAlign: "center" }}>No journal entries yet. Start reflecting on your work →</Typography>
+            ) : (
+              <>
+                <Stack spacing={2}>
+                  {journals.slice((jPage - 1) * PER_PAGE, jPage * PER_PAGE).map((j) => (
+                    <Card key={j.id} sx={{ borderRadius: 3, bgcolor: cardBg, border: `1px solid ${bdr}`, boxShadow: "none" }}>
+                      <CardContent sx={{ py: 2, px: 2.5, "&:last-child": { pb: 2 } }}>
+                        <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1.5 }}>
+                          <Box sx={{ flex: 1, minWidth: 0 }}>
+                            <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexWrap: "wrap", mb: 1 }}>
+                              <Typography sx={{ fontSize: 13, fontWeight: 700, color: blue }}>
+                                {dayjs(j.date).format("ddd, D MMM YYYY")}
+                              </Typography>
+                              <Chip label={j.mood} size="small"
+                                sx={{ height: 20, fontSize: 10, bgcolor: `${blue}15`, color: blue, border: `1px solid ${blue}30` }} />
+                            </Box>
+                            {j.content && <Typography sx={{ fontSize: 13, color: textP, lineHeight: 1.7, whiteSpace: "pre-wrap" }}>{j.content}</Typography>}
+                            {j.wins && (
+                              <Box sx={{ mt: 1.5, p: 1.5, borderRadius: 2, bgcolor: `#2D7A4F18`, border: `1px solid #2D7A4F30` }}>
+                                <Typography sx={{ fontSize: 11, fontWeight: 700, color: "#2D7A4F", mb: 0.5 }}>✅ Wins</Typography>
+                                <Typography sx={{ fontSize: 12, color: textP }}>{j.wins}</Typography>
+                              </Box>
+                            )}
+                            {j.challenges && (
+                              <Box sx={{ mt: 1, p: 1.5, borderRadius: 2, bgcolor: `#CF4E4E12`, border: `1px solid #CF4E4E25` }}>
+                                <Typography sx={{ fontSize: 11, fontWeight: 700, color: "#CF4E4E", mb: 0.5 }}>🔍 Challenges</Typography>
+                                <Typography sx={{ fontSize: 12, color: textP }}>{j.challenges}</Typography>
+                              </Box>
+                            )}
+                          </Box>
+                          <Stack direction="row" spacing={0.5}>
+                            <IconButton size="small" onClick={() => { haptic(); setJForm(j); setEditJ(j.id); setJDlg(true); }}
+                              sx={{ color: textS, "&:hover": { color: blue } }}><Edit sx={{ fontSize: 14 }} /></IconButton>
+                            <IconButton size="small" onClick={() => deleteJournal(j.id)}
+                              sx={{ color: textS, "&:hover": { color: "#CF4E4E" } }}><Delete sx={{ fontSize: 14 }} /></IconButton>
+                          </Stack>
+                        </Box>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </Stack>
+                {journals.length > PER_PAGE && (
+                  <Box sx={{ display: "flex", justifyContent: "center", mt: 2 }}>
+                    <Pagination count={Math.ceil(journals.length / PER_PAGE)} page={jPage} onChange={(_, v) => setJPage(v)}
+                      size="small" sx={{ "& .Mui-selected": { bgcolor: `${blue}22 !important`, color: blue } }} />
+                  </Box>
+                )}
+              </>
+            )}
+          </Grid>
+        </Grid>
+      )}
+
+      {/* ═══════════════════════════════ DIALOGS ════════════════════════════ */}
+
+      {/* Project Dialog */}
+      <Dialog open={projDlg} onClose={() => setProjDlg(false)} fullWidth maxWidth="sm"
+        PaperProps={{ sx: { borderRadius: 3, bgcolor: isDark ? "#0E1420" : "#FAFCFF", border: `1px solid ${bdr}` } }}>
+        <DialogTitle sx={{ fontFamily: '"Fraunces",serif', fontWeight: 600, fontSize: 18, pb: 1 }}>
+          {editProj ? "Edit Project" : "New Project"} 🚀
         </DialogTitle>
-        <DialogContent sx={{ display: "flex", flexDirection: "column", gap: 2, pt: "12px !important" }}>
-          <ToggleButtonGroup
-            value={projForm.type}
-            exclusive
-            onChange={(_, v) => v && setProjForm({ ...projForm, type: v })}
-            size="small"
-            fullWidth
-          >
-            <ToggleButton value="official" sx={{ textTransform: "none", fontWeight: 600, fontSize: 13, flex: 1, "&.Mui-selected": { bgcolor: C.blueDim, color: C.blue, borderColor: `${C.blue}50` } }}>
-              <BusinessCenter sx={{ fontSize: 15, mr: 0.75 }} /> Official
-            </ToggleButton>
-            <ToggleButton value="personal" sx={{ textTransform: "none", fontWeight: 600, fontSize: 13, flex: 1, "&.Mui-selected": { bgcolor: C.goldDim, color: C.gold, borderColor: `${C.gold}50` } }}>
-              <Lightbulb sx={{ fontSize: 15, mr: 0.75 }} /> Personal
-            </ToggleButton>
-          </ToggleButtonGroup>
-          <TextField label="Project Name *" fullWidth autoFocus value={projForm.title} onChange={(e) => setProjForm({ ...projForm, title: e.target.value })} size="small" />
-          <Stack direction="row" spacing={2}>
-            <TextField label="Company" fullWidth size="small" value={projForm.company} onChange={(e) => setProjForm({ ...projForm, company: e.target.value })} />
-            <TextField label="Client" fullWidth size="small" value={projForm.client} onChange={(e) => setProjForm({ ...projForm, client: e.target.value })} />
+        <DialogContent sx={{ pt: 1 }}>
+          <Stack spacing={2} sx={{ mt: 1 }}>
+            <TextField label="Project title *" fullWidth size="small" value={projForm.title} onChange={(e) => setProjForm((f) => ({ ...f, title: e.target.value }))} />
+            <TextField label="Description" fullWidth size="small" multiline minRows={2} value={projForm.description} onChange={(e) => setProjForm((f) => ({ ...f, description: e.target.value }))} />
+            <Box sx={{ display: "flex", gap: 2 }}>
+              <FormControl size="small" sx={{ flex: 1 }}>
+                <InputLabel>Status</InputLabel>
+                <Select value={projForm.status} label="Status" onChange={(e) => setProjForm((f) => ({ ...f, status: e.target.value }))}>
+                  {PROJ_STATUS.map((s) => <MenuItem key={s.value} value={s.value}>{s.emoji} {s.label}</MenuItem>)}
+                </Select>
+              </FormControl>
+              <FormControl size="small" sx={{ flex: 1 }}>
+                <InputLabel>Priority</InputLabel>
+                <Select value={projForm.priority} label="Priority" onChange={(e) => setProjForm((f) => ({ ...f, priority: e.target.value }))}>
+                  {PRIORITIES.map((p) => <MenuItem key={p.value} value={p.value}>{p.emoji} {p.label}</MenuItem>)}
+                </Select>
+              </FormControl>
+            </Box>
+            <FormControl size="small" fullWidth>
+              <InputLabel>Client / Organisation</InputLabel>
+              <Select value={projForm.client_id} label="Client / Organisation" onChange={(e) => setProjForm((f) => ({ ...f, client_id: e.target.value }))}>
+                <MenuItem value="">None</MenuItem>
+                {clients.map((c) => <MenuItem key={c.id} value={c.id}>{c.name}{c.company ? ` · ${c.company}` : ""}</MenuItem>)}
+              </Select>
+            </FormControl>
+            <TextField label="Tech stack / Tools" fullWidth size="small" placeholder="React, Node, AWS…" value={projForm.tech_stack} onChange={(e) => setProjForm((f) => ({ ...f, tech_stack: e.target.value }))} />
+            <Box sx={{ display: "flex", gap: 2 }}>
+              <TextField label="Start date" type="date" size="small" sx={{ flex: 1 }} InputLabelProps={{ shrink: true }} value={projForm.start_date} onChange={(e) => setProjForm((f) => ({ ...f, start_date: e.target.value }))} />
+              <TextField label="Target date" type="date" size="small" sx={{ flex: 1 }} InputLabelProps={{ shrink: true }} value={projForm.target_date} onChange={(e) => setProjForm((f) => ({ ...f, target_date: e.target.value }))} />
+            </Box>
+            <TextField label="Notes" fullWidth size="small" multiline minRows={2} value={projForm.notes} onChange={(e) => setProjForm((f) => ({ ...f, notes: e.target.value }))} />
           </Stack>
-          <TextField label="Tech Stack (comma separated)" fullWidth size="small" placeholder="React, Node.js, PostgreSQL" value={projForm.tech} onChange={(e) => setProjForm({ ...projForm, tech: e.target.value })} />
-          <TextField label="Key Learnings" multiline rows={3} fullWidth placeholder="What did you learn or improve in this project?" value={projForm.learnings} onChange={(e) => setProjForm({ ...projForm, learnings: e.target.value })} />
-          <TextField label="Journal / Observations" multiline rows={2} fullWidth placeholder="Interesting details, war stories, observations…" value={projForm.journal} onChange={(e) => setProjForm({ ...projForm, journal: e.target.value })} />
-        </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 3, gap: 1 }}>
-          <Button onClick={() => { setOpenProj(false); setProjForm(DEFAULT_PROJ_FORM); }} color="inherit" sx={{ textTransform: "none" }}>Cancel</Button>
-          <Button variant="contained" onClick={saveProject} disabled={saving || !projForm.title.trim()} sx={{ bgcolor: C.blue, textTransform: "none", fontWeight: 600, borderRadius: 2, "&:hover": { bgcolor: C.blueLight } }}>
-            {saving ? "Saving…" : "Save Project"}
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      {/* ── DIALOG: Add Skill ── */}
-      <Dialog
-        open={openSkill}
-        onClose={() => { setOpenSkill(false); setSkillForm(DEFAULT_SKILL_FORM); }}
-        fullWidth
-        maxWidth="xs"
-        PaperProps={{ sx: { borderRadius: 3, bgcolor: dialogBg, backgroundImage: "none" } }}
-      >
-        <DialogTitle sx={{ fontFamily: "'DM Serif Display', serif", fontWeight: 400, fontSize: 24, pb: 0.5, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          Add Skill
-          <IconButton onClick={() => { setOpenSkill(false); setSkillForm(DEFAULT_SKILL_FORM); }} size="small" sx={{ opacity: 0.4, "&:hover": { opacity: 1 } }}>
-            <Close fontSize="small" />
-          </IconButton>
-        </DialogTitle>
-        <DialogContent sx={{ display: "flex", flexDirection: "column", gap: 2.5, pt: "12px !important" }}>
-          <TextField label="Skill Name *" fullWidth autoFocus size="small" value={skillForm.name} onChange={(e) => setSkillForm({ ...skillForm, name: e.target.value })} />
-          <Box>
-            <Typography sx={{ fontSize: 11, color: textS, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.8, mb: 1.25 }}>Category</Typography>
-            <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.75 }}>
-              {SKILL_CATEGORIES.map(({ key, icon, color, colorDark }) => {
-                const sc = isDark ? colorDark : color;
-                return (
-                <Chip
-                  key={key}
-                  label={key}
-                  icon={<Box sx={{ color: "inherit !important", display: "flex", "& svg": { fontSize: "12px !important" } }}>{icon}</Box>}
-                  size="small"
-                  onClick={() => setSkillForm({ ...skillForm, category: key })}
-                  sx={{
-                    fontSize: 12,
-                    cursor: "pointer",
-                    bgcolor: skillForm.category === key ? `${sc}18` : "transparent",
-                    color: skillForm.category === key ? sc : textS,
-                    border: `1px solid ${skillForm.category === key ? sc + "60" : isDark ? "#444" : "#DDD"}`,
-                    fontWeight: skillForm.category === key ? 700 : 400,
-                    transition: "all 0.15s",
-                    "&:hover": { bgcolor: `${sc}12`, color: sc },
-                    "& .MuiChip-icon": { color: "inherit" },
-                  }}
-                />
-                ); })}
-            </Box>
-          </Box>
-          <Box>
-            <Typography sx={{ fontSize: 11, color: textS, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.8, mb: 1.25 }}>Proficiency Level</Typography>
-            <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-              <Rating
-                value={skillForm.rating}
-                // BUG FIX: null check instead of falsy check (allows rating of 0)
-                onChange={(_, v) => v !== null && setSkillForm({ ...skillForm, rating: v })}
-                sx={{ "& .MuiRating-iconFilled": { color: (isDark ? PROFICIENCY_COLORS_DARK : PROFICIENCY_COLORS)[skillForm.rating] || C.purple }, "& .MuiRating-iconHover": { color: C.purple } }}
-              />
-              {skillForm.rating > 0 && (
-                <Chip
-                  label={PROFICIENCY_LABELS[skillForm.rating]}
-                  size="small"
-                  sx={{ height: 20, fontSize: 10, fontWeight: 700, bgcolor: `${(isDark ? PROFICIENCY_COLORS_DARK : PROFICIENCY_COLORS)[skillForm.rating]}18`, color: (isDark ? PROFICIENCY_COLORS_DARK : PROFICIENCY_COLORS)[skillForm.rating], border: "none" }}
-                />
-              )}
-            </Box>
-          </Box>
-        </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 3, gap: 1 }}>
-          <Button onClick={() => { setOpenSkill(false); setSkillForm(DEFAULT_SKILL_FORM); }} color="inherit" sx={{ textTransform: "none" }}>Cancel</Button>
-          <Button variant="contained" onClick={saveSkill} disabled={saving || !skillForm.name.trim()} sx={{ bgcolor: C.purple, textTransform: "none", fontWeight: 600, borderRadius: 2, "&:hover": { bgcolor: C.purpleLight } }}>
-            {saving ? "Saving…" : "Add Skill"}
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      {/* ── DIALOG: Add Certification ── */}
-      <Dialog
-        open={openCert}
-        onClose={() => { setOpenCert(false); setCertForm(DEFAULT_CERT_FORM); }}
-        fullWidth
-        maxWidth="xs"
-        PaperProps={{ sx: { borderRadius: 3, bgcolor: dialogBg, backgroundImage: "none" } }}
-      >
-        <DialogTitle sx={{ fontFamily: "'DM Serif Display', serif", fontWeight: 400, fontSize: 24, pb: 0.5, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          Add Certification
-          <IconButton onClick={() => { setOpenCert(false); setCertForm(DEFAULT_CERT_FORM); }} size="small" sx={{ opacity: 0.4, "&:hover": { opacity: 1 } }}>
-            <Close fontSize="small" />
-          </IconButton>
-        </DialogTitle>
-        <DialogContent sx={{ display: "flex", flexDirection: "column", gap: 2.5, pt: "12px !important" }}>
-          <TextField label="Certification Name *" fullWidth autoFocus size="small" value={certForm.title} onChange={(e) => setCertForm({ ...certForm, title: e.target.value })} />
-          <TextField label="Issuing Organization" fullWidth size="small" placeholder="e.g. AWS, Google, Coursera" value={certForm.issuer} onChange={(e) => setCertForm({ ...certForm, issuer: e.target.value })} />
-          <Box>
-            <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
-              <Typography sx={{ fontSize: 11, color: textS, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.8 }}>Progress</Typography>
-              <Typography sx={{ fontSize: 13, fontWeight: 700, color: certForm.progress === 100 ? C.green : certForm.progress > 50 ? C.blue : C.gold }}>
-                {certForm.progress}%
-              </Typography>
-            </Box>
-            <LinearProgress
-              variant="determinate"
-              value={certForm.progress}
-              sx={{
-                height: 8,
-                borderRadius: 4,
-                mb: 1.5,
-                bgcolor: isDark ? "#2a2a2a" : "#EEE",
-                "& .MuiLinearProgress-bar": {
-                  background: certForm.progress === 100
-                    ? `linear-gradient(90deg, ${C.green}, ${C.greenLight})`
-                    : certForm.progress > 50
-                    ? `linear-gradient(90deg, ${C.blue}, ${C.blueLight})`
-                    : `linear-gradient(90deg, ${C.gold}, #E0B050)`,
-                  borderRadius: 4,
-                  transition: "transform 0.3s ease",
-                },
-              }}
-            />
-            <input
-              type="range"
-              min={0}
-              max={100}
-              step={5}
-              value={certForm.progress}
-              // BUG FIX: explicit Number() coercion + fallback to 0
-              onChange={(e) => setCertForm({ ...certForm, progress: Number(e.target.value) || 0 })}
-              style={{ width: "100%", accentColor: C.green, cursor: "pointer" }}
-            />
-            <Box sx={{ display: "flex", justifyContent: "space-between", mt: 0.25 }}>
-              <Typography sx={{ fontSize: 10, color: textS }}>Not started</Typography>
-              <Typography sx={{ fontSize: 10, color: C.green, fontWeight: 600 }}>Completed ✓</Typography>
-            </Box>
-          </Box>
-        </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 3, gap: 1 }}>
-          <Button onClick={() => { setOpenCert(false); setCertForm(DEFAULT_CERT_FORM); }} color="inherit" sx={{ textTransform: "none" }}>Cancel</Button>
-          <Button variant="contained" onClick={saveCert} disabled={saving || !certForm.title.trim()} sx={{ bgcolor: C.green, textTransform: "none", fontWeight: 600, borderRadius: 2, "&:hover": { bgcolor: C.greenLight } }}>
-            {saving ? "Saving…" : "Save Cert"}
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      {/* ── Toast ── */}
-      <Snackbar
-        open={toast.open}
-        autoHideDuration={3500}
-        onClose={() => setToast((t) => ({ ...t, open: false }))}
-        anchorOrigin={{ vertical: "top", horizontal: "center" }}
-      >
-        <Alert
-          severity={toast.severity}
-          variant="filled"
-          onClose={() => setToast((t) => ({ ...t, open: false }))}
-          sx={{ fontSize: 13, borderRadius: 2, boxShadow: "0 8px 32px rgba(0,0,0,0.25)" }}
-        >
-          {toast.msg}
-        </Alert>
-      </Snackbar>
-
-      <Dialog
-        open={deleteConfirm.open}
-        onClose={() => setDeleteConfirm({ open: false, table: null, id: null, label: "" })}
-        PaperProps={{ sx: { borderRadius: 3, p: 1 } }}
-      >
-        <DialogTitle sx={{ fontFamily: '"Fraunces",serif', fontWeight: 400, fontSize: 20 }}>
-          Remove item?
-        </DialogTitle>
-        <DialogContent>
-          <Typography sx={{ color: "text.secondary", fontSize: 14 }}>
-            Delete <strong>{deleteConfirm.label}</strong>? This cannot be undone.
-          </Typography>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2.5 }}>
-          <Button onClick={() => setDeleteConfirm({ open: false, table: null, id: null, label: "" })} color="inherit" sx={{ textTransform: "none" }}>
-            Cancel
+          <Button onClick={() => setProjDlg(false)} sx={{ color: textS, textTransform: "none" }}>Cancel</Button>
+          <Button variant="contained" onClick={saveProject} sx={{ bgcolor: blue, textTransform: "none", fontWeight: 700, borderRadius: 2, "&:hover": { bgcolor: blue, opacity: 0.88 } }}>
+            {editProj ? "Update" : "Add Project"}
           </Button>
-          <Button onClick={confirmDeleteItem} variant="contained" sx={{ background: C.red, "&:hover": { background: "#A03535" }, textTransform: "none", boxShadow: "none" }}>
+        </DialogActions>
+      </Dialog>
+
+      {/* Log Dialog */}
+      <Dialog open={logDlg} onClose={() => setLogDlg(false)} fullWidth maxWidth="sm"
+        PaperProps={{ sx: { borderRadius: 3, bgcolor: isDark ? "#0E1420" : "#FAFCFF", border: `1px solid ${bdr}` } }}>
+        <DialogTitle sx={{ fontFamily: '"Fraunces",serif', fontWeight: 600, fontSize: 18, pb: 1 }}>Log Work 📋</DialogTitle>
+        <DialogContent sx={{ pt: 1 }}>
+          <Stack spacing={2} sx={{ mt: 1 }}>
+            <Box sx={{ display: "flex", gap: 2 }}>
+              <TextField label="Date" type="date" size="small" sx={{ flex: 1 }} InputLabelProps={{ shrink: true }} value={logForm.date} onChange={(e) => setLogForm((f) => ({ ...f, date: e.target.value }))} />
+              <TextField label="Hours" type="number" size="small" sx={{ flex: 1 }} inputProps={{ min: 0, max: 24, step: 0.5 }} value={logForm.hours} onChange={(e) => setLogForm((f) => ({ ...f, hours: e.target.value }))} />
+            </Box>
+            <FormControl size="small" fullWidth>
+              <InputLabel>Project (optional)</InputLabel>
+              <Select value={logForm.project_id} label="Project (optional)" onChange={(e) => setLogForm((f) => ({ ...f, project_id: e.target.value }))}>
+                <MenuItem value="">None</MenuItem>
+                {projects.filter((p) => p.status === "active").map((p) => <MenuItem key={p.id} value={p.id}>{p.title}</MenuItem>)}
+              </Select>
+            </FormControl>
+            <TextField label="What did you work on? *" fullWidth size="small" multiline minRows={3} value={logForm.notes} onChange={(e) => setLogForm((f) => ({ ...f, notes: e.target.value }))} />
+          </Stack>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2.5 }}>
+          <Button onClick={() => setLogDlg(false)} sx={{ color: textS, textTransform: "none" }}>Cancel</Button>
+          <Button variant="contained" onClick={saveLog} sx={{ bgcolor: blue, textTransform: "none", fontWeight: 700, borderRadius: 2, "&:hover": { bgcolor: blue, opacity: 0.88 } }}>Log It ✓</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Client Dialog */}
+      <Dialog open={clientDlg} onClose={() => setClientDlg(false)} fullWidth maxWidth="sm"
+        PaperProps={{ sx: { borderRadius: 3, bgcolor: isDark ? "#0E1420" : "#FAFCFF", border: `1px solid ${bdr}` } }}>
+        <DialogTitle sx={{ fontFamily: '"Fraunces",serif', fontWeight: 600, fontSize: 18, pb: 1 }}>
+          {editClient ? "Edit Client" : "Add Client / Organisation"} 🤝
+        </DialogTitle>
+        <DialogContent sx={{ pt: 1 }}>
+          <Stack spacing={2} sx={{ mt: 1 }}>
+            <TextField label="Name *" fullWidth size="small" value={clientForm.name} onChange={(e) => setClientForm((f) => ({ ...f, name: e.target.value }))} />
+            <TextField label="Company" fullWidth size="small" value={clientForm.company} onChange={(e) => setClientForm((f) => ({ ...f, company: e.target.value }))} />
+            <Box sx={{ display: "flex", gap: 2 }}>
+              <FormControl size="small" sx={{ flex: 1 }}>
+                <InputLabel>Type</InputLabel>
+                <Select value={clientForm.type} label="Type" onChange={(e) => setClientForm((f) => ({ ...f, type: e.target.value }))}>
+                  {CLIENT_TYPES.map((t) => <MenuItem key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</MenuItem>)}
+                </Select>
+              </FormControl>
+              <TextField label="Your role" size="small" sx={{ flex: 1 }} value={clientForm.role} onChange={(e) => setClientForm((f) => ({ ...f, role: e.target.value }))} />
+            </Box>
+            <TextField label="Engagement start" type="date" size="small" InputLabelProps={{ shrink: true }} value={clientForm.start_date} onChange={(e) => setClientForm((f) => ({ ...f, start_date: e.target.value }))} />
+            <TextField label="Notes" fullWidth size="small" multiline minRows={2} value={clientForm.notes} onChange={(e) => setClientForm((f) => ({ ...f, notes: e.target.value }))} />
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+              <ToggleButtonGroup size="small" exclusive value={String(clientForm.is_active)}
+                onChange={(_, v) => { if (v !== null) setClientForm((f) => ({ ...f, is_active: v === "true" })); }}>
+                <ToggleButton value="true" sx={{ textTransform: "none", fontSize: 12 }}>Active</ToggleButton>
+                <ToggleButton value="false" sx={{ textTransform: "none", fontSize: 12 }}>Inactive</ToggleButton>
+              </ToggleButtonGroup>
+            </Box>
+          </Stack>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2.5 }}>
+          <Button onClick={() => setClientDlg(false)} sx={{ color: textS, textTransform: "none" }}>Cancel</Button>
+          <Button variant="contained" onClick={saveClient} sx={{ bgcolor: VRITTI_TEAL, textTransform: "none", fontWeight: 700, borderRadius: 2, "&:hover": { bgcolor: VRITTI_TEAL, opacity: 0.88 } }}>
+            {editClient ? "Update" : "Add"}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Skill Dialog */}
+      <Dialog open={skillDlg} onClose={() => setSkillDlg(false)} fullWidth maxWidth="sm"
+        PaperProps={{ sx: { borderRadius: 3, bgcolor: isDark ? "#0E1420" : "#FAFCFF", border: `1px solid ${bdr}` } }}>
+        <DialogTitle sx={{ fontFamily: '"Fraunces",serif', fontWeight: 600, fontSize: 18, pb: 1 }}>
+          {editSkill ? "Edit Skill" : "Add Skill"} 🎯
+        </DialogTitle>
+        <DialogContent sx={{ pt: 1 }}>
+          <Stack spacing={2} sx={{ mt: 1 }}>
+            <FormControl size="small" fullWidth>
+              <InputLabel>Category</InputLabel>
+              <Select value={skillForm.category} label="Category" onChange={(e) => setSkillForm((f) => ({ ...f, category: e.target.value }))}>
+                {SKILL_CATS.map((c) => <MenuItem key={c.key} value={c.key}>{c.icon} {c.key}</MenuItem>)}
+              </Select>
+            </FormControl>
+            <TextField label="Skill name *" fullWidth size="small" value={skillForm.name} onChange={(e) => setSkillForm((f) => ({ ...f, name: e.target.value }))} />
+            <Box>
+              <Typography sx={{ fontSize: 12, color: textS, mb: 1 }}>Proficiency: {PROF_LABELS[skillForm.proficiency]}</Typography>
+              <Stars value={skillForm.proficiency} onChange={(v) => setSkillForm((f) => ({ ...f, proficiency: v }))} size={22} />
+            </Box>
+            <TextField label="Notes" fullWidth size="small" multiline minRows={2} value={skillForm.notes} onChange={(e) => setSkillForm((f) => ({ ...f, notes: e.target.value }))} />
+          </Stack>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2.5 }}>
+          <Button onClick={() => setSkillDlg(false)} sx={{ color: textS, textTransform: "none" }}>Cancel</Button>
+          <Button variant="contained" onClick={saveSkill} sx={{ bgcolor: blue, textTransform: "none", fontWeight: 700, borderRadius: 2, "&:hover": { bgcolor: blue, opacity: 0.88 } }}>
+            {editSkill ? "Update" : "Add Skill"}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Journal Dialog */}
+      <Dialog open={jDlg} onClose={() => setJDlg(false)} fullWidth maxWidth="sm"
+        PaperProps={{ sx: { borderRadius: 3, bgcolor: isDark ? "#0E1420" : "#FAFCFF", border: `1px solid ${bdr}` } }}>
+        <DialogTitle sx={{ fontFamily: '"Fraunces",serif', fontWeight: 600, fontSize: 18, pb: 1 }}>
+          {editJ ? "Edit Entry" : "New Journal Entry"} 📓
+        </DialogTitle>
+        <DialogContent sx={{ pt: 1 }}>
+          <Stack spacing={2} sx={{ mt: 1 }}>
+            <Box sx={{ display: "flex", gap: 2 }}>
+              <TextField label="Date" type="date" size="small" sx={{ flex: 1 }} InputLabelProps={{ shrink: true }} value={jForm.date} onChange={(e) => setJForm((f) => ({ ...f, date: e.target.value }))} />
+              <FormControl size="small" sx={{ flex: 1 }}>
+                <InputLabel>Mood</InputLabel>
+                <Select value={jForm.mood} label="Mood" onChange={(e) => setJForm((f) => ({ ...f, mood: e.target.value }))}>
+                  {MOODS.map((m) => <MenuItem key={m} value={m}>{m}</MenuItem>)}
+                </Select>
+              </FormControl>
+            </Box>
+            <TextField label="Reflection *" fullWidth size="small" multiline minRows={4} placeholder="How was today's work? What are you thinking about?" value={jForm.content} onChange={(e) => setJForm((f) => ({ ...f, content: e.target.value }))} />
+            <TextField label="Wins 🏆" fullWidth size="small" multiline minRows={2} placeholder="What went well?" value={jForm.wins} onChange={(e) => setJForm((f) => ({ ...f, wins: e.target.value }))} />
+            <TextField label="Challenges 🔍" fullWidth size="small" multiline minRows={2} placeholder="What needs improvement?" value={jForm.challenges} onChange={(e) => setJForm((f) => ({ ...f, challenges: e.target.value }))} />
+          </Stack>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2.5 }}>
+          <Button onClick={() => setJDlg(false)} sx={{ color: textS, textTransform: "none" }}>Cancel</Button>
+          <Button variant="contained" onClick={saveJournal} sx={{ bgcolor: blue, textTransform: "none", fontWeight: 700, borderRadius: 2, "&:hover": { bgcolor: blue, opacity: 0.88 } }}>
+            {editJ ? "Update" : "Save Entry"}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Delete Confirm */}
+      <Dialog open={delDlg.open} onClose={() => setDelDlg({ open: false, title: "", fn: null })}
+        PaperProps={{ sx: { borderRadius: 3, bgcolor: isDark ? "#0E1420" : "#fff", maxWidth: 360 } }}>
+        <DialogTitle sx={{ fontSize: 16, fontWeight: 700 }}>Confirm Delete</DialogTitle>
+        <DialogContent>
+          <Typography sx={{ fontSize: 14 }}>{delDlg.title}</Typography>
+          <Typography sx={{ fontSize: 12, color: textS, mt: 0.5 }}>This action cannot be undone.</Typography>
+        </DialogContent>
+        <DialogActions sx={{ px: 2.5, pb: 2 }}>
+          <Button onClick={() => setDelDlg({ open: false, title: "", fn: null })} sx={{ textTransform: "none", color: textS }}>Cancel</Button>
+          <Button variant="contained" onClick={() => { delDlg.fn?.(); setDelDlg({ open: false, title: "", fn: null }); }}
+            sx={{ bgcolor: "#CF4E4E", textTransform: "none", fontWeight: 700, borderRadius: 2, "&:hover": { bgcolor: "#B03A3A" } }}>
             Delete
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Snackbar */}
+      <Snackbar open={snack.open} autoHideDuration={3000} onClose={() => setSnack((s) => ({ ...s, open: false }))}
+        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}>
+        <Alert severity={snack.sev} onClose={() => setSnack((s) => ({ ...s, open: false }))} sx={{ borderRadius: 2, fontWeight: 600 }}>
+          {snack.msg}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 }

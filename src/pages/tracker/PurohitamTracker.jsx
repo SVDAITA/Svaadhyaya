@@ -2809,7 +2809,7 @@ function AnushtanamTab({ user, isDark }) {
 // ═══════════════════════════════════════════════════════════════════
 // ROOT COMPONENT
 // ═══════════════════════════════════════════════════════════════════
-export default function PurohitamTracker() {
+export default function PurohitamTracker({ embedded = false }) {
   const { user } = useAuth();
   const { mode } = useThemeMode();
   const isDark = mode === "dark";
@@ -2833,7 +2833,7 @@ export default function PurohitamTracker() {
 
   return (
     <Box
-      sx={{
+      sx={embedded ? { background: bg, transition: "background 0.4s ease" } : {
         p: { xs: 2, md: "28px 36px" },
         maxWidth: 1100,
         mx: "auto",
