@@ -88,19 +88,19 @@ const DEFAULT_TARGETS = {
 const COLOR_HEALTH = "#2D7A4F";
 
 const HISTORY_COLS = [
-  { id: "weight",       label: "Weight (kg)" },
-  { id: "muscle_mass",  label: "Muscle (kg)" },
+  { id: "weight", label: "Weight (kg)" },
+  { id: "muscle_mass", label: "Muscle (kg)" },
   { id: "visceral_fat", label: "Visceral Fat" },
-  { id: "fat_pct",      label: "Fat %" },
-  { id: "bmi",          label: "BMI" },
-  { id: "body_age",     label: "Body Age" },
-  { id: "waist",        label: "Waist\"" },
-  { id: "belly",        label: "Belly\"" },
-  { id: "neck",         label: "Neck\"" },
-  { id: "bust",         label: "Bust\"" },
-  { id: "hip",          label: "Hip\"" },
-  { id: "thigh",        label: "Thigh\"" },
-  { id: "calf",         label: "Calf\"" },
+  { id: "fat_pct", label: "Fat %" },
+  { id: "bmi", label: "BMI" },
+  { id: "body_age", label: "Body Age" },
+  { id: "waist", label: 'Waist"' },
+  { id: "belly", label: 'Belly"' },
+  { id: "neck", label: 'Neck"' },
+  { id: "bust", label: 'Bust"' },
+  { id: "hip", label: 'Hip"' },
+  { id: "thigh", label: 'Thigh"' },
+  { id: "calf", label: 'Calf"' },
 ];
 
 // Animation Variants
@@ -130,22 +130,34 @@ export default function ShariramHealthOS({ embedded = false }) {
   const [targetsOpen, setTargetsOpen] = useState(false);
   const [targets, setTargets] = useState(DEFAULT_TARGETS);
   const [targetsSnapshot, setTargetsSnapshot] = useState(null);
-  const [snack, setSnack] = useState({ open: false, msg: "", severity: "success" });
+  const [snack, setSnack] = useState({
+    open: false,
+    msg: "",
+    severity: "success",
+  });
   const [snapshotToDelete, setSnapshotToDelete] = useState(null);
   const [selectedRows, setSelectedRows] = useState(new Set());
-  const [visibleHistoryCols, setVisibleHistoryCols] = useState(["weight", "muscle_mass", "visceral_fat", "belly"]);
-  const showSnack = (msg, severity = "success") => setSnack({ open: true, msg, severity });
+  const [visibleHistoryCols, setVisibleHistoryCols] = useState([
+    "weight",
+    "muscle_mass",
+    "visceral_fat",
+    "belly",
+  ]);
+  const showSnack = (msg, severity = "success") =>
+    setSnack({ open: true, msg, severity });
 
   // Movement tracking
-  const [activityLogs, setActivityLogs] = useState(_shariramCache?.activityLogs || []);
-  const [movDate, setMovDate]       = useState(dayjs().format("YYYY-MM-DD"));
-  const [movSteps, setMovSteps]     = useState("");
-  const [movKm, setMovKm]           = useState("");
+  const [activityLogs, setActivityLogs] = useState(
+    _shariramCache?.activityLogs || [],
+  );
+  const [movDate, setMovDate] = useState(dayjs().format("YYYY-MM-DD"));
+  const [movSteps, setMovSteps] = useState("");
+  const [movKm, setMovKm] = useState("");
   const [movCalories, setMovCalories] = useState("");
-  const [movExType, setMovExType]   = useState("walk");
-  const [movSleep, setMovSleep]     = useState("");
-  const [movSleepQ, setMovSleepQ]   = useState(0);
-  const [savingMov, setSavingMov]   = useState(false);
+  const [movExType, setMovExType] = useState("walk");
+  const [movSleep, setMovSleep] = useState("");
+  const [movSleepQ, setMovSleepQ] = useState(0);
+  const [savingMov, setSavingMov] = useState(false);
 
   // Activity targets (defaults, can be made user-configurable later)
   const ACT_TARGETS = { steps: 10000, km: 6, calories: 500 };
@@ -157,25 +169,54 @@ export default function ShariramHealthOS({ embedded = false }) {
     try {
       const thirtyAgo = dayjs().subtract(30, "day").format("YYYY-MM-DD");
       const [logsRes, settingsRes, activityRes] = await Promise.all([
-        supabase.from("health_logs").select("*").eq("user_id", user.id).order("date", { ascending: false }),
-        supabase.from("days").select("habits").eq("user_id", user.id).eq("day_date", "2000-01-01").maybeSingle(),
-        supabase.from("daily_activity").select("*").eq("user_id", user.id).gte("date", thirtyAgo).order("date", { ascending: false }),
+        supabase
+          .from("health_logs")
+          .select("*")
+          .eq("user_id", user.id)
+          .order("date", { ascending: false }),
+        supabase
+          .from("days")
+          .select("habits")
+          .eq("user_id", user.id)
+          .eq("day_date", "2000-01-01")
+          .maybeSingle(),
+        supabase
+          .from("daily_activity")
+          .select("*")
+          .eq("user_id", user.id)
+          .gte("date", thirtyAgo)
+          .order("date", { ascending: false }),
       ]);
       if (!logsRes.error) setLogs(logsRes.data || []);
       if (settingsRes.data?.habits?.health_targets) {
-        setTargets({ ...DEFAULT_TARGETS, ...settingsRes.data.habits.health_targets });
+        setTargets({
+          ...DEFAULT_TARGETS,
+          ...settingsRes.data.habits.health_targets,
+        });
       }
       if (!activityRes.error) {
         const al = activityRes.data || [];
         _shariramCache = { logs: logsRes.data || [], activityLogs: al };
         setActivityLogs(al);
-        const todayEntry = activityRes.data?.find((a) => a.date === dayjs().format("YYYY-MM-DD"));
+        const todayEntry = activityRes.data?.find(
+          (a) => a.date === dayjs().format("YYYY-MM-DD"),
+        );
         if (todayEntry) {
           setMovSteps(todayEntry.steps != null ? String(todayEntry.steps) : "");
-          setMovKm(todayEntry.km_walked != null ? String(todayEntry.km_walked) : "");
-          setMovCalories(todayEntry.calories_burned != null ? String(todayEntry.calories_burned) : "");
+          setMovKm(
+            todayEntry.km_walked != null ? String(todayEntry.km_walked) : "",
+          );
+          setMovCalories(
+            todayEntry.calories_burned != null
+              ? String(todayEntry.calories_burned)
+              : "",
+          );
           setMovExType(todayEntry.exercise_type || "walk");
-          setMovSleep(todayEntry.sleep_hours != null ? String(todayEntry.sleep_hours) : "");
+          setMovSleep(
+            todayEntry.sleep_hours != null
+              ? String(todayEntry.sleep_hours)
+              : "",
+          );
           setMovSleepQ(todayEntry.sleep_quality ?? 0);
         }
       }
@@ -200,21 +241,40 @@ export default function ShariramHealthOS({ embedded = false }) {
       sleep_hours: movSleep ? parseFloat(movSleep) : null,
       sleep_quality: movSleepQ || null,
     };
-    const { error } = await supabase.from("daily_activity").upsert(payload, { onConflict: "user_id,date" });
+    const { error } = await supabase
+      .from("daily_activity")
+      .upsert(payload, { onConflict: "user_id,date" });
     setSavingMov(false);
-    if (error) { showSnack("Failed to save movement.", "error"); return; }
+    if (error) {
+      showSnack("Failed to save movement.", "error");
+      return;
+    }
     showSnack("Saved.");
     fetchLogs();
   };
 
   const saveTargets = async (newTargets) => {
     setTargets(newTargets);
-    const { data: existing } = await supabase.from("days").select("habits").eq("user_id", user.id).eq("day_date", "2000-01-01").maybeSingle();
-    const { error } = await supabase.from("days").upsert(
-      { user_id: user.id, day_date: "2000-01-01", habits: { ...(existing?.habits || {}), health_targets: newTargets } },
-      { onConflict: "user_id,day_date" },
-    );
-    if (error) { showSnack("Failed to save targets.", "error"); return; }
+    const { data: existing } = await supabase
+      .from("days")
+      .select("habits")
+      .eq("user_id", user.id)
+      .eq("day_date", "2000-01-01")
+      .maybeSingle();
+    const { error } = await supabase
+      .from("days")
+      .upsert(
+        {
+          user_id: user.id,
+          day_date: "2000-01-01",
+          habits: { ...(existing?.habits || {}), health_targets: newTargets },
+        },
+        { onConflict: "user_id,day_date" },
+      );
+    if (error) {
+      showSnack("Failed to save targets.", "error");
+      return;
+    }
     setTargetsOpen(false);
     showSnack("Targets saved.");
   };
@@ -237,7 +297,6 @@ export default function ShariramHealthOS({ embedded = false }) {
   }, [snapshots]);
 
   const latest = sortedDates.length > 0 ? snapshots[sortedDates[0]] : null;
-
 
   // Chart Data Preparation (Reverse for chronological order)
   const chartData = useMemo(() => {
@@ -288,7 +347,8 @@ export default function ShariramHealthOS({ embedded = false }) {
       icon: <InfoOutlined fontSize="small" />,
     };
 
-    const excellent = t.excellent !== "" && t.excellent != null ? Number(t.excellent) : null;
+    const excellent =
+      t.excellent !== "" && t.excellent != null ? Number(t.excellent) : null;
     const alertVal = t.alert !== "" && t.alert != null ? Number(t.alert) : null;
 
     if (id === "muscle_mass" && excellent !== null && value >= excellent) {
@@ -297,7 +357,10 @@ export default function ShariramHealthOS({ embedded = false }) {
         color: isDark ? COLOR_EXCELLENT_DARK : COLOR_EXCELLENT,
         icon: <CheckCircle fontSize="small" />,
       };
-    } else if (alertVal !== null && (meta.lowerIsBetter ? value >= alertVal : value < alertVal)) {
+    } else if (
+      alertVal !== null &&
+      (meta.lowerIsBetter ? value >= alertVal : value < alertVal)
+    ) {
       status = {
         label: meta.lowerIsBetter ? "High" : "Below Target",
         color: isDark ? alpha(COLOR_ALERT, 0.8) : COLOR_ALERT,
@@ -381,9 +444,14 @@ export default function ShariramHealthOS({ embedded = false }) {
     );
   }
 
-
   return (
-    <Box sx={embedded ? { color: "text.primary" } : { p: { xs: 2, md: 4 }, minHeight: "100vh", color: "text.primary" }}>
+    <Box
+      sx={
+        embedded
+          ? { color: "text.primary" }
+          : { p: { xs: 2, md: 4 }, minHeight: "100vh", color: "text.primary" }
+      }
+    >
       <Box
         component={motion.div}
         variants={containerVariants}
@@ -441,7 +509,10 @@ export default function ShariramHealthOS({ embedded = false }) {
             <Button
               variant="outlined"
               startIcon={<TrackChanges />}
-              onClick={() => { setTargetsSnapshot(targets); setTargetsOpen(true); }}
+              onClick={() => {
+                setTargetsSnapshot(targets);
+                setTargetsOpen(true);
+              }}
               sx={{ borderRadius: 8, px: 2.5, py: 1.5 }}
             >
               Set Targets
@@ -522,19 +593,27 @@ export default function ShariramHealthOS({ embedded = false }) {
                       {[
                         {
                           label: "Fat Alert",
-                          value: targets.visceral_fat?.alert ? `${targets.visceral_fat.alert}` : "—",
+                          value: targets.visceral_fat?.alert
+                            ? `${targets.visceral_fat.alert}`
+                            : "—",
                           color: isDark ? alpha(COLOR_ALERT, 0.8) : COLOR_ALERT,
                           desc: "Visceral fat alert threshold.",
                         },
                         {
                           label: "Muscle Goal",
-                          value: targets.muscle_mass?.excellent ? `${targets.muscle_mass.excellent}kg` : "—",
-                          color: isDark ? COLOR_EXCELLENT_DARK : COLOR_EXCELLENT,
+                          value: targets.muscle_mass?.excellent
+                            ? `${targets.muscle_mass.excellent}kg`
+                            : "—",
+                          color: isDark
+                            ? COLOR_EXCELLENT_DARK
+                            : COLOR_EXCELLENT,
                           desc: "Preserve functional strength.",
                         },
                         {
                           label: "Weight Target",
-                          value: targets.weight?.alert ? `${targets.weight.alert}kg` : "—",
+                          value: targets.weight?.alert
+                            ? `${targets.weight.alert}kg`
+                            : "—",
                           color: theme.palette.primary.main,
                           desc: "Long-term weight goal.",
                         },
@@ -764,13 +843,34 @@ export default function ShariramHealthOS({ embedded = false }) {
 
         {/* ── DAILY MOVEMENT ── */}
         <Box component={motion.div} variants={itemVariants}>
-          <Card sx={{ mb: 6, borderRadius: 4, bgcolor: alpha(theme.palette.background.paper, 0.8), backdropFilter: "blur(10px)", border: `1px solid ${theme.palette.divider}` }}>
+          <Card
+            sx={{
+              mb: 6,
+              borderRadius: 4,
+              bgcolor: alpha(theme.palette.background.paper, 0.8),
+              backdropFilter: "blur(10px)",
+              border: `1px solid ${theme.palette.divider}`,
+            }}
+          >
             <CardContent sx={{ p: { xs: 2, md: 4 } }}>
-              <Typography variant="h6" sx={{ mb: 0.5, fontFamily: "Fraunces, serif", display: "flex", alignItems: "center", gap: 1 }}>
+              <Typography
+                variant="h6"
+                sx={{
+                  mb: 0.5,
+                  fontFamily: "Fraunces, serif",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 1,
+                }}
+              >
                 🏃 Daily Activity & Sleep
               </Typography>
-              <Typography variant="body2" sx={{ color: "text.secondary", mb: 3 }}>
-                Log data from Apple Watch / Apple Health · Steps auto-estimate calories if manual calories are blank
+              <Typography
+                variant="body2"
+                sx={{ color: "text.secondary", mb: 3 }}
+              >
+                Log data from any health tracker app· Steps auto-estimate
+                calories if manual calories are blank
               </Typography>
               <Grid container spacing={3} alignItems="flex-start">
                 {/* Input panel */}
@@ -786,10 +886,18 @@ export default function ShariramHealthOS({ embedded = false }) {
                         setMovDate(d);
                         const ex = activityLogs.find((a) => a.date === d);
                         setMovSteps(ex?.steps != null ? String(ex.steps) : "");
-                        setMovKm(ex?.km_walked != null ? String(ex.km_walked) : "");
-                        setMovCalories(ex?.calories_burned != null ? String(ex.calories_burned) : "");
+                        setMovKm(
+                          ex?.km_walked != null ? String(ex.km_walked) : "",
+                        );
+                        setMovCalories(
+                          ex?.calories_burned != null
+                            ? String(ex.calories_burned)
+                            : "",
+                        );
                         setMovExType(ex?.exercise_type || "walk");
-                        setMovSleep(ex?.sleep_hours != null ? String(ex.sleep_hours) : "");
+                        setMovSleep(
+                          ex?.sleep_hours != null ? String(ex.sleep_hours) : "",
+                        );
                         setMovSleepQ(ex?.sleep_quality ?? 0);
                       }}
                       InputLabelProps={{ shrink: true }}
@@ -797,13 +905,30 @@ export default function ShariramHealthOS({ embedded = false }) {
                     />
 
                     {/* Exercise type */}
-                    <Typography variant="caption" sx={{ fontWeight: 700, color: "text.secondary", textTransform: "uppercase", letterSpacing: 0.5, pt: 0.5 }}>
+                    <Typography
+                      variant="caption"
+                      sx={{
+                        fontWeight: 700,
+                        color: "text.secondary",
+                        textTransform: "uppercase",
+                        letterSpacing: 0.5,
+                        pt: 0.5,
+                      }}
+                    >
                       Exercise Type
                     </Typography>
                     <Stack direction="row" spacing={1}>
                       {[
-                        { value: "walk", label: "🚶 Walk", desc: "Daily non-negotiable" },
-                        { value: "strength", label: "💪 Strength", desc: "Walk substitute" },
+                        {
+                          value: "walk",
+                          label: "🚶 Walk",
+                          desc: "Daily non-negotiable",
+                        },
+                        {
+                          value: "strength",
+                          label: "💪 Strength",
+                          desc: "Walk substitute",
+                        },
                         { value: "both", label: "🔥 Both", desc: "Full day" },
                       ].map((opt) => (
                         <Box
@@ -815,28 +940,65 @@ export default function ShariramHealthOS({ embedded = false }) {
                             px: 0.5,
                             borderRadius: 2,
                             border: `1.5px solid ${movExType === opt.value ? theme.palette.primary.main : theme.palette.divider}`,
-                            background: movExType === opt.value ? alpha(theme.palette.primary.main, 0.08) : "transparent",
+                            background:
+                              movExType === opt.value
+                                ? alpha(theme.palette.primary.main, 0.08)
+                                : "transparent",
                             cursor: "pointer",
                             textAlign: "center",
                             transition: "all 0.15s",
-                            "&:hover": { borderColor: theme.palette.primary.main, background: alpha(theme.palette.primary.main, 0.04) },
+                            "&:hover": {
+                              borderColor: theme.palette.primary.main,
+                              background: alpha(
+                                theme.palette.primary.main,
+                                0.04,
+                              ),
+                            },
                           }}
                         >
-                          <Typography sx={{ fontSize: 16, lineHeight: 1 }}>{opt.label.split(" ")[0]}</Typography>
-                          <Typography sx={{ fontSize: 10, fontWeight: 700, color: movExType === opt.value ? theme.palette.primary.main : "text.secondary", mt: 0.25 }}>
+                          <Typography sx={{ fontSize: 16, lineHeight: 1 }}>
+                            {opt.label.split(" ")[0]}
+                          </Typography>
+                          <Typography
+                            sx={{
+                              fontSize: 10,
+                              fontWeight: 700,
+                              color:
+                                movExType === opt.value
+                                  ? theme.palette.primary.main
+                                  : "text.secondary",
+                              mt: 0.25,
+                            }}
+                          >
                             {opt.label.split(" ")[1]}
                           </Typography>
                         </Box>
                       ))}
                     </Stack>
                     {movExType === "strength" && (
-                      <Typography sx={{ fontSize: 11, color: COLOR_ALERT, fontStyle: "italic" }}>
-                        💪 Strength training counts as your daily exercise substitute
+                      <Typography
+                        sx={{
+                          fontSize: 11,
+                          color: COLOR_ALERT,
+                          fontStyle: "italic",
+                        }}
+                      >
+                        💪 Strength training counts as your daily exercise
+                        substitute
                       </Typography>
                     )}
 
                     {/* Movement group */}
-                    <Typography variant="caption" sx={{ fontWeight: 700, color: "text.secondary", textTransform: "uppercase", letterSpacing: 0.5, pt: 0.5 }}>
+                    <Typography
+                      variant="caption"
+                      sx={{
+                        fontWeight: 700,
+                        color: "text.secondary",
+                        textTransform: "uppercase",
+                        letterSpacing: 0.5,
+                        pt: 0.5,
+                      }}
+                    >
                       Movement
                     </Typography>
                     <Stack direction="row" spacing={1.5}>
@@ -848,7 +1010,10 @@ export default function ShariramHealthOS({ embedded = false }) {
                         value={movSteps}
                         onChange={(e) => setMovSteps(e.target.value)}
                         inputProps={{ min: 0 }}
-                        sx={{ flex: 1, opacity: movExType === "strength" ? 0.55 : 1 }}
+                        sx={{
+                          flex: 1,
+                          opacity: movExType === "strength" ? 0.55 : 1,
+                        }}
                       />
                       <TextField
                         label="km Walked"
@@ -858,7 +1023,10 @@ export default function ShariramHealthOS({ embedded = false }) {
                         value={movKm}
                         onChange={(e) => setMovKm(e.target.value)}
                         inputProps={{ min: 0, step: 0.1 }}
-                        sx={{ flex: 1, opacity: movExType === "strength" ? 0.55 : 1 }}
+                        sx={{
+                          flex: 1,
+                          opacity: movExType === "strength" ? 0.55 : 1,
+                        }}
                       />
                     </Stack>
                     <TextField
@@ -874,7 +1042,16 @@ export default function ShariramHealthOS({ embedded = false }) {
                     />
 
                     {/* Sleep group */}
-                    <Typography variant="caption" sx={{ fontWeight: 700, color: "text.secondary", textTransform: "uppercase", letterSpacing: 0.5, pt: 0.5 }}>
+                    <Typography
+                      variant="caption"
+                      sx={{
+                        fontWeight: 700,
+                        color: "text.secondary",
+                        textTransform: "uppercase",
+                        letterSpacing: 0.5,
+                        pt: 0.5,
+                      }}
+                    >
                       Sleep
                     </Typography>
                     <TextField
@@ -890,14 +1067,23 @@ export default function ShariramHealthOS({ embedded = false }) {
                     />
                     {/* Sleep quality dots */}
                     <Box>
-                      <Typography variant="caption" sx={{ color: "text.secondary", display: "block", mb: 0.75 }}>
+                      <Typography
+                        variant="caption"
+                        sx={{
+                          color: "text.secondary",
+                          display: "block",
+                          mb: 0.75,
+                        }}
+                      >
                         Sleep Quality
                       </Typography>
                       <Stack direction="row" spacing={0.75}>
                         {[1, 2, 3, 4, 5].map((n) => (
                           <Box
                             key={n}
-                            onClick={() => setMovSleepQ(movSleepQ === n ? 0 : n)}
+                            onClick={() =>
+                              setMovSleepQ(movSleepQ === n ? 0 : n)
+                            }
                             sx={{
                               width: 32,
                               height: 32,
@@ -908,7 +1094,10 @@ export default function ShariramHealthOS({ embedded = false }) {
                               fontSize: 16,
                               cursor: "pointer",
                               border: `2px solid ${n <= movSleepQ ? "#6AAEE8" : theme.palette.divider}`,
-                              bgcolor: n <= movSleepQ ? alpha("#6AAEE8", 0.15) : "transparent",
+                              bgcolor:
+                                n <= movSleepQ
+                                  ? alpha("#6AAEE8", 0.15)
+                                  : "transparent",
                               transition: "all 0.15s",
                               userSelect: "none",
                             }}
@@ -918,8 +1107,19 @@ export default function ShariramHealthOS({ embedded = false }) {
                         ))}
                       </Stack>
                       {movSleepQ > 0 && (
-                        <Typography variant="caption" sx={{ color: "text.secondary", mt: 0.5, display: "block" }}>
-                          {["Poor", "Fair", "Good", "Great", "Excellent"][movSleepQ - 1]}
+                        <Typography
+                          variant="caption"
+                          sx={{
+                            color: "text.secondary",
+                            mt: 0.5,
+                            display: "block",
+                          }}
+                        >
+                          {
+                            ["Poor", "Fair", "Good", "Great", "Excellent"][
+                              movSleepQ - 1
+                            ]
+                          }
                         </Typography>
                       )}
                     </Box>
@@ -928,7 +1128,12 @@ export default function ShariramHealthOS({ embedded = false }) {
                       variant="contained"
                       onClick={saveMovement}
                       disabled={savingMov}
-                      sx={{ borderRadius: 2, textTransform: "none", fontWeight: 600, mt: 0.5 }}
+                      sx={{
+                        borderRadius: 2,
+                        textTransform: "none",
+                        fontWeight: 600,
+                        mt: 0.5,
+                      }}
                     >
                       {savingMov ? "Saving…" : "Save"}
                     </Button>
@@ -938,54 +1143,174 @@ export default function ShariramHealthOS({ embedded = false }) {
                 {/* Stats + Recent log */}
                 <Grid item xs={12} md={7}>
                   {/* Today's visual progress — shown when movDate === today */}
-                  {movDate === dayjs().format("YYYY-MM-DD") && (movSteps || movKm || movCalories) && (() => {
-                    const actColor = (val, target) => {
-                      const pct = target > 0 ? val / target : 0;
-                      if (pct >= 1) return "#2D7A4F";
-                      if (pct >= 0.7) return "#4A90E2";
-                      if (pct >= 0.4) return "#DDA74F";
-                      return "#CF4E4E";
-                    };
-                    const stats = [
-                      { label: "Steps", emoji: "👣", val: movSteps ? parseInt(movSteps) : 0, target: ACT_TARGETS.steps, unit: "steps", fmt: (v) => v >= 1000 ? `${(v/1000).toFixed(1)}k` : String(v) },
-                      { label: "Distance", emoji: "📍", val: movKm ? parseFloat(movKm) : 0, target: ACT_TARGETS.km, unit: "km", fmt: (v) => `${v}km` },
-                      { label: "Calories", emoji: "🔥", val: movCalories ? parseInt(movCalories) : 0, target: ACT_TARGETS.calories, unit: "kcal", fmt: (v) => `${v} kcal` },
-                    ].filter((s) => s.val > 0);
-                    if (stats.length === 0) return null;
-                    return (
-                      <Stack direction="row" spacing={1.5} sx={{ mb: 2 }}>
-                        {stats.map((s) => {
-                          const pct = Math.min(s.val / s.target, 1);
-                          const clr = actColor(s.val, s.target);
-                          return (
-                            <Box key={s.label} sx={{ flex: 1, p: 1.5, borderRadius: 2, border: `1px solid ${alpha(clr, 0.3)}`, bgcolor: alpha(clr, 0.06) }}>
-                              <Typography sx={{ fontSize: 11, fontWeight: 700, color: clr, mb: 0.5 }}>{s.emoji} {s.label}</Typography>
-                              <Typography sx={{ fontSize: 17, fontWeight: 700, color: clr, lineHeight: 1 }}>{s.fmt(s.val)}</Typography>
-                              <Box sx={{ mt: 1, height: 4, borderRadius: 2, bgcolor: alpha(clr, 0.15), overflow: "hidden" }}>
-                                <Box sx={{ width: `${pct * 100}%`, height: "100%", bgcolor: clr, borderRadius: 2, transition: "width 0.4s ease" }} />
+                  {movDate === dayjs().format("YYYY-MM-DD") &&
+                    (movSteps || movKm || movCalories) &&
+                    (() => {
+                      const actColor = (val, target) => {
+                        const pct = target > 0 ? val / target : 0;
+                        if (pct >= 1) return "#2D7A4F";
+                        if (pct >= 0.7) return "#4A90E2";
+                        if (pct >= 0.4) return "#DDA74F";
+                        return "#CF4E4E";
+                      };
+                      const stats = [
+                        {
+                          label: "Steps",
+                          emoji: "👣",
+                          val: movSteps ? parseInt(movSteps) : 0,
+                          target: ACT_TARGETS.steps,
+                          unit: "steps",
+                          fmt: (v) =>
+                            v >= 1000 ? `${(v / 1000).toFixed(1)}k` : String(v),
+                        },
+                        {
+                          label: "Distance",
+                          emoji: "📍",
+                          val: movKm ? parseFloat(movKm) : 0,
+                          target: ACT_TARGETS.km,
+                          unit: "km",
+                          fmt: (v) => `${v}km`,
+                        },
+                        {
+                          label: "Calories",
+                          emoji: "🔥",
+                          val: movCalories ? parseInt(movCalories) : 0,
+                          target: ACT_TARGETS.calories,
+                          unit: "kcal",
+                          fmt: (v) => `${v} kcal`,
+                        },
+                      ].filter((s) => s.val > 0);
+                      if (stats.length === 0) return null;
+                      return (
+                        <Stack direction="row" spacing={1.5} sx={{ mb: 2 }}>
+                          {stats.map((s) => {
+                            const pct = Math.min(s.val / s.target, 1);
+                            const clr = actColor(s.val, s.target);
+                            return (
+                              <Box
+                                key={s.label}
+                                sx={{
+                                  flex: 1,
+                                  p: 1.5,
+                                  borderRadius: 2,
+                                  border: `1px solid ${alpha(clr, 0.3)}`,
+                                  bgcolor: alpha(clr, 0.06),
+                                }}
+                              >
+                                <Typography
+                                  sx={{
+                                    fontSize: 11,
+                                    fontWeight: 700,
+                                    color: clr,
+                                    mb: 0.5,
+                                  }}
+                                >
+                                  {s.emoji} {s.label}
+                                </Typography>
+                                <Typography
+                                  sx={{
+                                    fontSize: 17,
+                                    fontWeight: 700,
+                                    color: clr,
+                                    lineHeight: 1,
+                                  }}
+                                >
+                                  {s.fmt(s.val)}
+                                </Typography>
+                                <Box
+                                  sx={{
+                                    mt: 1,
+                                    height: 4,
+                                    borderRadius: 2,
+                                    bgcolor: alpha(clr, 0.15),
+                                    overflow: "hidden",
+                                  }}
+                                >
+                                  <Box
+                                    sx={{
+                                      width: `${pct * 100}%`,
+                                      height: "100%",
+                                      bgcolor: clr,
+                                      borderRadius: 2,
+                                      transition: "width 0.4s ease",
+                                    }}
+                                  />
+                                </Box>
+                                <Typography
+                                  sx={{
+                                    fontSize: 9,
+                                    color: "text.secondary",
+                                    mt: 0.4,
+                                  }}
+                                >
+                                  {Math.round(pct * 100)}% of{" "}
+                                  {s.target.toLocaleString()} {s.unit}
+                                </Typography>
                               </Box>
-                              <Typography sx={{ fontSize: 9, color: "text.secondary", mt: 0.4 }}>{Math.round(pct * 100)}% of {s.target.toLocaleString()} {s.unit}</Typography>
-                            </Box>
-                          );
-                        })}
-                      </Stack>
-                    );
-                  })()}
+                            );
+                          })}
+                        </Stack>
+                      );
+                    })()}
 
-                  <Typography variant="body2" sx={{ color: "text.secondary", mb: 1.5 }}>Last 10 entries · click a row to edit</Typography>
+                  <Typography
+                    variant="body2"
+                    sx={{ color: "text.secondary", mb: 1.5 }}
+                  >
+                    Last 10 entries · click a row to edit
+                  </Typography>
                   {activityLogs.length === 0 ? (
-                    <Typography variant="body2" sx={{ color: "text.secondary", fontStyle: "italic" }}>No activity logged yet.</Typography>
+                    <Typography
+                      variant="body2"
+                      sx={{ color: "text.secondary", fontStyle: "italic" }}
+                    >
+                      No activity logged yet.
+                    </Typography>
                   ) : (
-                    <TableContainer component={Paper} elevation={0} sx={{ borderRadius: 2, border: `1px solid ${theme.palette.divider}` }}>
+                    <TableContainer
+                      component={Paper}
+                      elevation={0}
+                      sx={{
+                        borderRadius: 2,
+                        border: `1px solid ${theme.palette.divider}`,
+                      }}
+                    >
                       <Table size="small">
                         <TableHead>
                           <TableRow>
-                            <TableCell sx={{ fontSize: 11, fontWeight: 700 }}>Date</TableCell>
-                            <TableCell align="center" sx={{ fontSize: 11, fontWeight: 700 }}>Type</TableCell>
-                            <TableCell align="right" sx={{ fontSize: 11, fontWeight: 700 }}>Steps</TableCell>
-                            <TableCell align="right" sx={{ fontSize: 11, fontWeight: 700 }}>kcal</TableCell>
-                            <TableCell align="right" sx={{ fontSize: 11, fontWeight: 700 }}>Sleep</TableCell>
-                            <TableCell align="center" sx={{ fontSize: 11, fontWeight: 700 }}>💤</TableCell>
+                            <TableCell sx={{ fontSize: 11, fontWeight: 700 }}>
+                              Date
+                            </TableCell>
+                            <TableCell
+                              align="center"
+                              sx={{ fontSize: 11, fontWeight: 700 }}
+                            >
+                              Type
+                            </TableCell>
+                            <TableCell
+                              align="right"
+                              sx={{ fontSize: 11, fontWeight: 700 }}
+                            >
+                              Steps
+                            </TableCell>
+                            <TableCell
+                              align="right"
+                              sx={{ fontSize: 11, fontWeight: 700 }}
+                            >
+                              kcal
+                            </TableCell>
+                            <TableCell
+                              align="right"
+                              sx={{ fontSize: 11, fontWeight: 700 }}
+                            >
+                              Sleep
+                            </TableCell>
+                            <TableCell
+                              align="center"
+                              sx={{ fontSize: 11, fontWeight: 700 }}
+                            >
+                              💤
+                            </TableCell>
                           </TableRow>
                         </TableHead>
                         <TableBody>
@@ -995,26 +1320,70 @@ export default function ShariramHealthOS({ embedded = false }) {
                               hover
                               onClick={() => {
                                 setMovDate(row.date);
-                                setMovSteps(row.steps != null ? String(row.steps) : "");
-                                setMovKm(row.km_walked != null ? String(row.km_walked) : "");
-                                setMovCalories(row.calories_burned != null ? String(row.calories_burned) : "");
+                                setMovSteps(
+                                  row.steps != null ? String(row.steps) : "",
+                                );
+                                setMovKm(
+                                  row.km_walked != null
+                                    ? String(row.km_walked)
+                                    : "",
+                                );
+                                setMovCalories(
+                                  row.calories_burned != null
+                                    ? String(row.calories_burned)
+                                    : "",
+                                );
                                 setMovExType(row.exercise_type || "walk");
-                                setMovSleep(row.sleep_hours != null ? String(row.sleep_hours) : "");
+                                setMovSleep(
+                                  row.sleep_hours != null
+                                    ? String(row.sleep_hours)
+                                    : "",
+                                );
                                 setMovSleepQ(row.sleep_quality ?? 0);
                               }}
                               sx={{ cursor: "pointer" }}
                             >
-                              <TableCell sx={{ fontSize: 12 }}>{dayjs(row.date).format("D MMM")}</TableCell>
-                              <TableCell align="center" sx={{ fontSize: 14 }}>
-                                {row.exercise_type === "strength" ? "💪" : row.exercise_type === "both" ? "🔥" : "🚶"}
+                              <TableCell sx={{ fontSize: 12 }}>
+                                {dayjs(row.date).format("D MMM")}
                               </TableCell>
-                              <TableCell align="right" sx={{ fontSize: 12, fontWeight: 600 }}>{row.steps?.toLocaleString() ?? "—"}</TableCell>
-                              <TableCell align="right" sx={{ fontSize: 12, fontWeight: 600, color: row.calories_burned ? (isDark ? "#F59E6A" : "#C07830") : "text.secondary" }}>
+                              <TableCell align="center" sx={{ fontSize: 14 }}>
+                                {row.exercise_type === "strength"
+                                  ? "💪"
+                                  : row.exercise_type === "both"
+                                    ? "🔥"
+                                    : "🚶"}
+                              </TableCell>
+                              <TableCell
+                                align="right"
+                                sx={{ fontSize: 12, fontWeight: 600 }}
+                              >
+                                {row.steps?.toLocaleString() ?? "—"}
+                              </TableCell>
+                              <TableCell
+                                align="right"
+                                sx={{
+                                  fontSize: 12,
+                                  fontWeight: 600,
+                                  color: row.calories_burned
+                                    ? isDark
+                                      ? "#F59E6A"
+                                      : "#C07830"
+                                    : "text.secondary",
+                                }}
+                              >
                                 {row.calories_burned?.toLocaleString() ?? "—"}
                               </TableCell>
-                              <TableCell align="right" sx={{ fontSize: 12 }}>{row.sleep_hours != null ? `${row.sleep_hours}h` : "—"}</TableCell>
+                              <TableCell align="right" sx={{ fontSize: 12 }}>
+                                {row.sleep_hours != null
+                                  ? `${row.sleep_hours}h`
+                                  : "—"}
+                              </TableCell>
                               <TableCell align="center" sx={{ fontSize: 14 }}>
-                                {row.sleep_quality ? ["😴", "😐", "🙂", "😊", "🌟"][row.sleep_quality - 1] : "—"}
+                                {row.sleep_quality
+                                  ? ["😴", "😐", "🙂", "😊", "🌟"][
+                                      row.sleep_quality - 1
+                                    ]
+                                  : "—"}
                               </TableCell>
                             </TableRow>
                           ))}
@@ -1031,8 +1400,19 @@ export default function ShariramHealthOS({ embedded = false }) {
         {/* ── BIOMETRIC HISTORY TABLE ── */}
         <Box component={motion.div} variants={itemVariants}>
           {/* Toolbar */}
-          <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2, flexWrap: "wrap" }}>
-            <Typography variant="h6" sx={{ fontFamily: "Fraunces, serif", flex: 1 }}>
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              gap: 2,
+              mb: 2,
+              flexWrap: "wrap",
+            }}
+          >
+            <Typography
+              variant="h6"
+              sx={{ fontFamily: "Fraunces, serif", flex: 1 }}
+            >
               Biometric History
             </Typography>
             <FormControl size="small" sx={{ minWidth: 180 }}>
@@ -1040,13 +1420,22 @@ export default function ShariramHealthOS({ embedded = false }) {
               <Select
                 multiple
                 value={visibleHistoryCols}
-                onChange={(e) => setVisibleHistoryCols(typeof e.target.value === "string" ? e.target.value.split(",") : e.target.value)}
+                onChange={(e) =>
+                  setVisibleHistoryCols(
+                    typeof e.target.value === "string"
+                      ? e.target.value.split(",")
+                      : e.target.value,
+                  )
+                }
                 input={<OutlinedInput label="Columns" />}
                 renderValue={(sel) => `${sel.length} columns`}
               >
                 {HISTORY_COLS.map((col) => (
                   <MenuItem key={col.id} value={col.id}>
-                    <Checkbox checked={visibleHistoryCols.includes(col.id)} size="small" />
+                    <Checkbox
+                      checked={visibleHistoryCols.includes(col.id)}
+                      size="small"
+                    />
                     <ListItemText primary={col.label} />
                   </MenuItem>
                 ))}
@@ -1054,71 +1443,173 @@ export default function ShariramHealthOS({ embedded = false }) {
             </FormControl>
             {selectedRows.size > 0 && (
               <Typography variant="caption" sx={{ color: "text.secondary" }}>
-                {selectedRows.size === 2 ? "2 rows selected — comparison shown below" : `${selectedRows.size} row selected — select one more to compare`}
+                {selectedRows.size === 2
+                  ? "2 rows selected — comparison shown below"
+                  : `${selectedRows.size} row selected — select one more to compare`}
               </Typography>
             )}
             {selectedRows.size > 0 && (
-              <IconButton size="small" onClick={() => setSelectedRows(new Set())} title="Clear selection">
+              <IconButton
+                size="small"
+                onClick={() => setSelectedRows(new Set())}
+                title="Clear selection"
+              >
                 <Delete fontSize="small" />
               </IconButton>
             )}
           </Box>
 
           {/* Row comparison panel */}
-          {selectedRows.size === 2 && (() => {
-            const [d1, d2] = [...selectedRows].sort();
-            const deltas = HISTORY_COLS.filter((c) => visibleHistoryCols.includes(c.id)).map((col) => {
-              const v1 = snapshots[d1]?.metrics[col.id];
-              const v2 = snapshots[d2]?.metrics[col.id];
-              if (v1 == null || v2 == null) return null;
-              const raw = (v2 - v1);
-              const diffStr = (raw > 0 ? "+" : "") + raw.toFixed(1);
-              const meta = METRIC_META[col.id];
-              const isGood = raw === 0 ? true : meta ? (meta.lowerIsBetter ? raw <= 0 : raw >= 0) : raw >= 0;
-              return { ...col, v1, v2, diffStr, isGood };
-            }).filter(Boolean);
-            return (
-              <Card sx={{ mb: 3, borderRadius: 3, border: `2px solid ${alpha(theme.palette.primary.main, 0.25)}`, bgcolor: alpha(theme.palette.primary.main, 0.03), boxShadow: "none" }}>
-                <CardContent sx={{ p: "16px 20px !important" }}>
-                  <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5, color: "text.secondary" }}>
-                    {dayjs(d1).format("MMM YYYY")} → {dayjs(d2).format("MMM YYYY")}
-                  </Typography>
-                  <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1.5 }}>
-                    {deltas.map((delta) => (
-                      <Box key={delta.id} sx={{ textAlign: "center", px: 1.5, py: 0.75, borderRadius: 2, bgcolor: alpha(delta.isGood ? COLOR_EXCELLENT : COLOR_CRITICAL, 0.08), border: `1px solid ${alpha(delta.isGood ? COLOR_EXCELLENT : COLOR_CRITICAL, 0.22)}` }}>
-                        <Typography variant="caption" sx={{ fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5, display: "block", color: "text.secondary", fontSize: 9 }}>{delta.label}</Typography>
-                        <Typography sx={{ fontFamily: "Fraunces, serif", fontSize: 20, fontWeight: 600, lineHeight: 1.2, color: delta.isGood ? (isDark ? COLOR_EXCELLENT_DARK : COLOR_EXCELLENT) : COLOR_CRITICAL }}>
-                          {delta.diffStr}
-                        </Typography>
-                        <Typography variant="caption" sx={{ fontSize: 10, color: "text.secondary" }}>
-                          {delta.v1} → {delta.v2}
-                        </Typography>
-                      </Box>
-                    ))}
-                  </Box>
-                </CardContent>
-              </Card>
-            );
-          })()}
+          {selectedRows.size === 2 &&
+            (() => {
+              const [d1, d2] = [...selectedRows].sort();
+              const deltas = HISTORY_COLS.filter((c) =>
+                visibleHistoryCols.includes(c.id),
+              )
+                .map((col) => {
+                  const v1 = snapshots[d1]?.metrics[col.id];
+                  const v2 = snapshots[d2]?.metrics[col.id];
+                  if (v1 == null || v2 == null) return null;
+                  const raw = v2 - v1;
+                  const diffStr = (raw > 0 ? "+" : "") + raw.toFixed(1);
+                  const meta = METRIC_META[col.id];
+                  const isGood =
+                    raw === 0
+                      ? true
+                      : meta
+                        ? meta.lowerIsBetter
+                          ? raw <= 0
+                          : raw >= 0
+                        : raw >= 0;
+                  return { ...col, v1, v2, diffStr, isGood };
+                })
+                .filter(Boolean);
+              return (
+                <Card
+                  sx={{
+                    mb: 3,
+                    borderRadius: 3,
+                    border: `2px solid ${alpha(theme.palette.primary.main, 0.25)}`,
+                    bgcolor: alpha(theme.palette.primary.main, 0.03),
+                    boxShadow: "none",
+                  }}
+                >
+                  <CardContent sx={{ p: "16px 20px !important" }}>
+                    <Typography
+                      variant="subtitle2"
+                      sx={{ fontWeight: 700, mb: 1.5, color: "text.secondary" }}
+                    >
+                      {dayjs(d1).format("MMM YYYY")} →{" "}
+                      {dayjs(d2).format("MMM YYYY")}
+                    </Typography>
+                    <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1.5 }}>
+                      {deltas.map((delta) => (
+                        <Box
+                          key={delta.id}
+                          sx={{
+                            textAlign: "center",
+                            px: 1.5,
+                            py: 0.75,
+                            borderRadius: 2,
+                            bgcolor: alpha(
+                              delta.isGood ? COLOR_EXCELLENT : COLOR_CRITICAL,
+                              0.08,
+                            ),
+                            border: `1px solid ${alpha(delta.isGood ? COLOR_EXCELLENT : COLOR_CRITICAL, 0.22)}`,
+                          }}
+                        >
+                          <Typography
+                            variant="caption"
+                            sx={{
+                              fontWeight: 700,
+                              textTransform: "uppercase",
+                              letterSpacing: 0.5,
+                              display: "block",
+                              color: "text.secondary",
+                              fontSize: 9,
+                            }}
+                          >
+                            {delta.label}
+                          </Typography>
+                          <Typography
+                            sx={{
+                              fontFamily: "Fraunces, serif",
+                              fontSize: 20,
+                              fontWeight: 600,
+                              lineHeight: 1.2,
+                              color: delta.isGood
+                                ? isDark
+                                  ? COLOR_EXCELLENT_DARK
+                                  : COLOR_EXCELLENT
+                                : COLOR_CRITICAL,
+                            }}
+                          >
+                            {delta.diffStr}
+                          </Typography>
+                          <Typography
+                            variant="caption"
+                            sx={{ fontSize: 10, color: "text.secondary" }}
+                          >
+                            {delta.v1} → {delta.v2}
+                          </Typography>
+                        </Box>
+                      ))}
+                    </Box>
+                  </CardContent>
+                </Card>
+              );
+            })()}
 
           <TableContainer
             component={Paper}
-            sx={{ borderRadius: 4, border: `1px solid ${theme.palette.divider}`, bgcolor: alpha(theme.palette.background.paper, 0.8), backdropFilter: "blur(10px)", boxShadow: "none" }}
+            sx={{
+              borderRadius: 4,
+              border: `1px solid ${theme.palette.divider}`,
+              bgcolor: alpha(theme.palette.background.paper, 0.8),
+              backdropFilter: "blur(10px)",
+              boxShadow: "none",
+            }}
           >
             <Table size="small">
-              <TableHead sx={{ bgcolor: alpha(theme.palette.primary.main, 0.05) }}>
+              <TableHead
+                sx={{ bgcolor: alpha(theme.palette.primary.main, 0.05) }}
+              >
                 <TableRow>
                   <TableCell padding="checkbox">
                     <Checkbox
                       size="small"
-                      indeterminate={selectedRows.size > 0 && selectedRows.size < sortedDates.length}
-                      checked={sortedDates.length > 0 && selectedRows.size === sortedDates.length}
-                      onChange={(e) => setSelectedRows(e.target.checked ? new Set(sortedDates) : new Set())}
+                      indeterminate={
+                        selectedRows.size > 0 &&
+                        selectedRows.size < sortedDates.length
+                      }
+                      checked={
+                        sortedDates.length > 0 &&
+                        selectedRows.size === sortedDates.length
+                      }
+                      onChange={(e) =>
+                        setSelectedRows(
+                          e.target.checked ? new Set(sortedDates) : new Set(),
+                        )
+                      }
                     />
                   </TableCell>
-                  <TableCell sx={{ fontWeight: 800, fontSize: 11 }}>DATE</TableCell>
-                  {HISTORY_COLS.filter((c) => visibleHistoryCols.includes(c.id)).map((col) => (
-                    <TableCell key={col.id} align="center" sx={{ fontWeight: 800, fontSize: 11, whiteSpace: "nowrap" }}>{col.label.toUpperCase()}</TableCell>
+                  <TableCell sx={{ fontWeight: 800, fontSize: 11 }}>
+                    DATE
+                  </TableCell>
+                  {HISTORY_COLS.filter((c) =>
+                    visibleHistoryCols.includes(c.id),
+                  ).map((col) => (
+                    <TableCell
+                      key={col.id}
+                      align="center"
+                      sx={{
+                        fontWeight: 800,
+                        fontSize: 11,
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {col.label.toUpperCase()}
+                    </TableCell>
                   ))}
                   <TableCell />
                 </TableRow>
@@ -1126,57 +1617,123 @@ export default function ShariramHealthOS({ embedded = false }) {
               <TableBody>
                 {sortedDates.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={visibleHistoryCols.length + 3} align="center" sx={{ py: 5, color: "text.secondary", fontStyle: "italic" }}>
+                    <TableCell
+                      colSpan={visibleHistoryCols.length + 3}
+                      align="center"
+                      sx={{
+                        py: 5,
+                        color: "text.secondary",
+                        fontStyle: "italic",
+                      }}
+                    >
                       No snapshots imported yet. Use "Import Snapshot" to begin.
                     </TableCell>
                   </TableRow>
-                ) : sortedDates.map((date) => {
-                  const isSelected = selectedRows.has(date);
-                  return (
-                    <TableRow
-                      key={date}
-                      hover
-                      selected={isSelected}
-                      onClick={() => {
-                        const next = new Set(selectedRows);
-                        if (next.has(date)) { next.delete(date); }
-                        else if (next.size < 2) { next.add(date); }
-                        setSelectedRows(next);
-                      }}
-                      sx={{ cursor: "pointer", "&:last-child td": { border: 0 }, bgcolor: isSelected ? alpha(theme.palette.primary.main, 0.06) : "inherit" }}
-                    >
-                      <TableCell padding="checkbox">
-                        <Checkbox checked={isSelected} size="small" color="primary" />
-                      </TableCell>
-                      <TableCell sx={{ fontWeight: 600, color: "text.secondary", fontSize: 12, whiteSpace: "nowrap" }}>
-                        {dayjs(date).format("MMM YYYY")}
-                      </TableCell>
-                      {HISTORY_COLS.filter((c) => visibleHistoryCols.includes(c.id)).map((col) => {
-                        const val = snapshots[date].metrics[col.id];
-                        const isInch = ["waist","belly","neck","bust","hip","thigh","calf"].includes(col.id);
-                        const meta = METRIC_META[col.id];
-                        const t = targets[col.id] || {};
-                        const alertVal = t.alert !== "" && t.alert != null ? Number(t.alert) : null;
-                        let cellColor = "inherit";
-                        if (val != null && alertVal != null && meta) {
-                          cellColor = (meta.lowerIsBetter ? val >= alertVal : val < alertVal)
-                            ? (isDark ? alpha(COLOR_ALERT, 0.9) : COLOR_ALERT)
-                            : "inherit";
-                        }
-                        return (
-                          <TableCell key={col.id} align="center" sx={{ fontSize: 12, fontWeight: 500, color: cellColor }}>
-                            {val != null ? `${val}${isInch ? '"' : meta?.unit ? ` ${meta.unit}` : ""}` : "—"}
-                          </TableCell>
-                        );
-                      })}
-                      <TableCell align="right" sx={{ pr: 1 }}>
-                        <IconButton size="small" color="error" onClick={(e) => { e.stopPropagation(); setSnapshotToDelete(date); }}>
-                          <Delete sx={{ fontSize: 16 }} />
-                        </IconButton>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
+                ) : (
+                  sortedDates.map((date) => {
+                    const isSelected = selectedRows.has(date);
+                    return (
+                      <TableRow
+                        key={date}
+                        hover
+                        selected={isSelected}
+                        onClick={() => {
+                          const next = new Set(selectedRows);
+                          if (next.has(date)) {
+                            next.delete(date);
+                          } else if (next.size < 2) {
+                            next.add(date);
+                          }
+                          setSelectedRows(next);
+                        }}
+                        sx={{
+                          cursor: "pointer",
+                          "&:last-child td": { border: 0 },
+                          bgcolor: isSelected
+                            ? alpha(theme.palette.primary.main, 0.06)
+                            : "inherit",
+                        }}
+                      >
+                        <TableCell padding="checkbox">
+                          <Checkbox
+                            checked={isSelected}
+                            size="small"
+                            color="primary"
+                          />
+                        </TableCell>
+                        <TableCell
+                          sx={{
+                            fontWeight: 600,
+                            color: "text.secondary",
+                            fontSize: 12,
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          {dayjs(date).format("MMM YYYY")}
+                        </TableCell>
+                        {HISTORY_COLS.filter((c) =>
+                          visibleHistoryCols.includes(c.id),
+                        ).map((col) => {
+                          const val = snapshots[date].metrics[col.id];
+                          const isInch = [
+                            "waist",
+                            "belly",
+                            "neck",
+                            "bust",
+                            "hip",
+                            "thigh",
+                            "calf",
+                          ].includes(col.id);
+                          const meta = METRIC_META[col.id];
+                          const t = targets[col.id] || {};
+                          const alertVal =
+                            t.alert !== "" && t.alert != null
+                              ? Number(t.alert)
+                              : null;
+                          let cellColor = "inherit";
+                          if (val != null && alertVal != null && meta) {
+                            cellColor = (
+                              meta.lowerIsBetter
+                                ? val >= alertVal
+                                : val < alertVal
+                            )
+                              ? isDark
+                                ? alpha(COLOR_ALERT, 0.9)
+                                : COLOR_ALERT
+                              : "inherit";
+                          }
+                          return (
+                            <TableCell
+                              key={col.id}
+                              align="center"
+                              sx={{
+                                fontSize: 12,
+                                fontWeight: 500,
+                                color: cellColor,
+                              }}
+                            >
+                              {val != null
+                                ? `${val}${isInch ? '"' : meta?.unit ? ` ${meta.unit}` : ""}`
+                                : "—"}
+                            </TableCell>
+                          );
+                        })}
+                        <TableCell align="right" sx={{ pr: 1 }}>
+                          <IconButton
+                            size="small"
+                            color="error"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSnapshotToDelete(date);
+                            }}
+                          >
+                            <Delete sx={{ fontSize: 16 }} />
+                          </IconButton>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })
+                )}
               </TableBody>
             </Table>
           </TableContainer>
@@ -1192,10 +1749,28 @@ export default function ShariramHealthOS({ embedded = false }) {
             Import Data Snapshot
           </DialogTitle>
           <DialogContent>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 1, mt: 1 }}>
-              One JSON object per import (one month's snapshot). Physical vitals are in inches.
+            <Typography
+              variant="body2"
+              color="text.secondary"
+              sx={{ mb: 1, mt: 1 }}
+            >
+              One JSON object per import (one month's snapshot). Physical vitals
+              are in inches.
             </Typography>
-            <Box component="pre" sx={{ fontSize: 11, fontFamily: "monospace", background: isDark ? "rgba(255,255,255,0.04)" : "#F4F3EC", border: `1px solid ${theme.palette.divider}`, borderRadius: 1.5, p: 1.5, mb: 2, overflowX: "auto", lineHeight: 1.7 }}>{`{
+            <Box
+              component="pre"
+              sx={{
+                fontSize: 11,
+                fontFamily: "monospace",
+                background: isDark ? "rgba(255,255,255,0.04)" : "#F4F3EC",
+                border: `1px solid ${theme.palette.divider}`,
+                borderRadius: 1.5,
+                p: 1.5,
+                mb: 2,
+                overflowX: "auto",
+                lineHeight: 1.7,
+              }}
+            >{`{
   "date": "2026-05-01",
   "metrics": {
     "weight": 82.5,
@@ -1240,7 +1815,10 @@ export default function ShariramHealthOS({ embedded = false }) {
         {/* ── SET TARGETS DIALOG ── */}
         <Dialog
           open={targetsOpen}
-          onClose={() => { if (targetsSnapshot) setTargets(targetsSnapshot); setTargetsOpen(false); }}
+          onClose={() => {
+            if (targetsSnapshot) setTargets(targetsSnapshot);
+            setTargetsOpen(false);
+          }}
           maxWidth="sm"
           fullWidth
           PaperProps={{ sx: { borderRadius: 3 } }}
@@ -1249,13 +1827,26 @@ export default function ShariramHealthOS({ embedded = false }) {
             Configure Personal Targets
           </DialogTitle>
           <DialogContent>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 3, mt: 1 }}>
-              Set your personal targets for each metric. Leave blank to show values without status coloring.
+            <Typography
+              variant="body2"
+              color="text.secondary"
+              sx={{ mb: 3, mt: 1 }}
+            >
+              Set your personal targets for each metric. Leave blank to show
+              values without status coloring.
             </Typography>
             <Stack spacing={2.5}>
               {Object.entries(METRIC_META).map(([key, meta]) => (
                 <Box key={key}>
-                  <Typography variant="caption" sx={{ fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5, color: "text.secondary" }}>
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      fontWeight: 700,
+                      textTransform: "uppercase",
+                      letterSpacing: 0.5,
+                      color: "text.secondary",
+                    }}
+                  >
                     {meta.label} {meta.unit ? `(${meta.unit})` : ""}
                   </Typography>
                   <Stack direction="row" spacing={2} sx={{ mt: 0.75 }}>
@@ -1265,7 +1856,12 @@ export default function ShariramHealthOS({ embedded = false }) {
                         type="number"
                         size="small"
                         value={targets[key]?.excellent ?? ""}
-                        onChange={(e) => setTargets((t) => ({ ...t, [key]: { ...t[key], excellent: e.target.value } }))}
+                        onChange={(e) =>
+                          setTargets((t) => ({
+                            ...t,
+                            [key]: { ...t[key], excellent: e.target.value },
+                          }))
+                        }
                         sx={{ flex: 1 }}
                       />
                     )}
@@ -1274,7 +1870,12 @@ export default function ShariramHealthOS({ embedded = false }) {
                       type="number"
                       size="small"
                       value={targets[key]?.alert ?? ""}
-                      onChange={(e) => setTargets((t) => ({ ...t, [key]: { ...t[key], alert: e.target.value } }))}
+                      onChange={(e) =>
+                        setTargets((t) => ({
+                          ...t,
+                          [key]: { ...t[key], alert: e.target.value },
+                        }))
+                      }
                       sx={{ flex: 1 }}
                     />
                   </Stack>
@@ -1283,8 +1884,20 @@ export default function ShariramHealthOS({ embedded = false }) {
             </Stack>
           </DialogContent>
           <DialogActions sx={{ p: 3, pt: 1 }}>
-            <Button onClick={() => { if (targetsSnapshot) setTargets(targetsSnapshot); setTargetsOpen(false); }} color="inherit">Cancel</Button>
-            <Button variant="contained" onClick={() => saveTargets(targets)} sx={{ borderRadius: 2 }}>
+            <Button
+              onClick={() => {
+                if (targetsSnapshot) setTargets(targetsSnapshot);
+                setTargetsOpen(false);
+              }}
+              color="inherit"
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="contained"
+              onClick={() => saveTargets(targets)}
+              sx={{ borderRadius: 2 }}
+            >
               Save Targets
             </Button>
           </DialogActions>
@@ -1297,7 +1910,11 @@ export default function ShariramHealthOS({ embedded = false }) {
         onClose={() => setSnack((s) => ({ ...s, open: false }))}
         anchorOrigin={{ vertical: "top", horizontal: "center" }}
       >
-        <Alert severity={snack.severity} onClose={() => setSnack((s) => ({ ...s, open: false }))} sx={{ borderRadius: 2 }}>
+        <Alert
+          severity={snack.severity}
+          onClose={() => setSnack((s) => ({ ...s, open: false }))}
+          sx={{ borderRadius: 2 }}
+        >
           {snack.msg}
         </Alert>
       </Snackbar>
@@ -1307,28 +1924,47 @@ export default function ShariramHealthOS({ embedded = false }) {
         onClose={() => setSnapshotToDelete(null)}
         PaperProps={{ sx: { borderRadius: 3, p: 1 } }}
       >
-        <DialogTitle sx={{ fontFamily: "Fraunces, serif", fontWeight: 400, fontSize: 20 }}>
+        <DialogTitle
+          sx={{ fontFamily: "Fraunces, serif", fontWeight: 400, fontSize: 20 }}
+        >
           Remove snapshot?
         </DialogTitle>
         <DialogContent>
           <Typography sx={{ color: "text.secondary", fontSize: 14 }}>
-            Delete the health snapshot for <strong>{snapshotToDelete}</strong>? This cannot be undone.
+            Delete the health snapshot for <strong>{snapshotToDelete}</strong>?
+            This cannot be undone.
           </Typography>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2.5 }}>
-          <Button onClick={() => setSnapshotToDelete(null)} color="inherit" sx={{ textTransform: "none" }}>
+          <Button
+            onClick={() => setSnapshotToDelete(null)}
+            color="inherit"
+            sx={{ textTransform: "none" }}
+          >
             Cancel
           </Button>
           <Button
             onClick={async () => {
               const date = snapshotToDelete;
               setSnapshotToDelete(null);
-              const { error } = await supabase.from("health_logs").delete().eq("user_id", user.id).eq("date", date);
-              showSnack(error ? "Failed to delete." : "Snapshot removed.", error ? "error" : "success");
+              const { error } = await supabase
+                .from("health_logs")
+                .delete()
+                .eq("user_id", user.id)
+                .eq("date", date);
+              showSnack(
+                error ? "Failed to delete." : "Snapshot removed.",
+                error ? "error" : "success",
+              );
               if (!error) fetchLogs();
             }}
             variant="contained"
-            sx={{ background: "#D32F2F", "&:hover": { background: "#A03535" }, textTransform: "none", boxShadow: "none" }}
+            sx={{
+              background: "#D32F2F",
+              "&:hover": { background: "#A03535" },
+              textTransform: "none",
+              boxShadow: "none",
+            }}
           >
             Delete
           </Button>
