@@ -3856,9 +3856,14 @@ export default function TodayPage() {
         <DialogActions sx={{ px: 2.5, pb: 2, pt: 0.5, justifyContent: "space-between" }}>
           <Button size="small" onClick={() => { setVrittiOpen(false); navigate("/svadhyaya/vrutti", { state: { tab: 1 } }); }}
             sx={{ color: isDark ? "#7C7A74" : "#9C9A94", textTransform: "none", fontSize: 12 }}>Open full tracker →</Button>
-          <Button variant="contained" size="small" onClick={() => setVrittiOpen(false)}
+          <Button variant="contained" size="small" onClick={() => {
+            const nextHabits = { ...habits, office: true };
+            setHabits(nextHabits);
+            sync({ habits: nextHabits });
+            setVrittiOpen(false);
+          }}
             sx={{ background: "#1A5FB0", color: "#fff", textTransform: "none", fontWeight: 600, borderRadius: 2, fontSize: 13, "&:hover": { background: "#1050A0" } }}>
-            Done
+            Mark Done ✓
           </Button>
         </DialogActions>
       </Dialog>
@@ -3946,9 +3951,14 @@ export default function TodayPage() {
         <DialogActions sx={{ px: 2.5, pb: 2, pt: 0.5, justifyContent: "space-between" }}>
           <Button size="small" onClick={() => { setReadingOpen(false); navigate("/svadhyaya/vidya", { state: { tab: 1 } }); }}
             sx={{ color: isDark ? "#7C7A74" : "#9C9A94", textTransform: "none", fontSize: 12 }}>Open full tracker →</Button>
-          <Button variant="contained" size="small" onClick={() => setReadingOpen(false)}
+          <Button variant="contained" size="small" onClick={() => {
+            const nextHabits = { ...habits, reading: true };
+            setHabits(nextHabits);
+            sync({ habits: nextHabits });
+            setReadingOpen(false);
+          }}
             sx={{ background: "#C07830", color: "#fff", textTransform: "none", fontWeight: 600, borderRadius: 2, fontSize: 13, "&:hover": { background: "#A0621A" } }}>
-            Done
+            Mark Done ✓
           </Button>
         </DialogActions>
       </Dialog>
