@@ -1339,6 +1339,9 @@ function EveningFlowModal({
   setTomorrowTasks,
 }) {
   const [step, setStep] = useState(1);
+
+  // Reset to step 1 whenever the modal closes so it's fresh next time
+  useEffect(() => { if (!open) setStep(1); }, [open]);
   const bg = isDark ? "#1A1916" : "#FCFBF9";
   const border = isDark ? "rgba(255,255,255,0.08)" : "#D1D0CF";
   const textP = isDark ? "#F0EDE8" : "#2C2C2C";
@@ -1598,10 +1601,7 @@ function EveningFlowModal({
               <Button
                 variant="contained"
                 fullWidth
-                onClick={() => {
-                  onSave();
-                  setStep(1);
-                }}
+                onClick={onSave}
                 sx={{
                   py: 1.3,
                   background: heroColor,
