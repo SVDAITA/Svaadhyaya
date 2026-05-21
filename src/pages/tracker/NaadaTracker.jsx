@@ -39,6 +39,14 @@ const CONCERT_TYPES= [
   { value:"recording", label:"Recording 🎙",  color: NAADA_DEEP },
 ];
 const SKILL_CATS   = ["Raga Alapana","Gamaka","Talam","Voice Range","Theory","Improvisation","Composition","Violin","Piano","Other"];
+const COURSE_STATUS = [
+  { value:"enrolled",    label:"Enrolled",    color:"#4A90E2" },
+  { value:"in_progress", label:"In Progress", color:NAADA_SAFFRON },
+  { value:"completed",   label:"Completed",   color:"#2D7A4F" },
+  { value:"dropped",     label:"Dropped",     color:"#888" },
+];
+const COURSE_LEVELS    = ["Prathamik","Madhyama Prathama","Madhyama Dwitiya","Visharada","Sangeet Alankar","Sangeet Bhaskar","Diploma","Certificate","Other"];
+const COURSE_INSTRUMENTS = ["Vocal","Veena","Violin","Flute","Mridangam","Ghatam","Tabla","Sitar","Sarod","Harmonium","Other"];
 const INC_CATS     = ["Concert","Teaching","Recording","Grant","Other"];
 const EXP_CATS     = ["Guru Dakshina","Instrument","Accessories","Travel","Costume","Venue","Other"];
 const MOODS        = ["Sattvik 🌸","Rajasic 🔥","Tamasic 🌑"];
@@ -227,13 +235,22 @@ export default function NaadaTracker({ embedded = false }) {
   const [skillPage,  setSkillPage]  = useState(1);
   const SKILL_PER = 20;
 
+  // ── COURSES STATE ─────────────────────────────────────────────────────────
+  const emptyCourse = { title:"",institution:"",instrument:"Vocal",level:"Visharada",status:"in_progress",start_date:"",exam_date:"",completion_date:"",result:"",guru:"",notes:"" };
+  const [courses,     setCourses]     = useState(_naadaCache?.courses||[]);
+  const [courseForm,  setCourseForm]  = useState(emptyCourse);
+  const [editCourse,  setEditCourse]  = useState(null);
+  const [courseDlg,   setCourseDlg]   = useState(false);
+  const [coursePage,  setCoursePage]  = useState(1);
+  const COURSE_PER = 12;
+
   // ── LOAD ──────────────────────────────────────────────────────────────────
   const load = useCallback(async () => {
     if (!user) return;
     if (_naadaCache !== null && _naadaCache._date === today) return; // cache warm for today
     setLoading(true);
     try {
-      const [seqR,compR,compR2,ragaR,concertR,studentR,finR,jR,skillR] = await Promise.all([
+      const [seqR,compR,compR2,ragaR,concertR,studentR,finR,jR,skillR,courseR] = await Promise.all([
         supabase.from("naada_sequence_items").select("*").eq("user_id",user.id).order("order_index"),
         supabase.from("naada_sequence_completions").select("*").eq("user_id",user.id).eq("completion_date",today),
         supabase.from("naada_compositions").select("*").eq("user_id",user.id).order("created_at",{ascending:false}),
@@ -243,17 +260,19 @@ export default function NaadaTracker({ embedded = false }) {
         supabase.from("naada_finance").select("*").eq("user_id",user.id).order("date",{ascending:false}),
         supabase.from("naada_journal").select("*").eq("user_id",user.id).order("date",{ascending:false}),
         supabase.from("naada_skills").select("*").eq("user_id",user.id).order("category"),
+        supabase.from("naada_courses").select("*").eq("user_id",user.id).order("created_at",{ascending:false}),
       ]);
-      const seqData   = seqR.data  ||[];
-      const compMap   = Object.fromEntries((compR.data||[]).map((c)=>[c.naada_item_id,c.is_completed]));
-      const compData  = compR2.data||[];
-      const ragaData  = ragaR.data ||[];
-      const cData     = concertR.data||[];
-      const stuData   = studentR.data||[];
-      const finData   = finR.data  ||[];
-      const jData     = jR.data    ||[];
-      const skillData = skillR.data||[];
-      _naadaCache = { _date:today,seqItems:seqData,completions:compMap,comps:compData,ragas:ragaData,concerts:cData,students:stuData,finances:finData,journals:jData,skills:skillData };
+      const seqData    = seqR.data    ||[];
+      const compMap    = Object.fromEntries((compR.data||[]).map((c)=>[c.naada_item_id,c.is_completed]));
+      const compData   = compR2.data  ||[];
+      const ragaData   = ragaR.data   ||[];
+      const cData      = concertR.data||[];
+      const stuData    = studentR.data||[];
+      const finData    = finR.data    ||[];
+      const jData      = jR.data      ||[];
+      const skillData  = skillR.data  ||[];
+      const courseData = courseR.data  ||[];
+      _naadaCache = { _date:today,seqItems:seqData,completions:compMap,comps:compData,ragas:ragaData,concerts:cData,students:stuData,finances:finData,journals:jData,skills:skillData,courses:courseData };
       setSeqItems(seqData);
       setCompletions(compMap);
       setComps(compData);
@@ -263,6 +282,7 @@ export default function NaadaTracker({ embedded = false }) {
       setFinances(finData);
       setJournals(jData);
       setSkills(skillData);
+      setCourses(courseData);
     } finally { setLoading(false); }
   },[user,today]);
 
@@ -456,6 +476,41 @@ export default function NaadaTracker({ embedded = false }) {
     ok("Removed"); _naadaCache=null; load();
   };
 
+  // ── COURSE CRUD ───────────────────────────────────────────────────────────
+  const saveCourse = async () => {
+    if (!courseForm.title.trim()) { err("Course title required"); return; }
+    const payload = {
+      user_id:         user.id,
+      title:           courseForm.title.trim(),
+      institution:     courseForm.institution     || null,
+      instrument:      courseForm.instrument      || null,
+      level:           courseForm.level           || null,
+      status:          courseForm.status          || "in_progress",
+      start_date:      courseForm.start_date      || null,
+      exam_date:       courseForm.exam_date        || null,
+      completion_date: courseForm.completion_date  || null,
+      result:          courseForm.result           || null,
+      guru:            courseForm.guru             || null,
+      notes:           courseForm.notes            || null,
+    };
+    if (editCourse) {
+      const { user_id: _u, ...updatePayload } = payload;
+      const { error } = await supabase.from("naada_courses").update(updatePayload).eq("id",editCourse.id);
+      if (error) { err("Failed to save"); return; }
+    } else {
+      const { error } = await supabase.from("naada_courses").insert(payload);
+      if (error) { err("Failed to save"); return; }
+    }
+    ok(editCourse?"Updated":"Added course");
+    setCourseDlg(false); setEditCourse(null); setCourseForm(emptyCourse);
+    _naadaCache=null; load();
+  };
+
+  const deleteCourse = async (id) => {
+    await supabase.from("naada_courses").delete().eq("id",id);
+    ok("Removed"); _naadaCache=null; load();
+  };
+
   // ── DERIVED DATA ──────────────────────────────────────────────────────────
   const visibleSeq = useMemo(()=>seqItems.filter(isVisibleToday),[seqItems]);
   const seqDone    = visibleSeq.filter((s)=>completions[s.id]).length;
@@ -553,7 +608,7 @@ export default function NaadaTracker({ embedded = false }) {
           "& .MuiTabs-indicator":{ bgcolor:NAADA_GOLD },
         }}
       >
-        {[["🕉️","Saadhana"],["📜","Compositions"],["🎼","Raga Explorer"],["🎤","Concerts"],["👨‍🎓","Students"],["💰","Finance"],["📓","Journal"],["🎯","Skills"]].map(([e,l],i)=>(
+        {[["🕉️","Saadhana"],["📜","Compositions"],["🎼","Raga Explorer"],["🎤","Concerts"],["👨‍🎓","Students"],["💰","Finance"],["📓","Journal"],["🎯","Skills"],["🎓","Courses"]].map(([e,l],i)=>(
           <Tab key={i} label={<Box sx={{display:"flex",alignItems:"center",gap:0.6}}><span>{e}</span><span>{l}</span></Box>} />
         ))}
       </Tabs>
@@ -1064,6 +1119,116 @@ export default function NaadaTracker({ embedded = false }) {
       )}
 
       {/* ════════════════════════════════════════════════════════════════════
+          TAB 8 — COURSES
+      ════════════════════════════════════════════════════════════════════ */}
+      {tab===8 && (
+        <Box>
+          <SectionHead
+            title="Music Courses & Examinations"
+            sub={`${courses.length} course${courses.length!==1?"s":""} tracked`}
+            onAdd={()=>{ setEditCourse(null);setCourseForm(emptyCourse);setCourseDlg(true); }}
+            addLabel="Add Course"
+          />
+
+          {/* Summary chips */}
+          {courses.length>0 && (
+            <Stack direction="row" spacing={1.5} sx={{ mb:3,flexWrap:"wrap",gap:1 }}>
+              {COURSE_STATUS.map((s)=>{
+                const n = courses.filter((c)=>c.status===s.value).length;
+                if (!n) return null;
+                return (
+                  <Chip key={s.value} label={`${s.label}: ${n}`} size="small"
+                    sx={{ bgcolor:`${s.color}18`,color:s.color,fontWeight:700,fontSize:11,border:`1px solid ${s.color}40` }} />
+                );
+              })}
+            </Stack>
+          )}
+
+          {courses.length===0 ? (
+            <Box sx={{ textAlign:"center",py:8 }}>
+              <Typography sx={{ fontSize:40,mb:1.5 }}>🎓</Typography>
+              <Typography sx={{ color:textS,fontSize:14,mb:0.5 }}>No courses added yet.</Typography>
+              <Typography sx={{ color:textS,fontSize:12 }}>Track examinations like Sangeeta Visharada, Sangeet Bhaskar and more.</Typography>
+            </Box>
+          ) : (
+            <>
+              <Grid container spacing={2}>
+                {courses.slice((coursePage-1)*COURSE_PER, coursePage*COURSE_PER).map((c)=>{
+                  const st = COURSE_STATUS.find((s)=>s.value===c.status)||COURSE_STATUS[0];
+                  return (
+                    <Grid item xs={12} sm={6} md={4} key={c.id}>
+                      <Card sx={{ borderRadius:2.5,bgcolor:cardBg,border:`1px solid ${c.status==="completed"?`${NAADA_GOLD}50`:bdr}`,height:"100%" }}>
+                        <CardContent sx={{ p:2.5,"&:last-child":{pb:2.5} }}>
+                          <Box sx={{ display:"flex",alignItems:"flex-start",justifyContent:"space-between",mb:1.5 }}>
+                            <Box sx={{ flex:1,minWidth:0,pr:1 }}>
+                              <Typography sx={{ fontFamily:'"Fraunces",serif',fontSize:15,fontWeight:600,color:textP,lineHeight:1.3 }}>{c.title}</Typography>
+                              {c.institution && <Typography sx={{ fontSize:11,color:NAADA_GOLD,mt:0.3,fontWeight:500 }} noWrap>{c.institution}</Typography>}
+                            </Box>
+                            <Stack direction="row" spacing={0.25} sx={{ flexShrink:0 }}>
+                              <IconButton size="small" onClick={()=>{ haptic();setEditCourse(c);setCourseForm({ title:c.title,institution:c.institution||"",instrument:c.instrument||"Vocal",level:c.level||"Visharada",status:c.status||"in_progress",start_date:c.start_date||"",exam_date:c.exam_date||"",completion_date:c.completion_date||"",result:c.result||"",guru:c.guru||"",notes:c.notes||"" });setCourseDlg(true); }}>
+                                <Edit sx={{ fontSize:14,color:textS }} />
+                              </IconButton>
+                              <IconButton size="small" onClick={()=>confirmDel(`Remove "${c.title}"?`,()=>deleteCourse(c.id))}>
+                                <Delete sx={{ fontSize:14,color:"#CF4E4E" }} />
+                              </IconButton>
+                            </Stack>
+                          </Box>
+
+                          <Stack direction="row" spacing={0.75} sx={{ flexWrap:"wrap",gap:0.75,mb:1.5 }}>
+                            <Chip label={st.label} size="small" sx={{ bgcolor:`${st.color}18`,color:st.color,fontWeight:700,fontSize:10,height:20,border:`1px solid ${st.color}40` }} />
+                            {c.level && <Chip label={c.level} size="small" sx={{ bgcolor:`${NAADA_GOLD}12`,color:NAADA_GOLD,fontSize:10,height:20 }} />}
+                            {c.instrument && <Chip label={c.instrument} size="small" sx={{ bgcolor:isDark?"rgba(255,255,255,0.06)":"rgba(0,0,0,0.05)",color:textS,fontSize:10,height:20 }} />}
+                          </Stack>
+
+                          <Stack spacing={0.5}>
+                            {c.guru && (
+                              <Typography sx={{ fontSize:12,color:textS }}>
+                                <Box component="span" sx={{ fontWeight:600,color:NAADA_GOLD }}>Guru: </Box>{c.guru}
+                              </Typography>
+                            )}
+                            {c.start_date && (
+                              <Typography sx={{ fontSize:11,color:textS }}>
+                                Started: {dayjs(c.start_date).format("D MMM YYYY")}
+                              </Typography>
+                            )}
+                            {c.exam_date && (
+                              <Typography sx={{ fontSize:11,color:textS }}>
+                                Exam: {dayjs(c.exam_date).format("D MMM YYYY")}
+                              </Typography>
+                            )}
+                            {c.completion_date && (
+                              <Typography sx={{ fontSize:11,color:"#2D7A4F" }}>
+                                ✓ Completed: {dayjs(c.completion_date).format("D MMM YYYY")}
+                              </Typography>
+                            )}
+                            {c.result && (
+                              <Typography sx={{ fontSize:12,fontWeight:700,color:NAADA_GOLD }}>
+                                🏅 {c.result}
+                              </Typography>
+                            )}
+                            {c.notes && (
+                              <Typography sx={{ fontSize:11,color:textS,mt:0.5,fontStyle:"italic",display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical",overflow:"hidden" }}>
+                                {c.notes}
+                              </Typography>
+                            )}
+                          </Stack>
+                        </CardContent>
+                      </Card>
+                    </Grid>
+                  );
+                })}
+              </Grid>
+              {courses.length>COURSE_PER && (
+                <Box sx={{ display:"flex",justifyContent:"center",pt:3 }}>
+                  <Pagination count={Math.ceil(courses.length/COURSE_PER)} page={coursePage} onChange={(_,v)=>setCoursePage(v)} />
+                </Box>
+              )}
+            </>
+          )}
+        </Box>
+      )}
+
+      {/* ════════════════════════════════════════════════════════════════════
           DIALOGS
       ════════════════════════════════════════════════════════════════════ */}
 
@@ -1322,6 +1487,51 @@ export default function NaadaTracker({ embedded = false }) {
         <DialogActions sx={{ px:3,pb:2.5 }}>
           <Button onClick={()=>setSkillDlg(false)} sx={{ textTransform:"none",color:textS }}>Cancel</Button>
           <Button variant="contained" onClick={saveSkill} sx={{ bgcolor:NAADA_GOLD,textTransform:"none",fontWeight:600,"&:hover":{bgcolor:"#A0621A"} }}>Save</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* ── COURSE DIALOG ── */}
+      <Dialog open={courseDlg} onClose={()=>setCourseDlg(false)} fullWidth maxWidth="sm" PaperProps={{ sx:{ borderRadius:3,bgcolor:cardBg } }}>
+        <DialogTitle sx={{ fontFamily:'"Fraunces",serif',fontWeight:500,color:textP,display:"flex",alignItems:"center",justifyContent:"space-between" }}>
+          {editCourse?"Edit Course":"Add Course / Examination"}
+          <IconButton onClick={()=>setCourseDlg(false)}><Close sx={{ fontSize:18 }} /></IconButton>
+        </DialogTitle>
+        <DialogContent dividers>
+          <Grid container spacing={2}>
+            <Grid item xs={12}><TextField label="Course / Examination Title *" size="small" fullWidth value={courseForm.title} onChange={(e)=>setCourseForm((p)=>({...p,title:e.target.value}))} placeholder="e.g. Sangeeta Visharada" /></Grid>
+            <Grid item xs={12}><TextField label="Institution / Board" size="small" fullWidth value={courseForm.institution} onChange={(e)=>setCourseForm((p)=>({...p,institution:e.target.value}))} placeholder="e.g. Gandharva Mahavidyalaya, Prayag Sangeet Samiti" /></Grid>
+            <Grid item xs={12} sm={6}>
+              <FormControl size="small" fullWidth><InputLabel>Instrument / Stream</InputLabel>
+                <Select label="Instrument / Stream" value={courseForm.instrument} onChange={(e)=>setCourseForm((p)=>({...p,instrument:e.target.value}))}>
+                  {COURSE_INSTRUMENTS.map((i)=><MenuItem key={i} value={i}>{i}</MenuItem>)}
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <FormControl size="small" fullWidth><InputLabel>Level / Grade</InputLabel>
+                <Select label="Level / Grade" value={courseForm.level} onChange={(e)=>setCourseForm((p)=>({...p,level:e.target.value}))}>
+                  {COURSE_LEVELS.map((l)=><MenuItem key={l} value={l}>{l}</MenuItem>)}
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <FormControl size="small" fullWidth><InputLabel>Status</InputLabel>
+                <Select label="Status" value={courseForm.status} onChange={(e)=>setCourseForm((p)=>({...p,status:e.target.value}))}>
+                  {COURSE_STATUS.map((s)=><MenuItem key={s.value} value={s.value}>{s.label}</MenuItem>)}
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid item xs={12} sm={6}><TextField label="Guru / Instructor" size="small" fullWidth value={courseForm.guru} onChange={(e)=>setCourseForm((p)=>({...p,guru:e.target.value}))} /></Grid>
+            <Grid item xs={12} sm={4}><TextField label="Start Date" type="date" size="small" fullWidth InputLabelProps={{ shrink:true }} value={courseForm.start_date} onChange={(e)=>setCourseForm((p)=>({...p,start_date:e.target.value}))} /></Grid>
+            <Grid item xs={12} sm={4}><TextField label="Exam Date" type="date" size="small" fullWidth InputLabelProps={{ shrink:true }} value={courseForm.exam_date} onChange={(e)=>setCourseForm((p)=>({...p,exam_date:e.target.value}))} /></Grid>
+            <Grid item xs={12} sm={4}><TextField label="Completion Date" type="date" size="small" fullWidth InputLabelProps={{ shrink:true }} value={courseForm.completion_date} onChange={(e)=>setCourseForm((p)=>({...p,completion_date:e.target.value}))} /></Grid>
+            <Grid item xs={12}><TextField label="Result / Grade Awarded" size="small" fullWidth value={courseForm.result} onChange={(e)=>setCourseForm((p)=>({...p,result:e.target.value}))} placeholder="e.g. First Class with Distinction, Pass" /></Grid>
+            <Grid item xs={12}><TextField label="Notes" size="small" fullWidth multiline rows={3} value={courseForm.notes} onChange={(e)=>setCourseForm((p)=>({...p,notes:e.target.value}))} /></Grid>
+          </Grid>
+        </DialogContent>
+        <DialogActions sx={{ px:3,pb:2.5 }}>
+          <Button onClick={()=>setCourseDlg(false)} sx={{ textTransform:"none",color:textS }}>Cancel</Button>
+          <Button variant="contained" onClick={saveCourse} sx={{ bgcolor:NAADA_GOLD,textTransform:"none",fontWeight:600,"&:hover":{bgcolor:"#A0621A"} }}>Save Course</Button>
         </DialogActions>
       </Dialog>
 

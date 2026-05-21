@@ -2198,42 +2198,47 @@ function EmptyState({ message, heroColor, isDark, onAdd }) {
   );
 }
 
+// ── MODULE-LEVEL CACHE ─────────────────────────────────────────────────────────
+// Persists across in-session navigation so TodayPage never shows a spinner again
+// after the first load. Keyed to today's date — auto-invalidates at midnight.
+let _todayCache = null;
+
 // ── MAIN PAGE ──────────────────────────────────────────────────────────────────
 export default function TodayPage() {
   const { user } = useAuth();
   const { heroColor, mode } = useThemeMode();
   const navigate = useNavigate();
-  const [seqDone, setSeqDone] = useState(0);
-  const [seqTotal, setSeqTotal] = useState(0);
-  const [seqItems, setSeqItems] = useState([]);
-  const [seqCompletions, setSeqCompletions] = useState({});
+  const [seqDone, setSeqDone] = useState(_todayCache?.seqDone ?? 0);
+  const [seqTotal, setSeqTotal] = useState(_todayCache?.seqTotal ?? 0);
+  const [seqItems, setSeqItems] = useState(_todayCache?.seqItems ?? []);
+  const [seqCompletions, setSeqCompletions] = useState(_todayCache?.seqCompletions ?? {});
   const [seqOpen, setSeqOpen] = useState(false);
 
   // Naada Saadhana popup
   const [naadaSeqOpen, setNaadaSeqOpen] = useState(false);
-  const [naadaSeqItems, setNaadaSeqItems] = useState([]);
-  const [naadaSeqCompletions, setNaadaSeqCompletions] = useState({});
-  const [naadaSeqDone, setNaadaSeqDone] = useState(0);
-  const [naadaSeqTotal, setNaadaSeqTotal] = useState(0);
+  const [naadaSeqItems, setNaadaSeqItems] = useState(_todayCache?.naadaSeqItems ?? []);
+  const [naadaSeqCompletions, setNaadaSeqCompletions] = useState(_todayCache?.naadaSeqCompletions ?? {});
+  const [naadaSeqDone, setNaadaSeqDone] = useState(_todayCache?.naadaSeqDone ?? 0);
+  const [naadaSeqTotal, setNaadaSeqTotal] = useState(_todayCache?.naadaSeqTotal ?? 0);
 
   // Vritti popup
   const [vrittiOpen, setVrittiOpen] = useState(false);
-  const [vrittiProjects, setVrittiProjects] = useState([]);
+  const [vrittiProjects, setVrittiProjects] = useState(_todayCache?.vrittiProjects ?? []);
 
   // Reading/Vidya popup
   const [readingOpen, setReadingOpen] = useState(false);
-  const [currentBooks, setCurrentBooks] = useState([]);
-  const [vidyaPracItems, setVidyaPracItems] = useState([]);
-  const [vidyaPracComps, setVidyaPracComps] = useState({});
+  const [currentBooks, setCurrentBooks] = useState(_todayCache?.currentBooks ?? []);
+  const [vidyaPracItems, setVidyaPracItems] = useState(_todayCache?.vidyaPracItems ?? []);
+  const [vidyaPracComps, setVidyaPracComps] = useState(_todayCache?.vidyaPracComps ?? {});
 
   // Vyaayamam popup
   const [walkOpen, setWalkOpen] = useState(false);
-  const [walkExType, setWalkExType] = useState("walk");
-  const [walkSteps, setWalkSteps] = useState("");
-  const [walkKm, setWalkKm] = useState("");
-  const [walkCalories, setWalkCalories] = useState("");
+  const [walkExType, setWalkExType] = useState(_todayCache?.walkExType ?? "walk");
+  const [walkSteps, setWalkSteps] = useState(_todayCache?.walkSteps ?? "");
+  const [walkKm, setWalkKm] = useState(_todayCache?.walkKm ?? "");
+  const [walkCalories, setWalkCalories] = useState(_todayCache?.walkCalories ?? "");
   const [walkSavingMov, setWalkSavingMov] = useState(false);
-  const [walkActivityLogs, setWalkActivityLogs] = useState([]);
+  const [walkActivityLogs, setWalkActivityLogs] = useState(_todayCache?.walkActivityLogs ?? []);
   const WALK_TARGETS = { steps: 10000, km: 6, calories: 500 };
   const isDark = mode === "dark";
   const { data: panchangam, loading: panchLoading } = usePanchang();
@@ -2242,29 +2247,27 @@ export default function TodayPage() {
   const isMorning = hour >= 5 && hour < 11;
   const isEvening = hour >= 21;
 
-  const [habits, setHabits] = useState({});
-  const [habitsData, setHabitsData] = useState({});
-  const [dayType, setDayType] = useState("working");
-  const [oneThing, setOneThing] = useState("");
-  const [wins, setWins] = useState(["", "", ""]);
-  const [tomorrowTasks, setTomorrowTasks] = useState([
-    { label: "", deep: false },
-    { label: "", deep: false },
-    { label: "", deep: false },
-  ]);
-  const [yesterdayTasks, setYesterdayTasks] = useState([]);
-  const [dayClosed, setDayClosed] = useState(false);
-  const [morningDone, setMorningDone] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [habits, setHabits] = useState(_todayCache?.habits ?? {});
+  const [habitsData, setHabitsData] = useState(_todayCache?.habitsData ?? {});
+  const [dayType, setDayType] = useState(_todayCache?.dayType ?? "working");
+  const [oneThing, setOneThing] = useState(_todayCache?.oneThing ?? "");
+  const [wins, setWins] = useState(_todayCache?.wins ?? ["", "", ""]);
+  const [tomorrowTasks, setTomorrowTasks] = useState(
+    _todayCache?.tomorrowTasks ?? [{ label: "", deep: false }, { label: "", deep: false }, { label: "", deep: false }],
+  );
+  const [yesterdayTasks, setYesterdayTasks] = useState(_todayCache?.yesterdayTasks ?? []);
+  const [dayClosed, setDayClosed] = useState(_todayCache?.dayClosed ?? false);
+  const [morningDone, setMorningDone] = useState(_todayCache?.morningDone ?? false);
+  const [loading, setLoading] = useState(_todayCache === null);
   const [syncing, setSyncing] = useState(false);
 
-  const [customSacred, setCustomSacred] = useState([]);
-  const [customCore, setCustomCore] = useState([]);
-  const [customEvening, setCustomEvening] = useState([]);
+  const [customSacred, setCustomSacred] = useState(_todayCache?.customSacred ?? []);
+  const [customCore, setCustomCore] = useState(_todayCache?.customCore ?? []);
+  const [customEvening, setCustomEvening] = useState(_todayCache?.customEvening ?? []);
 
-  const [lakshyas, setLakshyas] = useState([]);
-  const [taskLakshyaLinks, setTaskLakshyaLinks] = useState({});
-  const [anshs, setAnshs] = useState([]);
+  const [lakshyas, setLakshyas] = useState(_todayCache?.lakshyas ?? []);
+  const [taskLakshyaLinks, setTaskLakshyaLinks] = useState(_todayCache?.taskLakshyaLinks ?? {});
+  const [anshs, setAnshs] = useState(_todayCache?.anshs ?? []);
   const [linkingTask, setLinkingTask] = useState(null);
 
   const [showMorningFlow, setShowMorningFlow] = useState(false);
@@ -2312,6 +2315,11 @@ export default function TodayPage() {
 
   const load = useCallback(async () => {
     if (!user) {
+      setLoading(false);
+      return;
+    }
+    // Cache is warm for today — skip the network round-trip entirely
+    if (_todayCache !== null && _todayCache._date === today) {
       setLoading(false);
       return;
     }
@@ -2454,6 +2462,54 @@ export default function TodayPage() {
       if (settingsRow?.task_lakshya_links) {
         setTaskLakshyaLinks(settingsRow.task_lakshya_links);
       }
+
+      // ── WRITE CACHE so next navigation is instant ──────────────────────────
+      const _seqCMap = Object.fromEntries((seqComps||[]).map((c)=>[c.daily_item_id,c.is_completed]));
+      const _todDay = dayjs();
+      const _seqVis = (seqItems||[]).filter((s)=>{
+        if(s.frequency==="daily") return true;
+        if(s.frequency==="weekly") return _todDay.day()===(s.frequency_day??0);
+        if(s.frequency==="monthly") return _todDay.date()===(s.frequency_day??1);
+        return true;
+      });
+      const _naadaCMap = Object.fromEntries((naadaComps||[]).map((c)=>[c.naada_item_id,c.is_completed]));
+      const _naadaVis = (naadaItems||[]).filter((s)=>{
+        if(s.frequency==="daily") return true;
+        if(s.frequency==="weekly") return _todDay.day()===(s.frequency_day??0);
+        if(s.frequency==="monthly") return _todDay.date()===(s.frequency_day??1);
+        return true;
+      });
+      const _act = (actData||[]).find((a)=>a.date===today);
+      const _vPMap = Object.fromEntries((vPracComps||[]).map((c)=>[c.vidya_item_id,c.is_completed]));
+      const _pt = (t) => {
+        if(typeof t==="string"){try{const p=JSON.parse(t);return typeof p==="object"&&p!==null?p:{label:t,deep:false};}catch{return{label:t,deep:false};}}
+        return t;
+      };
+      _todayCache = {
+        _date: today,
+        seqItems: seqItems||[], seqCompletions: _seqCMap,
+        seqDone: _seqVis.filter((s)=>_seqCMap[s.id]).length, seqTotal: _seqVis.length,
+        naadaSeqItems: naadaItems||[], naadaSeqCompletions: _naadaCMap,
+        naadaSeqDone: _naadaVis.filter((s)=>_naadaCMap[s.id]).length, naadaSeqTotal: _naadaVis.length,
+        vrittiProjects: vProjects||[], currentBooks: rBooks||[],
+        vidyaPracItems: vPracItems||[], vidyaPracComps: _vPMap,
+        walkActivityLogs: actData||[],
+        walkExType: _act?.exercise_type||"walk",
+        walkSteps: _act?.steps!=null?String(_act.steps):"",
+        walkKm: _act?.km_walked!=null?String(_act.km_walked):"",
+        walkCalories: _act?.calories_burned!=null?String(_act.calories_burned):"",
+        habits: dayData?.habits||{}, habitsData: dayData?.habits_data||{},
+        dayType: dayData?.disruption_mode||"working", oneThing: dayData?.one_thing||"",
+        wins: dayData?.wins?.length?dayData.wins:["","",""],
+        tomorrowTasks: (dayData?.tomorrow_tasks||[]).map(_pt).length
+          ? (dayData?.tomorrow_tasks||[]).map(_pt)
+          : [{label:"",deep:false},{label:"",deep:false},{label:"",deep:false}],
+        yesterdayTasks: (yData?.tomorrow_tasks||[]).map(_pt).filter((t)=>t.label?.trim()),
+        dayClosed: !!dayData?.last_close, morningDone: !!dayData?.morning_flow_done,
+        customSacred: dayData?.custom_sacred||[], customCore: dayData?.custom_core||[], customEvening: dayData?.custom_evening||[],
+        lakshyas: allLakshyas||[], anshs: anshData||[],
+        taskLakshyaLinks: settingsRow?.task_lakshya_links||{},
+      };
     } catch (err) {
       console.error("TodayPage load error:", err.message);
     } finally {
@@ -2465,7 +2521,23 @@ export default function TodayPage() {
     load();
   }, [load]);
 
+  // Keep the module cache fresh on every mutation so revisiting shows current data
+  const _patchCache = (dbPatch) => {
+    if (!_todayCache) return;
+    const map = { habits:"habits", habits_data:"habitsData", disruption_mode:"dayType",
+      one_thing:"oneThing", wins:"wins", tomorrow_tasks:"tomorrowTasks",
+      morning_flow_done:"morningDone", custom_sacred:"customSacred",
+      custom_core:"customCore", custom_evening:"customEvening" };
+    const update = {};
+    for (const [db, cache] of Object.entries(map)) {
+      if (db in dbPatch) update[cache] = dbPatch[db];
+    }
+    if ("last_close" in dbPatch) update.dayClosed = !!dbPatch.last_close;
+    _todayCache = { ..._todayCache, ...update };
+  };
+
   const sync = async (patch) => {
+    _patchCache(patch);
     setSyncing(true);
     const { error: syncErr } = await supabase
       .from("days")
