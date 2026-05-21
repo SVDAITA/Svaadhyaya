@@ -230,7 +230,8 @@ export default function NaadaTracker({ embedded = false }) {
   // ── LOAD ──────────────────────────────────────────────────────────────────
   const load = useCallback(async () => {
     if (!user) return;
-    if (_naadaCache===null) setLoading(true);
+    if (_naadaCache !== null && _naadaCache._date === today) return; // cache warm for today
+    setLoading(true);
     try {
       const [seqR,compR,compR2,ragaR,concertR,studentR,finR,jR,skillR] = await Promise.all([
         supabase.from("naada_sequence_items").select("*").eq("user_id",user.id).order("order_index"),
@@ -252,7 +253,7 @@ export default function NaadaTracker({ embedded = false }) {
       const finData   = finR.data  ||[];
       const jData     = jR.data    ||[];
       const skillData = skillR.data||[];
-      _naadaCache = { seqItems:seqData,completions:compMap,comps:compData,ragas:ragaData,concerts:cData,students:stuData,finances:finData,journals:jData,skills:skillData };
+      _naadaCache = { _date:today,seqItems:seqData,completions:compMap,comps:compData,ragas:ragaData,concerts:cData,students:stuData,finances:finData,journals:jData,skills:skillData };
       setSeqItems(seqData);
       setCompletions(compMap);
       setComps(compData);
@@ -290,11 +291,12 @@ export default function NaadaTracker({ embedded = false }) {
   const saveSeqItem = async () => {
     if (!seqForm.label.trim()) return;
     const maxIdx = seqItems.reduce((m,s)=>Math.max(m,s.order_index||0),0);
+    const seqPayload = { ...seqForm, duration_minutes: seqForm.duration_minutes !== "" ? Number(seqForm.duration_minutes) : null };
     if (editSeq) {
-      const { error } = await supabase.from("naada_sequence_items").update(seqForm).eq("id",editSeq.id);
+      const { error } = await supabase.from("naada_sequence_items").update(seqPayload).eq("id",editSeq.id);
       if (error) { err("Failed to save"); return; }
     } else {
-      const { error } = await supabase.from("naada_sequence_items").insert({ ...seqForm,user_id:user.id,order_index:maxIdx+1 });
+      const { error } = await supabase.from("naada_sequence_items").insert({ ...seqPayload,user_id:user.id,order_index:maxIdx+1 });
       if (error) { err("Failed to save"); return; }
     }
     ok(editSeq?"Updated":"Added");
@@ -311,11 +313,12 @@ export default function NaadaTracker({ embedded = false }) {
   // ── COMPOSITION CRUD ──────────────────────────────────────────────────────
   const saveComp = async () => {
     if (!compForm.title.trim()) { err("Title required"); return; }
+    const compPayload = { ...compForm, date_started: compForm.date_started || null, date_mastered: compForm.date_mastered || null };
     if (editComp) {
-      const { error } = await supabase.from("naada_compositions").update(compForm).eq("id",editComp.id);
+      const { error } = await supabase.from("naada_compositions").update(compPayload).eq("id",editComp.id);
       if (error) { err("Failed to save"); return; }
     } else {
-      const { error } = await supabase.from("naada_compositions").insert({ ...compForm,user_id:user.id });
+      const { error } = await supabase.from("naada_compositions").insert({ ...compPayload,user_id:user.id });
       if (error) { err("Failed to save"); return; }
     }
     ok(editComp?"Updated":"Added composition");
@@ -331,11 +334,12 @@ export default function NaadaTracker({ embedded = false }) {
   // ── RAGA CRUD ─────────────────────────────────────────────────────────────
   const saveRaga = async () => {
     if (!ragaForm.name.trim()) { err("Raga name required"); return; }
+    const ragaPayload = { ...ragaForm, melakarta_number: ragaForm.melakarta_number !== "" ? Number(ragaForm.melakarta_number) : null };
     if (editRaga) {
-      const { error } = await supabase.from("naada_ragas").update(ragaForm).eq("id",editRaga.id);
+      const { error } = await supabase.from("naada_ragas").update(ragaPayload).eq("id",editRaga.id);
       if (error) { err("Failed to save"); return; }
     } else {
-      const { error } = await supabase.from("naada_ragas").insert({ ...ragaForm,user_id:user.id });
+      const { error } = await supabase.from("naada_ragas").insert({ ...ragaPayload,user_id:user.id });
       if (error) { err("Raga may already exist"); return; }
     }
     ok(editRaga?"Updated":"Added raga");
@@ -351,11 +355,18 @@ export default function NaadaTracker({ embedded = false }) {
   // ── CONCERT CRUD ──────────────────────────────────────────────────────────
   const saveConcert = async () => {
     if (!concertForm.title.trim()) { err("Title required"); return; }
+    const concertPayload = {
+      ...concertForm,
+      duration_minutes: concertForm.duration_minutes !== "" ? Number(concertForm.duration_minutes) : null,
+      audience_size:    concertForm.audience_size    !== "" ? Number(concertForm.audience_size)    : null,
+      earnings:         concertForm.earnings         !== "" ? Number(concertForm.earnings)         : null,
+      expenses:         concertForm.expenses         !== "" ? Number(concertForm.expenses)         : null,
+    };
     if (editConcert) {
-      const { error } = await supabase.from("naada_concerts").update(concertForm).eq("id",editConcert.id);
+      const { error } = await supabase.from("naada_concerts").update(concertPayload).eq("id",editConcert.id);
       if (error) { err("Failed to save"); return; }
     } else {
-      const { error } = await supabase.from("naada_concerts").insert({ ...concertForm,user_id:user.id });
+      const { error } = await supabase.from("naada_concerts").insert({ ...concertPayload,user_id:user.id });
       if (error) { err("Failed to save"); return; }
     }
     ok(editConcert?"Updated":"Added");
@@ -371,11 +382,12 @@ export default function NaadaTracker({ embedded = false }) {
   // ── STUDENT CRUD ──────────────────────────────────────────────────────────
   const saveStudent = async () => {
     if (!studentForm.name.trim()) { err("Name required"); return; }
+    const studentPayload = { ...studentForm, monthly_fee: studentForm.monthly_fee !== "" ? Number(studentForm.monthly_fee) : null };
     if (editStudent) {
-      const { error } = await supabase.from("naada_students").update(studentForm).eq("id",editStudent.id);
+      const { error } = await supabase.from("naada_students").update(studentPayload).eq("id",editStudent.id);
       if (error) { err("Failed to save"); return; }
     } else {
-      const { error } = await supabase.from("naada_students").insert({ ...studentForm,user_id:user.id });
+      const { error } = await supabase.from("naada_students").insert({ ...studentPayload,user_id:user.id });
       if (error) { err("Failed to save"); return; }
     }
     ok(editStudent?"Updated":"Added student");

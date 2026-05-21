@@ -50,6 +50,9 @@ import { useAuth } from "../../hooks/useAuth";
 import { useThemeMode } from "../../hooks/useTheme";
 import { supabase } from "../../lib/supabase";
 
+// Module-level caches — survive re-renders and back-navigation
+const _journalCache = {} // { [area]: { content: string, updated_at: string } }
+
 export function MilestoneRow() {
   return null;
 }
@@ -1593,16 +1596,17 @@ export function WeeklyGoals({ area, color }) {
 // ── AREA JOURNAL (AUTO-SAVING RICH TEXT FIELD) ─────────────────────────────────
 export function AreaJournal({ area, color }) {
   const { user } = useAuth();
-  const [content, setContent] = useState("");
+  const [content, setContent] = useState(_journalCache[area]?.content ?? "");
   const [isSaving, setIsSaving] = useState(false);
-  const [lastSaved, setLastSaved] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [lastSaved, setLastSaved] = useState(_journalCache[area]?.updated_at ?? null);
+  const [loading, setLoading] = useState(!(area in _journalCache));
   const [snack, setSnack] = useState({ open: false, msg: "", severity: "error" });
 
   const typingTimeoutRef = useRef(null);
 
   useEffect(() => {
     if (!user) return;
+    if (area in _journalCache) return; // cache warm
     const fetchJournal = async () => {
       const { data } = await supabase
         .from("area_journals")
@@ -1611,8 +1615,11 @@ export function AreaJournal({ area, color }) {
         .eq("area", area)
         .maybeSingle();
       if (data) {
+        _journalCache[area] = { content: data.content || "", updated_at: data.updated_at };
         setContent(data.content || "");
         setLastSaved(data.updated_at);
+      } else {
+        _journalCache[area] = { content: "", updated_at: null };
       }
       setLoading(false);
     };
@@ -1643,6 +1650,7 @@ export function AreaJournal({ area, color }) {
       if (error) {
         setSnack({ open: true, msg: "Failed to save journal entry", severity: "error" });
       } else {
+        _journalCache[area] = { content: newContent, updated_at: now }; // update cache
         setLastSaved(now);
       }
       setIsSaving(false);

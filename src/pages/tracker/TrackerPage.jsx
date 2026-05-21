@@ -16,6 +16,8 @@ import {
   ChevronRight,
   Restaurant,
   WorkHistory,
+  MusicNote,
+  MenuBook,
 } from "@mui/icons-material";
 import { useThemeMode } from "../../hooks/useTheme";
 import { useVisibility } from "../../hooks/useVisibility";
@@ -27,7 +29,7 @@ const TRACKERS = [
     icon: <AccountBalance sx={{ fontSize: 24 }} />,
     title: "Artha",
     quote: "Wealth is not what you earn — it is what you keep, grow, and release with wisdom.",
-    color: "#2C6E63",
+    color: "#1A7A6E",
     chartData: "M0,25 C15,20 25,28 40,15 C55,2 65,22 80,10 C90,0 95,15 100,5",
   },
   {
@@ -54,7 +56,7 @@ const TRACKERS = [
     icon: <WorkHistory sx={{ fontSize: 24 }} />,
     title: "Vṛtti",
     quote: "A career is a series of small decisions made daily. Track yours before they track you.",
-    color: "#5B538C",
+    color: "#1A5FB0",
     chartData: "M0,28 C20,25 30,15 45,20 C60,25 70,5 85,10 C95,12 98,2 100,0",
   },
   {
@@ -74,6 +76,24 @@ const TRACKERS = [
     quote: "Every journey reshapes the traveller. Archive it before memory softens the edges.",
     color: "#2C5B8E",
     chartData: "M0,25 C15,20 30,5 45,15 C60,25 75,10 85,15 C95,18 98,5 100,10",
+  },
+  {
+    key: "nadam",
+    path: "/tracker/nadam",
+    icon: <MusicNote sx={{ fontSize: 24 }} />,
+    title: "Nādam",
+    quote: "Every raga is a universe. Your saadhana is the telescope through which you see it.",
+    color: "#C07830",
+    chartData: "M0,20 C10,10 20,25 35,15 C50,5 60,22 75,12 C88,4 95,18 100,10",
+  },
+  {
+    key: "vidya",
+    path: "/tracker/vidya",
+    icon: <MenuBook sx={{ fontSize: 24 }} />,
+    title: "Vidyā",
+    quote: "Knowledge without application is like a lamp unlit. Track what you learn and what you do with it.",
+    color: "#A0522D",
+    chartData: "M0,15 C15,25 25,10 40,20 C55,28 65,8 80,14 C90,18 96,8 100,12",
   },
 ];
 

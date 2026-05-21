@@ -297,7 +297,8 @@ function PurohitamTab({ user, isDark }) {
 
   const load = useCallback(async () => {
     if (!user) return;
-    if (_purohitamCache === null) setLoading(true);
+    if (_purohitamCache !== null) return; // cache warm
+    setLoading(true);
     try {
       const [bks, rts, lrn] = await Promise.all([
         supabase
@@ -1641,7 +1642,8 @@ function AnushtanamTab({ user, isDark }) {
 
   const load = useCallback(async () => {
     if (!user) return;
-    if (_anushtanamCache === null) setLoading(true);
+    if (_anushtanamCache !== null && _anushtanamCache._date === today) return; // cache warm for today
+    setLoading(true);
     const [items, comps, japa, goals] = await Promise.all([
       supabase
         .from("daily_items")
@@ -1668,7 +1670,7 @@ function AnushtanamTab({ user, isDark }) {
     const comp = comps.data?.reduce((acc, c) => ({ ...acc, [c.daily_item_id]: c.is_completed }), {}) || {};
     const jl = japa.data || [];
     const jg = goals.data || [];
-    _anushtanamCache = { sequence: seq, completions: comp, japaLogs: jl, japaGoals: jg };
+    _anushtanamCache = { _date: today, sequence: seq, completions: comp, japaLogs: jl, japaGoals: jg };
     setSequence(seq);
     setCompletions(comp);
     setJapaLogs(jl);
@@ -2833,7 +2835,7 @@ export default function PurohitamTracker({ embedded = false }) {
 
   return (
     <Box
-      sx={embedded ? { background: bg, transition: "background 0.4s ease" } : {
+      sx={embedded ? {} : {
         p: { xs: 2, md: "28px 36px" },
         maxWidth: 1100,
         mx: "auto",

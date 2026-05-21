@@ -4,20 +4,24 @@ import { Edit, Check } from "@mui/icons-material";
 import { useAuth } from "../../hooks/useAuth";
 import { supabase } from "../../lib/supabase";
 
+// Module-level cache — keyed by area, survives re-renders and navigation
+const _sankalpCache = {} // { [area]: string }
+
 /**
  * Editable "My Sankalpa / Purpose" card for each life area.
  * Persists to the `area_sankalpa` table.
  */
 export default function SankalpaPurpose({ area, color, isDark }) {
   const { user } = useAuth();
-  const [purpose, setPurpose] = useState("");
+  const [purpose, setPurpose] = useState(_sankalpCache[area] ?? "");
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState("");
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!(area in _sankalpCache));
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (!user) return;
+    if (area in _sankalpCache) return; // cache warm
     supabase
       .from("area_sankalpa")
       .select("purpose")
@@ -25,7 +29,9 @@ export default function SankalpaPurpose({ area, color, isDark }) {
       .eq("area", area)
       .maybeSingle()
       .then(({ data }) => {
-        setPurpose(data?.purpose || "");
+        const val = data?.purpose || "";
+        _sankalpCache[area] = val;
+        setPurpose(val);
         setLoading(false);
       });
   }, [user, area]);
@@ -36,6 +42,7 @@ export default function SankalpaPurpose({ area, color, isDark }) {
       { user_id: user.id, area, purpose: draft, updated_at: new Date().toISOString() },
       { onConflict: "user_id,area" }
     );
+    _sankalpCache[area] = draft; // update cache on save
     setPurpose(draft);
     setSaving(false);
     setEditing(false);

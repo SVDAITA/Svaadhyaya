@@ -4,11 +4,9 @@ import {
   Select, MenuItem, FormControl, InputLabel, Chip, CircularProgress,
   IconButton, Dialog, DialogTitle, DialogContent, DialogActions,
   Snackbar, Alert, Tabs, Tab, Stack, Pagination, LinearProgress,
-  ToggleButtonGroup, ToggleButton,
 } from "@mui/material";
 import {
-  Add, Delete, Edit, Close, CheckCircle, RadioButtonUnchecked,
-  AutoStories, Lightbulb, School, Flag, TrendingUp, MenuBook,
+  Add, Delete, Edit, CheckCircle, RadioButtonUnchecked,
 } from "@mui/icons-material";
 import { useAuth } from "../../hooks/useAuth";
 import { useThemeMode } from "../../hooks/useTheme";
@@ -132,7 +130,7 @@ export default function VidyaTracker({ embedded = false }) {
   const confirmDel = (title, fn) => { haptic(15); setDelDlg({ open: true, title, fn }); };
 
   // ── BOOKS STATE ───────────────────────────────────────────────────────────
-  const emptyBook = { title: "", author: "", language: "English", status: "reading", total_pages: "", current_page: "", genre: "", rating: 3, notes: "", started_date: today, completed_date: "" };
+  const emptyBook = { title: "", author: "", genre: "", language: "English", status: "reading", total_pages: "", pages_read: "", notes: "", one_line: "", started_date: today, finished_date: "" };
   const [books,      setBooks]      = useState(_vidyaCache?.books || []);
   const [bookForm,   setBookForm]   = useState(emptyBook);
   const [editBook,   setEditBook]   = useState(null);
@@ -175,7 +173,8 @@ export default function VidyaTracker({ embedded = false }) {
   // ── LOAD ──────────────────────────────────────────────────────────────────
   const load = useCallback(async () => {
     if (!user) return;
-    if (_vidyaCache === null) setLoading(true);
+    if (_vidyaCache !== null && _vidyaCache._date === today) return; // cache warm for today
+    setLoading(true);
     try {
       const [bookR, courseR, insightR, pracR, pracCompR, skillR] = await Promise.all([
         supabase.from("books").select("*").eq("user_id", user.id).order("created_at", { ascending: false }),
@@ -187,6 +186,7 @@ export default function VidyaTracker({ embedded = false }) {
       ]);
       const compMap = Object.fromEntries((pracCompR.data || []).map((c) => [c.vidya_item_id, c.is_completed]));
       const data = {
+        _date:     today,
         books:     bookR.data     || [],
         courses:   courseR.data   || [],
         insights:  insightR.data  || [],
@@ -227,7 +227,21 @@ export default function VidyaTracker({ embedded = false }) {
   const saveBook = async () => {
     if (!bookForm.title.trim()) return;
     haptic(10);
-    const payload = { ...bookForm, user_id: user.id };
+    // Only send columns that actually exist in the books table
+    const payload = {
+      user_id:      user.id,
+      title:        bookForm.title.trim(),
+      author:       bookForm.author || null,
+      language:     bookForm.language || "English",
+      status:       bookForm.status  || "reading",
+      total_pages:  bookForm.total_pages !== "" ? Number(bookForm.total_pages) : null,
+      pages_read:   bookForm.pages_read  !== "" ? Number(bookForm.pages_read)  : 0,
+      genre:        bookForm.genre        || null,
+      notes:        bookForm.notes       || null,
+      one_line:     bookForm.one_line    || null,
+      started_date: bookForm.started_date  || null,
+      finished_date:bookForm.finished_date || null,
+    };
     if (editBook) {
       const { error } = await supabase.from("books").update(payload).eq("id", editBook);
       if (error) { err("Save failed"); return; }
@@ -247,11 +261,60 @@ export default function VidyaTracker({ embedded = false }) {
     });
   };
 
+  const handleJsonImport = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = async (ev) => {
+      try {
+        const data = JSON.parse(ev.target.result);
+        const payload = data.map((b) => ({
+          user_id:      user.id,
+          title:        b.Title || b.title,
+          author:       b.Author || b.author || null,
+          genre:        b.Genre || b.genre || null,
+          total_pages:  Number(b.Pages || b.total_pages) || null,
+          pages_read:   Number(b.Read || b.pages_read) || 0,
+          language:     b.Language || b.language || "English",
+          status:       (b["Read Status"] === "Read" || b.status === "completed") ? "completed" : (b.status || "wishlist"),
+          notes:        b["Short Description"] || b.notes || null,
+          one_line:     b.Summary || b.one_line || null,
+          description:  b.Description || b.description || null,
+          price:        b.Price != null ? Number(b.Price) : (b.price != null ? Number(b.price) : null),
+          location:     b.Location || b.location || null,
+          condition:    b.Condition || b.condition || null,
+          date_added:   b.date_added || b["Date Added"] || null,
+          started_date:  b.started_date || null,
+          finished_date: b.finished_date || b["Date Read"] || null,
+        }));
+        const { error } = await supabase.from("books").insert(payload);
+        if (error) { err(`Import failed: ${error.message}`); return; }
+        ok(`${payload.length} books imported`); bust();
+      } catch (_) {
+        err("Invalid JSON — check file format");
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = "";
+  };
+
   // ── COURSE CRUD ───────────────────────────────────────────────────────────
   const saveCourse = async () => {
     if (!courseForm.title.trim()) return;
     haptic(10);
-    const payload = { ...courseForm, user_id: user.id };
+    const payload = {
+      user_id:        user.id,
+      title:          courseForm.title.trim(),
+      platform:       courseForm.platform    || null,
+      instructor:     courseForm.instructor  || null,
+      url:            courseForm.url         || null,
+      status:         courseForm.status      || "in_progress",
+      progress_pct:   courseForm.progress_pct !== "" ? Number(courseForm.progress_pct) : 0,
+      rating:         courseForm.rating      != null ? Number(courseForm.rating) : null,
+      start_date:     courseForm.start_date     || null,
+      completed_date: courseForm.completed_date || null,
+      notes:          courseForm.notes       || null,
+    };
     if (editCourse) {
       const { error } = await supabase.from("vidya_courses").update(payload).eq("id", editCourse);
       if (error) { err("Save failed"); return; }
@@ -291,7 +354,15 @@ export default function VidyaTracker({ embedded = false }) {
   const savePracItem = async () => {
     if (!pracForm.label.trim()) return;
     haptic(10);
-    const payload = { ...pracForm, user_id: user.id };
+    const payload = {
+      user_id:          user.id,
+      label:            pracForm.label.trim(),
+      emoji:            pracForm.emoji            || "📚",
+      duration_minutes: pracForm.duration_minutes !== "" ? Number(pracForm.duration_minutes) : null,
+      frequency:        pracForm.frequency        || "daily",
+      frequency_day:    pracForm.frequency_day    ?? 0,
+      order_index:      pracForm.order_index      ?? 0,
+    };
     if (editPrac) {
       const { error } = await supabase.from("vidya_practice_items").update(payload).eq("id", editPrac);
       if (error) { err("Save failed"); return; }
@@ -315,7 +386,13 @@ export default function VidyaTracker({ embedded = false }) {
   const saveSkill = async () => {
     if (!skillForm.name.trim()) return;
     haptic(10);
-    const payload = { ...skillForm, user_id: user.id };
+    const payload = {
+      user_id:    user.id,
+      category:   skillForm.category   || "Technical",
+      name:       skillForm.name.trim(),
+      proficiency:skillForm.proficiency != null ? Number(skillForm.proficiency) : 3,
+      notes:      skillForm.notes      || null,
+    };
     if (editSkill) {
       const { error } = await supabase.from("vidya_skills").update(payload).eq("id", editSkill);
       if (error) { err("Save failed"); return; }
@@ -400,7 +477,21 @@ export default function VidyaTracker({ embedded = false }) {
 
           {/* Books list */}
           <Grid item xs={12}>
-            <SectionHead title="Library" onAdd={() => { setBookForm(emptyBook); setEditBook(null); setBookDlg(true); }} color={gold} isDark={isDark} addLabel="Add Book" />
+            <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2 }}>
+              <Typography sx={{ fontFamily: '"Fraunces","Lora",serif', fontSize: 17, fontWeight: 600, color: isDark ? "#F0EDE8" : "#1A1A1A" }}>Library</Typography>
+              <Stack direction="row" spacing={1}>
+                <Button component="label" size="small"
+                  sx={{ textTransform: "none", fontSize: 12, fontWeight: 600, color: gold, border: `1px solid ${gold}55`, px: 1.5, py: 0.5, borderRadius: 2, "&:hover": { bgcolor: `${gold}10` } }}>
+                  📥 Import JSON
+                  <input type="file" accept=".json" hidden onChange={handleJsonImport} />
+                </Button>
+                <Button size="small" startIcon={<Add sx={{ fontSize: 14 }} />}
+                  onClick={() => { haptic(); setBookForm(emptyBook); setEditBook(null); setBookDlg(true); }}
+                  sx={{ textTransform: "none", fontSize: 12, fontWeight: 600, color: "#fff", bgcolor: gold, px: 1.5, py: 0.5, borderRadius: 2, "&:hover": { bgcolor: gold, opacity: 0.88 } }}>
+                  Add Book
+                </Button>
+              </Stack>
+            </Box>
 
             {/* Filter */}
             <Stack direction="row" spacing={1} sx={{ mb: 2, flexWrap: "wrap", gap: 0.5 }}>
@@ -423,7 +514,7 @@ export default function VidyaTracker({ embedded = false }) {
                 <>
                   <Stack spacing={1.5}>
                     {paged.map((b) => {
-                      const prog = b.total_pages > 0 ? Math.min(100, Math.round((b.current_page / b.total_pages) * 100)) : 0;
+                      const prog = b.total_pages > 0 ? Math.min(100, Math.round(((b.pages_read || 0) / b.total_pages) * 100)) : 0;
                       const pct  = prog / 100;
                       const barColor = pct >= 1 ? "#2D7A4F" : pct >= 0.7 ? gold : pct >= 0.4 ? "#DDA74F" : VIDYA_SIENNA;
                       return (
@@ -441,10 +532,11 @@ export default function VidyaTracker({ embedded = false }) {
                                   {b.genre && <Typography sx={{ fontSize: 11, color: textS }}>📂 {b.genre}</Typography>}
                                   {b.language && b.language !== "English" && <Typography sx={{ fontSize: 11, color: textS }}>🌐 {b.language}</Typography>}
                                 </Stack>
+                                {b.one_line && <Typography sx={{ fontSize: 11, color: textS, fontStyle: "italic", mt: 0.3 }}>{b.one_line}</Typography>}
                                 {b.total_pages > 0 && (
                                   <Box sx={{ mt: 1 }}>
                                     <Box sx={{ display: "flex", justifyContent: "space-between", mb: 0.3 }}>
-                                      <Typography sx={{ fontSize: 10, color: textS }}>Page {b.current_page || 0} of {b.total_pages}</Typography>
+                                      <Typography sx={{ fontSize: 10, color: textS }}>Page {b.pages_read || 0} of {b.total_pages}</Typography>
                                       <Typography sx={{ fontSize: 10, color: barColor, fontWeight: 700 }}>{prog}%</Typography>
                                     </Box>
                                     <LinearProgress variant="determinate" value={prog}
@@ -454,7 +546,7 @@ export default function VidyaTracker({ embedded = false }) {
                                 {b.notes && <Typography sx={{ fontSize: 11, color: textS, mt: 0.6, fontStyle: "italic" }}>{b.notes}</Typography>}
                               </Box>
                               <Stack direction="row" spacing={0.5}>
-                                <IconButton size="small" onClick={() => { haptic(); setBookForm(b); setEditBook(b.id); setBookDlg(true); }}
+                                <IconButton size="small" onClick={() => { haptic(); setBookForm({ title: b.title || "", author: b.author || "", genre: b.genre || "", language: b.language || "English", status: b.status || "reading", total_pages: b.total_pages || "", pages_read: b.pages_read || "", notes: b.notes || "", one_line: b.one_line || "", started_date: b.started_date || today, finished_date: b.finished_date || "" }); setEditBook(b.id); setBookDlg(true); }}
                                   sx={{ color: textS, "&:hover": { color: gold } }}><Edit sx={{ fontSize: 14 }} /></IconButton>
                                 <IconButton size="small" onClick={() => deleteBook(b.id, b.title)}
                                   sx={{ color: textS, "&:hover": { color: "#CF4E4E" } }}><Delete sx={{ fontSize: 14 }} /></IconButton>
@@ -751,6 +843,7 @@ export default function VidyaTracker({ embedded = false }) {
           <Stack spacing={2} sx={{ mt: 1 }}>
             <TextField label="Title *" fullWidth size="small" value={bookForm.title} onChange={(e) => setBookForm((f) => ({ ...f, title: e.target.value }))} />
             <TextField label="Author" fullWidth size="small" value={bookForm.author || ""} onChange={(e) => setBookForm((f) => ({ ...f, author: e.target.value }))} />
+            <TextField label="Genre" fullWidth size="small" placeholder="Fiction, Philosophy, History…" value={bookForm.genre || ""} onChange={(e) => setBookForm((f) => ({ ...f, genre: e.target.value }))} />
             <Box sx={{ display: "flex", gap: 2 }}>
               <FormControl size="small" sx={{ flex: 1 }}>
                 <InputLabel>Status</InputLabel>
@@ -767,12 +860,12 @@ export default function VidyaTracker({ embedded = false }) {
             </Box>
             <Box sx={{ display: "flex", gap: 2 }}>
               <TextField label="Total pages" type="number" size="small" sx={{ flex: 1 }} value={bookForm.total_pages || ""} onChange={(e) => setBookForm((f) => ({ ...f, total_pages: e.target.value }))} />
-              <TextField label="Current page" type="number" size="small" sx={{ flex: 1 }} value={bookForm.current_page || ""} onChange={(e) => setBookForm((f) => ({ ...f, current_page: e.target.value }))} />
+              <TextField label="Pages read" type="number" size="small" sx={{ flex: 1 }} value={bookForm.pages_read || ""} onChange={(e) => setBookForm((f) => ({ ...f, pages_read: e.target.value }))} />
             </Box>
-            <TextField label="Genre" size="small" fullWidth value={bookForm.genre || ""} onChange={(e) => setBookForm((f) => ({ ...f, genre: e.target.value }))} />
-            <Box>
-              <Typography sx={{ fontSize: 12, color: textS, mb: 0.8 }}>Rating</Typography>
-              <Stars value={bookForm.rating || 3} onChange={(v) => setBookForm((f) => ({ ...f, rating: v }))} size={22} />
+            <TextField label="One-line summary" size="small" fullWidth placeholder="What's this book about?" value={bookForm.one_line || ""} onChange={(e) => setBookForm((f) => ({ ...f, one_line: e.target.value }))} />
+            <Box sx={{ display: "flex", gap: 2 }}>
+              <TextField label="Started date" type="date" size="small" sx={{ flex: 1 }} InputLabelProps={{ shrink: true }} value={bookForm.started_date || ""} onChange={(e) => setBookForm((f) => ({ ...f, started_date: e.target.value }))} />
+              <TextField label="Finished date" type="date" size="small" sx={{ flex: 1 }} InputLabelProps={{ shrink: true }} value={bookForm.finished_date || ""} onChange={(e) => setBookForm((f) => ({ ...f, finished_date: e.target.value }))} />
             </Box>
             <TextField label="Notes" fullWidth size="small" multiline minRows={2} value={bookForm.notes || ""} onChange={(e) => setBookForm((f) => ({ ...f, notes: e.target.value }))} />
           </Stack>

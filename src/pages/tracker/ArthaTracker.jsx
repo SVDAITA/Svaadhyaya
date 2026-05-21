@@ -434,6 +434,7 @@ export default function FinanceOSPage({ embedded = false }) {
   const loadDashboardData = useCallback(
     async (isInitial = false) => {
       if (!user) return;
+      if (isInitial && _arthaCache !== null) return; // cache warm on initial mount
       if (isInitial && _arthaCache === null) setLoading(true);
       try {
         const [fLogs, fLoans, fInvests, fBudgets, fGoals] = await Promise.all([

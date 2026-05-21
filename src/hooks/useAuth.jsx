@@ -14,8 +14,14 @@ export const AuthProvider = ({ children }) => {
       setLoading(false)
     })
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null)
-      setLoading(false)
+      // Use functional update so if the same user refreshes their token (TOKEN_REFRESHED),
+      // the object reference stays stable → prevents full component tree re-render on tab focus
+      setUser(prev => {
+        const next = session?.user ?? null;
+        if (prev?.id && prev.id === next?.id) return prev;
+        return next;
+      });
+      setLoading(false);
     })
     return () => subscription.unsubscribe()
   }, [])

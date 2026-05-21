@@ -350,7 +350,8 @@ export default function PravesaPage() {
 
   const load = useCallback(async () => {
     if (!user) return;
-    if (_yatraCache === null) setLoading(true);
+    if (_yatraCache !== null) return; // cache warm
+    setLoading(true);
     try {
       const { data } = await supabase
         .from("travel_logs")

@@ -171,7 +171,8 @@ export default function VrittiTracker({ embedded = false }) {
   // ── LOAD ──────────────────────────────────────────────────────────────────
   const load = useCallback(async () => {
     if (!user) return;
-    if (_vrittiCache === null) setLoading(true);
+    if (_vrittiCache !== null) return; // cache warm
+    setLoading(true);
     try {
       const [projR, logR, clientR, skillR, jR] = await Promise.all([
         supabase.from("vritti_projects").select("*").eq("user_id", user.id).order("order_index").order("created_at", { ascending: false }),
@@ -208,7 +209,18 @@ export default function VrittiTracker({ embedded = false }) {
   const saveProject = async () => {
     if (!projForm.title.trim()) return;
     haptic(10);
-    const payload = { ...projForm, user_id: user.id };
+    const payload = {
+      user_id:     user.id,
+      title:       projForm.title.trim(),
+      description: projForm.description || null,
+      client_id:   projForm.client_id   || null,   // empty string → null (UUID FK)
+      status:      projForm.status      || "active",
+      tech_stack:  projForm.tech_stack  || null,
+      start_date:  projForm.start_date  || null,
+      target_date: projForm.target_date || null,   // empty string → null (date)
+      priority:    projForm.priority != null ? Number(projForm.priority) : 2,
+      notes:       projForm.notes       || null,
+    };
     if (editProj) {
       const { error } = await supabase.from("vritti_projects").update(payload).eq("id", editProj);
       if (error) { err("Save failed"); return; }
@@ -232,7 +244,14 @@ export default function VrittiTracker({ embedded = false }) {
   const saveLog = async () => {
     if (!logForm.notes?.trim() && !logForm.hours) return;
     haptic(10);
-    const { error } = await supabase.from("vritti_daily_log").insert({ ...logForm, user_id: user.id });
+    const logPayload = {
+      user_id:    user.id,
+      date:       logForm.date,
+      project_id: logForm.project_id || null,   // empty string → null (UUID FK)
+      hours:      logForm.hours !== "" ? Number(logForm.hours) : null,
+      notes:      logForm.notes || null,
+    };
+    const { error } = await supabase.from("vritti_daily_log").insert(logPayload);
     if (error) { err("Save failed"); return; }
     ok("Log added"); setLogDlg(false); setLogForm(emptyLog); bust();
   };
@@ -248,7 +267,16 @@ export default function VrittiTracker({ embedded = false }) {
   const saveClient = async () => {
     if (!clientForm.name.trim()) return;
     haptic(10);
-    const payload = { ...clientForm, user_id: user.id };
+    const payload = {
+      user_id:    user.id,
+      name:       clientForm.name.trim(),
+      company:    clientForm.company  || null,
+      type:       clientForm.type     || "client",
+      role:       clientForm.role     || null,
+      start_date: clientForm.start_date || null,   // empty string → null (date)
+      notes:      clientForm.notes    || null,
+      is_active:  clientForm.is_active ?? true,
+    };
     if (editClient) {
       const { error } = await supabase.from("vritti_clients").update(payload).eq("id", editClient);
       if (error) { err("Save failed"); return; }
@@ -272,7 +300,13 @@ export default function VrittiTracker({ embedded = false }) {
   const saveSkill = async () => {
     if (!skillForm.name.trim()) return;
     haptic(10);
-    const payload = { ...skillForm, user_id: user.id };
+    const payload = {
+      user_id:     user.id,
+      category:    skillForm.category    || "Technical",
+      name:        skillForm.name.trim(),
+      proficiency: skillForm.proficiency != null ? Number(skillForm.proficiency) : 3,
+      notes:       skillForm.notes       || null,
+    };
     if (editSkill) {
       const { error } = await supabase.from("vritti_skills").update(payload).eq("id", editSkill);
       if (error) { err("Save failed"); return; }
@@ -296,7 +330,14 @@ export default function VrittiTracker({ embedded = false }) {
   const saveJournal = async () => {
     if (!jForm.content?.trim()) return;
     haptic(10);
-    const payload = { ...jForm, user_id: user.id };
+    const payload = {
+      user_id:    user.id,
+      date:       jForm.date,
+      content:    jForm.content    || null,
+      mood:       jForm.mood       || null,
+      wins:       jForm.wins       || null,
+      challenges: jForm.challenges || null,
+    };
     if (editJ) {
       const { error } = await supabase.from("vritti_journal").update(payload).eq("id", editJ);
       if (error) { err("Save failed"); return; }

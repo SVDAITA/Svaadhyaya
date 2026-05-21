@@ -202,7 +202,8 @@ export default function DietPage() {
 
   const load = useCallback(async () => {
     if (!user) return;
-    if (_annaCache === null) setLoading(true);
+    if (_annaCache !== null && _annaCache._date === todayDate) return; // cache warm for today
+    setLoading(true);
     try {
       const [{ data: dayData }, { data: settingsData }, { data: historyData }, { data: mealHistData }] = await Promise.all([
         supabase
@@ -243,7 +244,7 @@ export default function DietPage() {
       const m = settingsData?.habits?.macros ?? DEFAULT_MACROS;
       const fw = settingsData?.habits?.fasting_window ?? "12:12";
       const pi = settingsData?.habits?.pantry_items ?? [];
-      _annaCache = { mealLogs: ml, macros: m, fastingWindow: fw, pantryItems: pi };
+      _annaCache = { _date: todayDate, mealLogs: ml, macros: m, fastingWindow: fw, pantryItems: pi };
       setMealLogs(ml);
       if (dayData) setNotes(dayData.journal || "");
       setMacros(m);

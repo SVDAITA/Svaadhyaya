@@ -3,18 +3,29 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from './useAuth'
 import dayjs from 'dayjs'
 
+// Module-level cache keyed by area — survives re-renders and tab switches
+// Shape: { [area]: { milestones, lakshyas, weeklyGoals, logs, weekStart } }
+const _areaCache = {}
+
 export function useAreaData(area) {
   const { user } = useAuth()
-  const [milestones,   setMilestones]   = useState([])
-  const [lakshyas,     setLakshyas]     = useState([])
-  const [weeklyGoals,  setWeeklyGoals]  = useState([])
-  const [logs,         setLogs]         = useState([])
-  const [loading,      setLoading]      = useState(true)
-
   const weekStart = dayjs().startOf('week').format('YYYY-MM-DD')
+
+  // Check whether cache is warm for this area+week right now (before useState)
+  const cached = _areaCache[area]
+  const cacheWarm = !!(cached && cached.weekStart === weekStart)
+
+  const [milestones,   setMilestones]   = useState(cached?.milestones  || [])
+  const [lakshyas,     setLakshyas]     = useState(cached?.lakshyas    || [])
+  const [weeklyGoals,  setWeeklyGoals]  = useState(cached?.weeklyGoals || [])
+  const [logs,         setLogs]         = useState(cached?.logs        || [])
+  const [loading,      setLoading]      = useState(!cacheWarm)
 
   const load = useCallback(async () => {
     if (!user) { setLoading(false); return }
+    // Early-return when cache is warm for this week — no spinner, no DB round-trip
+    const c = _areaCache[area]
+    if (c && c.weekStart === weekStart) return
     setLoading(true)
 
     const [{ data: ms }, { data: lk }, { data: wg }, { data: lg }] = await Promise.all([
@@ -24,16 +35,30 @@ export function useAreaData(area) {
       supabase.from('logs').select('*').eq('user_id', user.id).eq('area', area).order('created_at', { ascending: false }).limit(20),
     ])
 
-    setMilestones(ms   || [])
-    setLakshyas(lk     || [])
-    setWeeklyGoals(wg  || [])
-    setLogs(lg         || [])
+    const data = {
+      milestones:  ms || [],
+      lakshyas:    lk || [],
+      weeklyGoals: wg || [],
+      logs:        lg || [],
+      weekStart,
+    }
+    _areaCache[area] = data
+    setMilestones(data.milestones)
+    setLakshyas(data.lakshyas)
+    setWeeklyGoals(data.weeklyGoals)
+    setLogs(data.logs)
     setLoading(false)
   }, [user, area, weekStart])
 
   useEffect(() => { load() }, [load])
 
-  return { milestones, lakshyas, weeklyGoals, logs, loading, reload: load }
+  // reload() is called after mutations — always busts cache then re-fetches
+  const reload = useCallback(() => {
+    delete _areaCache[area]
+    load()
+  }, [area, load])
+
+  return { milestones, lakshyas, weeklyGoals, logs, loading, reload }
 }
 
 export function useHabitStreak(habitId) {

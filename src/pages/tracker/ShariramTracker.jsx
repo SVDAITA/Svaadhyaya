@@ -152,7 +152,8 @@ export default function ShariramHealthOS({ embedded = false }) {
 
   const fetchLogs = useCallback(async () => {
     if (!user) return;
-    if (_shariramCache === null) setLoading(true);
+    if (_shariramCache !== null) return; // cache warm
+    setLoading(true);
     try {
       const thirtyAgo = dayjs().subtract(30, "day").format("YYYY-MM-DD");
       const [logsRes, settingsRes, activityRes] = await Promise.all([
