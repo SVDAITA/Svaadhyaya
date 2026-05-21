@@ -1719,7 +1719,8 @@ function AnushtanamTab({ user, isDark }) {
 
   const toggleStep = async (itemId) => {
     const isDone = !completions[itemId];
-    setCompletions((p) => ({ ...p, [itemId]: isDone }));
+    const newCompletions = { ...completions, [itemId]: isDone };
+    setCompletions(newCompletions);
     const { error } = await supabase.from("daily_item_completions").upsert(
       {
         user_id: user.id,
@@ -1730,6 +1731,15 @@ function AnushtanamTab({ user, isDark }) {
       { onConflict: "user_id,daily_item_id,completion_date" },
     );
     if (error) { setSnack("Save failed"); return; }
+    // Update the day's anushthanam habit so dashboard streak tracks this
+    const todayVisible = sequence.filter(isVisibleToday);
+    const allDone = todayVisible.length > 0 && todayVisible.every((s) => newCompletions[s.id]);
+    const { data: dayRow } = await supabase.from("days").select("habits").eq("user_id", user.id).eq("day_date", today).maybeSingle();
+    await supabase.from("days").upsert(
+      { user_id: user.id, day_date: today, habits: { ...(dayRow?.habits || {}), anushthanam: allDone } },
+      { onConflict: "user_id,day_date" },
+    );
+    if (allDone) setSnack("🕉️ All rituals complete for today!");
   };
 
   // ── Japa log ───────────────────────────────────────────────────────
@@ -1988,33 +1998,34 @@ function AnushtanamTab({ user, isDark }) {
                 zIndex: 1,
               }}
             >
-              {/* Group by frequency */}
+              {/* Group by frequency — only show items due today in the checklist */}
               {["daily", "weekly", "monthly"].map((freq) => {
-                const items = sequence.filter((s) => s.frequency === freq);
-                if (items.length === 0) return null;
-                // For the checklist, only show items due today
-                // But always show all items so user can manage them
-                const visible = items;
-                if (visible.length === 0) return null;
+                const allItems = sequence.filter((s) => s.frequency === freq);
+                if (allItems.length === 0) return null;
+                const visible = allItems.filter(isVisibleToday);
+                const notToday = allItems.filter((s) => !isVisibleToday(s));
+                if (visible.length === 0 && notToday.length === 0) return null;
                 return (
                   <Box key={freq} sx={{ mb: 2 }}>
-                    <Typography
-                      sx={{
-                        fontSize: 9,
-                        fontWeight: 700,
-                        letterSpacing: 2,
-                        color: INDIGO,
-                        textTransform: "uppercase",
-                        mb: 1,
-                        opacity: 0.7,
-                      }}
-                    >
-                      {freq === "daily"
-                        ? "Daily Nitya Karma"
-                        : freq === "weekly"
-                          ? "Weekly Rituals"
-                          : "Monthly Rituals"}
-                    </Typography>
+                    {visible.length > 0 && (
+                      <Typography
+                        sx={{
+                          fontSize: 9,
+                          fontWeight: 700,
+                          letterSpacing: 2,
+                          color: INDIGO,
+                          textTransform: "uppercase",
+                          mb: 1,
+                          opacity: 0.7,
+                        }}
+                      >
+                        {freq === "daily"
+                          ? "Daily Nitya Karma"
+                          : freq === "weekly"
+                            ? "Weekly Rituals"
+                            : "Monthly Rituals"}
+                      </Typography>
+                    )}
                     {visible.map((item) => {
                       const done = !!completions[item.id];
                       return (
@@ -2119,6 +2130,37 @@ function AnushtanamTab({ user, isDark }) {
                         </Box>
                       );
                     })}
+                    {/* Not-today items — shown dimmed, edit/delete only */}
+                    {notToday.length > 0 && (
+                      <Box sx={{ mt: visible.length > 0 ? 1 : 0 }}>
+                        {visible.length > 0 && (
+                          <Typography sx={{ fontSize: 9, fontWeight: 700, letterSpacing: 1.5, color: textS, textTransform: "uppercase", mb: 0.75, opacity: 0.6 }}>
+                            Not Today
+                          </Typography>
+                        )}
+                        {notToday.map((item) => (
+                          <Box key={item.id} sx={{ display: "flex", alignItems: "center", gap: 1.25, py: 0.75, opacity: 0.45 }}>
+                            <Box sx={{ width: 20, height: 20, borderRadius: "50%", flexShrink: 0, background: `${INDIGO}08`, border: `1.5px dashed ${INDIGO}30` }} />
+                            <Typography sx={{ fontSize: 12, flex: 1, color: textS }}>
+                              {item.emoji || ""} {item.label}
+                            </Typography>
+                            <Chip
+                              label={item.frequency === "weekly" ? DOW[item.frequency_day || 0] : `${item.frequency_day || 1}th`}
+                              size="small"
+                              sx={{ fontSize: 9, height: 15, background: `${INDIGO}10`, color: INDIGO }}
+                            />
+                            <Box sx={{ display: "flex", gap: 0.1 }}>
+                              <IconButton size="small" onClick={() => { setSForm({ label: item.label, category: item.category || "anushtanam", emoji: item.emoji || "", frequency: item.frequency || "daily", frequency_day: item.frequency_day || 0 }); setEditSeq(item); setSeqOpen(true); }} sx={{ p: 0.2 }}>
+                                <Edit sx={{ fontSize: 12 }} />
+                              </IconButton>
+                              <IconButton size="small" onClick={() => deleteSeqItem(item.id)} sx={{ p: 0.2 }}>
+                                <Delete sx={{ fontSize: 12 }} />
+                              </IconButton>
+                            </Box>
+                          </Box>
+                        ))}
+                      </Box>
+                    )}
                   </Box>
                 );
               })}

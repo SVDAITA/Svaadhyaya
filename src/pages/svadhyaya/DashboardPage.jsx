@@ -1532,7 +1532,7 @@ export default function DashboardPage() {
   const [financeBudgets, setFinanceBudgets] = useState(_dashCache?.financeBudgets || []);
   const [activityLogs, setActivityLogs] = useState(_dashCache?.activityLogs || []);
   const [latestWeightKg, setLatestWeightKg] = useState(null);
-  const [analyticsRange, setAnalyticsRange] = useState(30);
+  const [analyticsRange, setAnalyticsRange] = useState("month");
 
   const textP = isDark ? "#F0EDE8" : "#2C2C2C";
   const textS = isDark ? "#7A7874" : "#9C9A94";
@@ -2055,33 +2055,51 @@ export default function DashboardPage() {
         })()}
 
         {/* ANALYTICS SECTION */}
-        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2, mt: 1 }}>
-          <Typography sx={{ fontFamily: '"Fraunces",serif', fontSize: 18, fontWeight: 600 }}>Analytics</Typography>
-          <ToggleButtonGroup
-            value={analyticsRange}
-            exclusive
-            onChange={(_, v) => v && setAnalyticsRange(v)}
-            size="small"
-            sx={{
-              background: isDark ? "rgba(0,0,0,0.3)" : "rgba(255,255,255,0.6)",
-              backdropFilter: "blur(8px)",
-              p: 0.4,
-              borderRadius: 2.5,
-              border: `1px solid ${border}`,
-              "& .MuiToggleButton-root": { border: "none", borderRadius: 2, textTransform: "none", fontWeight: 600, fontSize: 12, color: textS, px: 1.5, py: 0.4, "&.Mui-selected": { background: alpha(heroColor, 0.15), color: heroColor } },
-            }}
-          >
-            <ToggleButton value={7}>7d</ToggleButton>
-            <ToggleButton value={30}>30d</ToggleButton>
-            <ToggleButton value={90}>3M</ToggleButton>
-          </ToggleButtonGroup>
-        </Box>
-        <Grid container spacing={2}>
-          <Grid item xs={12} md={4}><ReadingCard books={books} readingSessions={readingSessions} isDark={isDark} days={analyticsRange} /></Grid>
-          <Grid item xs={12} md={4}><JapaCard japaLogs={japaLogs} japaGoals={japaGoals} isDark={isDark} days={analyticsRange} /></Grid>
-          <Grid item xs={12} md={4}><FinanceCard financeLogs={financeLogs} financeBudgets={financeBudgets} isDark={isDark} days={analyticsRange} /></Grid>
-          <Grid item xs={12}><MovementCard activityLogs={activityLogs} latestWeightKg={latestWeightKg} isDark={isDark} days={analyticsRange} /></Grid>
-        </Grid>
+        {(() => {
+          const today = dayjs();
+          const analyticsRangeDays =
+            analyticsRange === "today" ? 1
+            : analyticsRange === "week" ? today.diff(today.startOf("week").add(1, "day"), "day") + 1
+            : analyticsRange === "month" ? today.date()
+            : analyticsRange === "3m" ? 90
+            : analyticsRange === "6m" ? 180
+            : analyticsRange === "1y" ? 365
+            : 30;
+          return (
+            <>
+              <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2, mt: 1, flexWrap: "wrap", gap: 1 }}>
+                <Typography sx={{ fontFamily: '"Fraunces",serif', fontSize: 18, fontWeight: 600 }}>Analytics</Typography>
+                <ToggleButtonGroup
+                  value={analyticsRange}
+                  exclusive
+                  onChange={(_, v) => v && setAnalyticsRange(v)}
+                  size="small"
+                  sx={{
+                    background: isDark ? "rgba(0,0,0,0.3)" : "rgba(255,255,255,0.6)",
+                    backdropFilter: "blur(8px)",
+                    p: 0.4,
+                    borderRadius: 2.5,
+                    border: `1px solid ${border}`,
+                    "& .MuiToggleButton-root": { border: "none", borderRadius: 2, textTransform: "none", fontWeight: 600, fontSize: 11, color: textS, px: 1.25, py: 0.4, "&.Mui-selected": { background: alpha(heroColor, 0.15), color: heroColor } },
+                  }}
+                >
+                  <ToggleButton value="today">Today</ToggleButton>
+                  <ToggleButton value="week">This Week</ToggleButton>
+                  <ToggleButton value="month">This Month</ToggleButton>
+                  <ToggleButton value="3m">3 Months</ToggleButton>
+                  <ToggleButton value="6m">6 Months</ToggleButton>
+                  <ToggleButton value="1y">1 Year</ToggleButton>
+                </ToggleButtonGroup>
+              </Box>
+              <Grid container spacing={2}>
+                <Grid item xs={12} md={4}><ReadingCard books={books} readingSessions={readingSessions} isDark={isDark} days={analyticsRangeDays} /></Grid>
+                <Grid item xs={12} md={4}><JapaCard japaLogs={japaLogs} japaGoals={japaGoals} isDark={isDark} days={analyticsRangeDays} /></Grid>
+                <Grid item xs={12} md={4}><FinanceCard financeLogs={financeLogs} financeBudgets={financeBudgets} isDark={isDark} days={analyticsRangeDays} /></Grid>
+                <Grid item xs={12}><MovementCard activityLogs={activityLogs} latestWeightKg={latestWeightKg} isDark={isDark} days={analyticsRangeDays} /></Grid>
+              </Grid>
+            </>
+          );
+        })()}
       </Box>
 
 

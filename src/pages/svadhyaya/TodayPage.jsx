@@ -988,6 +988,9 @@ function LinkLakshyaDialog({
 }
 
 // ── MORNING FLOW MODAL ─────────────────────────────────────────────────────────
+const SLEEP_LABELS = ["Poor", "Fair", "Good", "Great", "Excellent"];
+const SLEEP_COLORS = ["#CF4E4E", "#DDA74F", "#6AAEE8", "#5A6E1A", "#6B8A9E"];
+
 function MorningFlowModal({
   open,
   onClose,
@@ -998,33 +1001,45 @@ function MorningFlowModal({
   yesterdayTasks,
 }) {
   const hasCarryOvers = yesterdayTasks?.length > 0;
-  const firstStep = hasCarryOvers ? 1 : 2;
-  const [step, setStep] = useState(firstStep);
+  // Steps: sleep is always first, then optionally carry-overs, then intention, then foundations
+  const STEPS = ["sleep", ...(hasCarryOvers ? ["carryover"] : []), "intention", "foundations"];
+
+  const [stepIdx, setStepIdx] = useState(0);
+  const [sleepHours, setSleepHours] = useState("");
+  const [sleepQuality, setSleepQuality] = useState(0);
   const [intention, setIntention] = useState("");
   const [selected, setSelected] = useState({});
 
-  // reset when opened
   useEffect(() => {
     if (open) {
-      setStep(hasCarryOvers ? 1 : 2);
+      setStepIdx(0);
+      setSleepHours("");
+      setSleepQuality(0);
       setIntention("");
       setSelected({});
     }
-  }, [open, hasCarryOvers]);
+  }, [open]);
 
   const bg = isDark ? "#1A1916" : "#FCFBF9";
   const border = isDark ? "rgba(255,255,255,0.08)" : "#D1D0CF";
   const textP = isDark ? "#F0EDE8" : "#2C2C2C";
   const textS = isDark ? "#7A7874" : "#5F5F5F";
-  const totalSteps = hasCarryOvers ? 3 : 2;
-  const stepIndex = hasCarryOvers ? step : step - 1;
+  const currentStep = STEPS[stepIdx];
+  const totalSteps = STEPS.length;
+
+  const next = () => setStepIdx((i) => Math.min(i + 1, totalSteps - 1));
+  const prev = () => setStepIdx((i) => Math.max(i - 1, 0));
 
   const handleFinish = () => {
     const carryOvers = hasCarryOvers
       ? (yesterdayTasks || []).filter((_, i) => selected[i])
       : [];
-    onComplete(intention, carryOvers);
-    setStep(firstStep);
+    const sleepData = {
+      hours: sleepHours ? parseFloat(sleepHours) : null,
+      quality: sleepQuality || null,
+    };
+    onComplete(intention, carryOvers, sleepData);
+    setStepIdx(0);
   };
 
   return (
@@ -1052,19 +1067,109 @@ function MorningFlowModal({
                 flex: 1,
                 height: 3,
                 borderRadius: 2,
-                background: stepIndex > i ? heroColor : isDark ? "#2C2C2C" : "#E8E6E0",
+                background: stepIdx > i ? heroColor : isDark ? "#2C2C2C" : "#E8E6E0",
                 transition: "background 0.3s",
               }}
             />
           ))}
         </Box>
 
-        {/* Step 1 — Carry-overs from yesterday */}
-        {step === 1 && hasCarryOvers && (
+        {/* Step: Sleep check-in */}
+        {currentStep === "sleep" && (
           <Fade in>
             <Box>
               <Typography sx={{ fontSize: 9, letterSpacing: 2, textTransform: "uppercase", color: "#9C9A94", fontWeight: 700, mb: 0.5 }}>
                 Morning flow · Step 1
+              </Typography>
+              <Typography sx={{ fontFamily: '"Lora","Fraunces",serif', fontSize: 20, fontWeight: 600, color: textP, mb: 0.5 }}>
+                How did you sleep?
+              </Typography>
+              <Typography sx={{ fontSize: 12, color: textS, mb: 3 }}>
+                {dayjs().subtract(1, "day").format("dddd")} night · Last night's rest
+              </Typography>
+
+              {/* Hours */}
+              <Box sx={{ mb: 3 }}>
+                <Typography sx={{ fontSize: 11, fontWeight: 700, color: textS, textTransform: "uppercase", letterSpacing: 1, mb: 1.5 }}>
+                  Sleep duration
+                </Typography>
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+                  <TextField
+                    type="number"
+                    placeholder="7.5"
+                    value={sleepHours}
+                    onChange={(e) => setSleepHours(e.target.value)}
+                    inputProps={{ min: 0, max: 14, step: 0.5 }}
+                    sx={{
+                      width: 110,
+                      "& .MuiOutlinedInput-root": {
+                        borderRadius: 2,
+                        "& fieldset": { borderColor: border },
+                        "&:hover fieldset": { borderColor: heroColor + "80" },
+                        "&.Mui-focused fieldset": { borderColor: heroColor },
+                      },
+                      "& input": { fontSize: 22, fontFamily: '"Fraunces",serif', color: textP, textAlign: "center", p: "10px 14px" },
+                    }}
+                  />
+                  <Typography sx={{ fontSize: 14, color: textS }}>hours</Typography>
+                </Box>
+              </Box>
+
+              {/* Quality dots */}
+              <Box sx={{ mb: 3 }}>
+                <Typography sx={{ fontSize: 11, fontWeight: 700, color: textS, textTransform: "uppercase", letterSpacing: 1, mb: 1.5 }}>
+                  Sleep quality
+                </Typography>
+                <Box sx={{ display: "flex", gap: 1.25 }}>
+                  {[1, 2, 3, 4, 5].map((n) => {
+                    const c = SLEEP_COLORS[n - 1];
+                    const active = n <= sleepQuality;
+                    return (
+                      <Box
+                        key={n}
+                        onClick={() => setSleepQuality(sleepQuality === n ? 0 : n)}
+                        sx={{
+                          flex: 1,
+                          py: 1.5,
+                          borderRadius: 2,
+                          border: `2px solid ${active ? c : (isDark ? "#2C2C2C" : "#E0DDD8")}`,
+                          background: active ? `${c}18` : "transparent",
+                          cursor: "pointer",
+                          textAlign: "center",
+                          transition: "all 0.15s",
+                          "&:hover": { borderColor: `${c}80` },
+                        }}
+                      >
+                        <Typography sx={{ fontSize: 10, fontWeight: 700, color: active ? c : textS, letterSpacing: 0.3 }}>
+                          {SLEEP_LABELS[n - 1]}
+                        </Typography>
+                      </Box>
+                    );
+                  })}
+                </Box>
+              </Box>
+
+              <Button
+                variant="contained"
+                fullWidth
+                onClick={next}
+                sx={{ py: 1.2, background: heroColor, "&:hover": { background: heroColor, opacity: 0.88 }, boxShadow: "none", fontSize: 13, fontWeight: 600 }}
+              >
+                Continue →
+              </Button>
+              <Button fullWidth onClick={onClose} sx={{ mt: 0.75, fontSize: 12, color: "#9C9A94" }}>
+                Not yet
+              </Button>
+            </Box>
+          </Fade>
+        )}
+
+        {/* Step: Carry-overs from yesterday */}
+        {currentStep === "carryover" && (
+          <Fade in>
+            <Box>
+              <Typography sx={{ fontSize: 9, letterSpacing: 2, textTransform: "uppercase", color: "#9C9A94", fontWeight: 700, mb: 0.5 }}>
+                Morning flow · Step {stepIdx + 1}
               </Typography>
               <Typography sx={{ fontFamily: '"Lora","Fraunces",serif', fontSize: 20, fontWeight: 600, color: textP, mb: 0.5 }}>
                 From yesterday's plan
@@ -1102,11 +1207,7 @@ function MorningFlowModal({
                     </Box>
                     <Typography sx={{ fontSize: 13, color: textP, flex: 1 }}>{t.label}</Typography>
                     {t.deep && (
-                      <Box sx={{
-                        fontSize: 10, fontWeight: 700, letterSpacing: 0.5,
-                        color: heroColor, background: `${heroColor}15`,
-                        px: 0.75, py: 0.25, borderRadius: 1,
-                      }}>
+                      <Box sx={{ fontSize: 10, fontWeight: 700, letterSpacing: 0.5, color: heroColor, background: `${heroColor}15`, px: 0.75, py: 0.25, borderRadius: 1 }}>
                         DEEP
                       </Box>
                     )}
@@ -1116,24 +1217,22 @@ function MorningFlowModal({
               <Button
                 variant="contained"
                 fullWidth
-                onClick={() => setStep(2)}
+                onClick={next}
                 sx={{ mt: 1.5, py: 1.2, background: heroColor, "&:hover": { background: heroColor, opacity: 0.88 }, boxShadow: "none", fontSize: 13, fontWeight: 600 }}
               >
                 Continue →
               </Button>
-              <Button fullWidth onClick={onClose} sx={{ mt: 0.75, fontSize: 12, color: "#9C9A94" }}>
-                Not yet
-              </Button>
+              <Button variant="outlined" onClick={prev} sx={{ mt: 0.75, width: "100%", borderColor: border, color: textS, fontSize: 12 }}>Back</Button>
             </Box>
           </Fade>
         )}
 
-        {/* Step 2 — The one thing */}
-        {step === 2 && (
+        {/* Step: The one thing */}
+        {currentStep === "intention" && (
           <Fade in>
             <Box>
               <Typography sx={{ fontSize: 9, letterSpacing: 2, textTransform: "uppercase", color: "#9C9A94", fontWeight: 700, mb: 0.5 }}>
-                Morning flow · Step {hasCarryOvers ? 2 : 1}
+                Morning flow · Step {stepIdx + 1}
               </Typography>
               <Typography sx={{ fontFamily: '"Lora","Fraunces",serif', fontSize: 20, fontWeight: 600, color: textP, mb: 0.5 }}>
                 The one thing today
@@ -1164,12 +1263,10 @@ function MorningFlowModal({
                 />
               </Box>
               <Box sx={{ display: "flex", gap: 1 }}>
-                {hasCarryOvers && (
-                  <Button variant="outlined" onClick={() => setStep(1)} sx={{ flex: 1, borderColor: border, color: textS, fontSize: 12 }}>Back</Button>
-                )}
+                <Button variant="outlined" onClick={prev} sx={{ flex: 1, borderColor: border, color: textS, fontSize: 12 }}>Back</Button>
                 <Button
                   variant="contained"
-                  onClick={() => setStep(3)}
+                  onClick={next}
                   sx={{ flex: 2, py: 1.2, background: heroColor, "&:hover": { background: heroColor, opacity: 0.88 }, boxShadow: "none", fontSize: 13, fontWeight: 600 }}
                 >
                   Continue →
@@ -1180,12 +1277,12 @@ function MorningFlowModal({
           </Fade>
         )}
 
-        {/* Step 3 — Sacred reminder + begin */}
-        {step === 3 && (
+        {/* Step: Sacred reminder + begin */}
+        {currentStep === "foundations" && (
           <Fade in>
             <Box>
               <Typography sx={{ fontSize: 9, letterSpacing: 2, textTransform: "uppercase", color: "#9C9A94", fontWeight: 700, mb: 0.5 }}>
-                Morning flow · Step {hasCarryOvers ? 3 : 2}
+                Morning flow · Step {stepIdx + 1}
               </Typography>
               <Typography sx={{ fontFamily: '"Lora","Fraunces",serif', fontSize: 20, fontWeight: 600, color: textP, mb: 0.5 }}>
                 Today's foundations
@@ -1211,7 +1308,7 @@ function MorningFlowModal({
               >
                 Begin the day ☀️
               </Button>
-              <Button variant="outlined" onClick={() => setStep(2)} sx={{ mt: 1, width: "100%", borderColor: border, color: textS, fontSize: 12 }}>Back</Button>
+              <Button variant="outlined" onClick={prev} sx={{ mt: 1, width: "100%", borderColor: border, color: textS, fontSize: 12 }}>Back</Button>
             </Box>
           </Fade>
         )}
@@ -2162,9 +2259,16 @@ export default function TodayPage() {
         setOneThing(dayData.one_thing || "");
         setWins(dayData.wins?.length ? dayData.wins : ["", "", ""]);
         const raw = dayData.tomorrow_tasks || [];
+        const parseTask = (t) => {
+          if (typeof t === "string") {
+            try { const p = JSON.parse(t); return typeof p === "object" && p !== null ? p : { label: t, deep: false }; }
+            catch { return { label: t, deep: false }; }
+          }
+          return t;
+        };
         setTomorrowTasks(
           raw.length
-            ? raw.map((t) => (typeof t === "string" ? { label: t, deep: false } : t))
+            ? raw.map(parseTask)
             : [{ label: "", deep: false }, { label: "", deep: false }, { label: "", deep: false }],
         );
         setDayClosed(!!dayData.last_close);
@@ -2177,7 +2281,13 @@ export default function TodayPage() {
       if (yData?.tomorrow_tasks?.length) {
         setYesterdayTasks(
           yData.tomorrow_tasks
-            .map((t) => (typeof t === "string" ? { label: t, deep: false } : t))
+            .map((t) => {
+              if (typeof t === "string") {
+                try { const p = JSON.parse(t); return typeof p === "object" && p !== null ? p : { label: t, deep: false }; }
+                catch { return { label: t, deep: false }; }
+              }
+              return t;
+            })
             .filter((t) => t.label?.trim()),
         );
       }
@@ -2314,7 +2424,7 @@ export default function TodayPage() {
     setCompletionItem(null);
   };
 
-  const handleMorningComplete = async (intention, carryOverTasks) => {
+  const handleMorningComplete = async (intention, carryOverTasks, sleepData) => {
     setMorningDone(true);
     setShowMorningFlow(false);
     const patch = { morning_flow_done: true };
@@ -2332,6 +2442,11 @@ export default function TodayPage() {
       const n = [...customCore, ...newItems];
       setCustomCore(n);
       patch.custom_core = n;
+    }
+    if (sleepData?.hours || sleepData?.quality) {
+      const nextHabits = { ...habits, sleep_log: sleepData };
+      setHabits(nextHabits);
+      patch.habits = nextHabits;
     }
     await sync(patch);
   };
