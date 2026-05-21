@@ -4109,7 +4109,12 @@ export default function TodayPage() {
           <Button
             variant="contained"
             size="small"
-            onClick={() => setNaadaSeqOpen(false)}
+            onClick={() => {
+              const nextHabits = { ...habits, saadhana: true };
+              setHabits(nextHabits);
+              sync({ habits: nextHabits });
+              setNaadaSeqOpen(false);
+            }}
             sx={{
               background: "#C07830",
               color: "#fff",
@@ -4120,7 +4125,7 @@ export default function TodayPage() {
               "&:hover": { background: "#A0621A" },
             }}
           >
-            Done
+            Mark Done ✓
           </Button>
         </DialogActions>
       </Dialog>
