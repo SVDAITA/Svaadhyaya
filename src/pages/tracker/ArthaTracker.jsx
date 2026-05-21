@@ -48,6 +48,7 @@ import {
   Avatar,
   useTheme,
   alpha,
+  Pagination,
 } from "@mui/material";
 import { keyframes } from "@mui/system";
 import {
@@ -314,6 +315,8 @@ export default function FinanceOSPage() {
   const theme = useTheme();
   const isDark = theme.palette.mode === "dark";
   const [tab, setTab] = useState(0);
+  const [spendPage, setSpendPage] = useState(1);
+  const SPEND_PER_PAGE = 20;
 
   // Data States
   const [spends, setSpends] = useState(_arthaCache?.spends || []);
@@ -1317,22 +1320,8 @@ export default function FinanceOSPage() {
                     />
                   </Box>
                   <TableContainer
-                    sx={{
-                      maxHeight: 400,
-                      overflow: "auto",
-                      "&::-webkit-scrollbar": { width: 6 },
-                      "&::-webkit-scrollbar-track": {
-                        background: "transparent",
-                      },
-                      "&::-webkit-scrollbar-thumb": {
-                        background: isDark
-                          ? "rgba(255,255,255,0.1)"
-                          : "rgba(0,0,0,0.1)",
-                        borderRadius: 10,
-                      },
-                    }}
                   >
-                    <Table size="small" stickyHeader>
+                    <Table size="small">
                       <TableHead>
                         <TableRow>
                           {["Date", "Category", "Amount", ""].map((h, i) => (
@@ -1383,7 +1372,7 @@ export default function FinanceOSPage() {
                             </TableCell>
                           </TableRow>
                         )}
-                        {spends.map((s) => (
+                        {spends.slice((spendPage - 1) * SPEND_PER_PAGE, spendPage * SPEND_PER_PAGE).map((s) => (
                           <TableRow
                             key={s.id}
                             hover
@@ -1474,6 +1463,16 @@ export default function FinanceOSPage() {
                       </TableBody>
                     </Table>
                   </TableContainer>
+                  {spends.length > SPEND_PER_PAGE && (
+                    <Box sx={{ display: "flex", justifyContent: "center", mt: 2 }}>
+                      <Pagination
+                        count={Math.ceil(spends.length / SPEND_PER_PAGE)}
+                        page={spendPage}
+                        onChange={(_, p) => setSpendPage(p)}
+                        size="small"
+                      />
+                    </Box>
+                  )}
                 </CardContent>
               </Card>
             </Grid>

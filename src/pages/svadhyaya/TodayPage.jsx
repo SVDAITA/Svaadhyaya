@@ -45,6 +45,7 @@ import {
   LinkOutlined,
   ReportProblem,
 } from "@mui/icons-material";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth";
 import { useThemeMode } from "../../hooks/useTheme";
 import { supabase } from "../../lib/supabase";
@@ -62,6 +63,8 @@ const DEFAULT_SACRED = [
     emoji: "🪔",
     locked: true,
     deep: true,
+    readOnly: true,
+    navTo: "/tracker/sacred",
   },
   {
     id: "saadhana",
@@ -1904,6 +1907,7 @@ function TaskRow({
   isDark,
   locked,
   isAnsh,
+  subtitle,
 }) {
   const border = isDark ? "rgba(255,255,255,0.06)" : "#E8E6E0";
   const textP = isDark ? "#F0EDE8" : "#2C2C2C";
@@ -2011,6 +2015,20 @@ function TaskRow({
             </Box>
           )}
         </Box>
+        {subtitle && (
+          <Typography
+            sx={{
+              fontSize: 10,
+              color: heroColor,
+              opacity: 0.8,
+              fontWeight: 500,
+              mt: 0.2,
+              letterSpacing: 0.2,
+            }}
+          >
+            {subtitle}
+          </Typography>
+        )}
         {item.lakshyaTitle && (
           <Box sx={{ mt: 0.25 }}>
             <Box sx={{ display: "flex", alignItems: "center", gap: 0.4 }}>
@@ -2165,6 +2183,9 @@ function EmptyState({ message, heroColor, isDark, onAdd }) {
 export default function TodayPage() {
   const { user } = useAuth();
   const { heroColor, mode } = useThemeMode();
+  const navigate = useNavigate();
+  const [seqDone, setSeqDone] = useState(0);
+  const [seqTotal, setSeqTotal] = useState(0);
   const isDark = mode === "dark";
   const { data: panchangam, loading: panchLoading } = usePanchang();
   const today = dayjs().format("YYYY-MM-DD");
@@ -2247,10 +2268,25 @@ export default function TodayPage() {
     }
     try {
       const yesterday = dayjs().subtract(1, "day").format("YYYY-MM-DD");
-      const [{ data: dayData }, { data: yData }] = await Promise.all([
+      const [{ data: dayData }, { data: yData }, { data: seqItems }, { data: seqComps }] = await Promise.all([
         supabase.from("days").select("*").eq("user_id", user.id).eq("day_date", today).maybeSingle(),
         supabase.from("days").select("tomorrow_tasks").eq("user_id", user.id).eq("day_date", yesterday).maybeSingle(),
+        supabase.from("daily_items").select("id,frequency,frequency_day").eq("user_id", user.id),
+        supabase.from("daily_item_completions").select("daily_item_id,is_completed").eq("user_id", user.id).eq("completion_date", today),
       ]);
+      // Compute visible-today sequence stats
+      if (seqItems) {
+        const todayDay = dayjs();
+        const visible = seqItems.filter((s) => {
+          if (s.frequency === "daily") return true;
+          if (s.frequency === "weekly") return todayDay.day() === (s.frequency_day ?? 0);
+          if (s.frequency === "monthly") return todayDay.date() === (s.frequency_day ?? 1);
+          return true;
+        });
+        const compMap = Object.fromEntries((seqComps || []).map((c) => [c.daily_item_id, c.is_completed]));
+        setSeqTotal(visible.length);
+        setSeqDone(visible.filter((s) => compMap[s.id]).length);
+      }
 
       if (dayData) {
         setHabits(dayData.habits || {});
@@ -2396,6 +2432,7 @@ export default function TodayPage() {
 
   const handleToggle = (item) => {
     if (dayClosed) return;
+    if (item.readOnly) { navigate(item.navTo); return; }
     if (!habits[item.id]) {
       if (item.deep) {
         setCompletionItem(item);
@@ -2579,6 +2616,9 @@ export default function TodayPage() {
     const meta = habitsData[item.id];
     const richItem = meta ? { ...item, ...meta } : item;
     const isDeletable = !item.locked && section !== null;
+    const subtitle = item.readOnly && seqTotal > 0
+      ? `${seqDone} of ${seqTotal} rituals complete`
+      : item.readOnly ? "Open daily sequence →" : null;
     return (
       <TaskRow
         key={item.id}
@@ -2588,10 +2628,11 @@ export default function TodayPage() {
         onDelete={
           isDeletable ? () => handleDeleteTask(section, item.id) : undefined
         }
-        onLink={item.locked ? () => setLinkingTask(richItem) : undefined}
+        onLink={item.locked && !item.readOnly ? () => setLinkingTask(richItem) : undefined}
         heroColor={heroColor}
         isDark={isDark}
         locked={!!item.locked}
+        subtitle={subtitle}
       />
     );
   };

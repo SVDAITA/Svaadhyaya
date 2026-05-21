@@ -27,6 +27,7 @@ import {
   Fade,
   Collapse,
   Avatar,
+  Pagination,
 } from "@mui/material";
 import {
   Add,
@@ -600,6 +601,12 @@ export default function VrittiTracker() {
   const isDark = mode === "dark";
 
   const [tab, setTab] = useState(0);
+  const [projPage, setProjPage] = useState(1);
+  const [skillPage, setSkillPage] = useState(1);
+  const [certPage, setCertPage] = useState(1);
+  const PROJ_PER_PAGE = 10;
+  const SKILL_PER_PAGE = 20;
+  const CERT_PER_PAGE = 6;
   const [loading, setLoading] = useState(_vrittiCache === null);
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState({ open: false, msg: "", severity: "success" });
@@ -885,20 +892,27 @@ export default function VrittiTracker() {
             isDark={isDark}
           />
         ) : (
-          <Stack spacing={2}>
-            {projects.map((p) => (
-              <ProjectCard
-                key={p.id}
-                project={p}
-                onDelete={(id, label) => deleteItem("milestones", id, label)}
-                isDark={isDark}
-                cardBg={cardBg}
-                border={border}
-                textP={textP}
-                textS={textS}
-              />
-            ))}
-          </Stack>
+          <>
+            <Stack spacing={2}>
+              {projects.slice((projPage - 1) * PROJ_PER_PAGE, projPage * PROJ_PER_PAGE).map((p) => (
+                <ProjectCard
+                  key={p.id}
+                  project={p}
+                  onDelete={(id, label) => deleteItem("milestones", id, label)}
+                  isDark={isDark}
+                  cardBg={cardBg}
+                  border={border}
+                  textP={textP}
+                  textS={textS}
+                />
+              ))}
+            </Stack>
+            {projects.length > PROJ_PER_PAGE && (
+              <Box sx={{ display: "flex", justifyContent: "center", mt: 3 }}>
+                <Pagination count={Math.ceil(projects.length / PROJ_PER_PAGE)} page={projPage} onChange={(_, p) => setProjPage(p)} size="small" />
+              </Box>
+            )}
+          </>
         )}
       </TabPanel>
 
@@ -949,47 +963,49 @@ export default function VrittiTracker() {
                   Add Skill
                 </Button>
               </Box>
-              <Stack spacing={2.5}>
-                {/* BUG FIX: unified rendering - no duplicate block */}
-                {SKILL_CATEGORY_KEYS.filter((cat) => skills.some((s) => s.type === cat)).map((cat) => {
-                  const meta = getCategoryMeta(cat);
-                  const catSkills = skills.filter((s) => s.type === cat);
-                  return (
-                    <Box key={cat}>
-                      <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1.5 }}>
-                        <Box sx={{ color: meta.color, display: "flex" }}>{meta.icon}</Box>
-                        <Typography sx={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, color: textS }}>
-                          {cat}
-                        </Typography>
-                        <Chip label={catSkills.length} size="small" sx={{ height: 18, fontSize: 9, fontWeight: 700, bgcolor: `${meta.color}15`, color: meta.color, border: "none" }} />
+              {(() => {
+                // Flat ordered list: grouped skills + ungrouped, then slice for page
+                const grouped = SKILL_CATEGORY_KEYS.flatMap((cat) => skills.filter((s) => s.type === cat));
+                const ungrouped = skills.filter((s) => !SKILL_CATEGORY_KEYS.includes(s.type));
+                const allSkills = [...grouped, ...ungrouped];
+                const paged = allSkills.slice((skillPage - 1) * SKILL_PER_PAGE, skillPage * SKILL_PER_PAGE);
+                // Re-group only the paged skills so category headers still appear
+                const pagedCats = [...new Set(paged.map((s) => SKILL_CATEGORY_KEYS.includes(s.type) ? s.type : "__other__"))];
+                return (
+                  <>
+                    <Stack spacing={2.5}>
+                      {pagedCats.map((cat) => {
+                        const isOther = cat === "__other__";
+                        const meta = isOther ? null : getCategoryMeta(cat);
+                        const catSkills = paged.filter((s) => isOther ? !SKILL_CATEGORY_KEYS.includes(s.type) : s.type === cat);
+                        return (
+                          <Box key={cat}>
+                            <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1.5 }}>
+                              {isOther ? <Category sx={{ fontSize: 14, color: textS }} /> : <Box sx={{ color: meta.color, display: "flex" }}>{meta.icon}</Box>}
+                              <Typography sx={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, color: textS }}>
+                                {isOther ? "Other" : cat}
+                              </Typography>
+                              <Chip label={skills.filter((s) => isOther ? !SKILL_CATEGORY_KEYS.includes(s.type) : s.type === cat).length} size="small" sx={{ height: 18, fontSize: 9, fontWeight: 700, bgcolor: isOther ? `${textS}15` : `${meta.color}15`, color: isOther ? textS : meta.color, border: "none" }} />
+                            </Box>
+                            <Card sx={{ bgcolor: cardBg, border: `1px solid ${border}`, borderRadius: 3, p: 2.5 }}>
+                              <Stack spacing={2.5}>
+                                {catSkills.map((s) => (
+                                  <SkillRow key={s.id} skill={s} onDelete={deleteItem} isDark={isDark} textP={textP} textS={textS} border={border} />
+                                ))}
+                              </Stack>
+                            </Card>
+                          </Box>
+                        );
+                      })}
+                    </Stack>
+                    {allSkills.length > SKILL_PER_PAGE && (
+                      <Box sx={{ display: "flex", justifyContent: "center", mt: 3 }}>
+                        <Pagination count={Math.ceil(allSkills.length / SKILL_PER_PAGE)} page={skillPage} onChange={(_, p) => setSkillPage(p)} size="small" />
                       </Box>
-                      <Card sx={{ bgcolor: cardBg, border: `1px solid ${border}`, borderRadius: 3, p: 2.5 }}>
-                        <Stack spacing={2.5}>
-                          {catSkills.map((s) => (
-                            <SkillRow key={s.id} skill={s} onDelete={deleteItem} isDark={isDark} textP={textP} textS={textS} border={border} />
-                          ))}
-                        </Stack>
-                      </Card>
-                    </Box>
-                  );
-                })}
-                {/* Ungrouped skills */}
-                {skills.filter((s) => !SKILL_CATEGORY_KEYS.includes(s.type)).length > 0 && (
-                  <Box>
-                    <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1.5 }}>
-                      <Category sx={{ fontSize: 14, color: textS }} />
-                      <Typography sx={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, color: textS }}>Other</Typography>
-                    </Box>
-                    <Card sx={{ bgcolor: cardBg, border: `1px solid ${border}`, borderRadius: 3, p: 2.5 }}>
-                      <Stack spacing={2.5}>
-                        {skills.filter((s) => !SKILL_CATEGORY_KEYS.includes(s.type)).map((s) => (
-                          <SkillRow key={s.id} skill={s} onDelete={deleteItem} isDark={isDark} textP={textP} textS={textS} border={border} />
-                        ))}
-                      </Stack>
-                    </Card>
-                  </Box>
-                )}
-              </Stack>
+                    )}
+                  </>
+                );
+              })()}
             </Grid>
           </Grid>
         )}
@@ -1024,7 +1040,7 @@ export default function VrittiTracker() {
               </Button>
             </Box>
             <Grid container spacing={2.5}>
-              {certs.map((c) => {
+              {certs.slice((certPage - 1) * CERT_PER_PAGE, certPage * CERT_PER_PAGE).map((c) => {
                 const done = c.progress === 100;
                 const certColor = done ? C.green : c.progress > 50 ? C.blue : C.gold;
                 const certMeta = safeParseNotes(c.notes);
@@ -1106,6 +1122,11 @@ export default function VrittiTracker() {
                 );
               })}
             </Grid>
+            {certs.length > CERT_PER_PAGE && (
+              <Box sx={{ display: "flex", justifyContent: "center", mt: 3 }}>
+                <Pagination count={Math.ceil(certs.length / CERT_PER_PAGE)} page={certPage} onChange={(_, p) => setCertPage(p)} size="small" />
+              </Box>
+            )}
           </>
         )}
       </TabPanel>

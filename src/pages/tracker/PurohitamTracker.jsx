@@ -33,6 +33,7 @@ import {
   ToggleButtonGroup,
   ToggleButton,
   Alert,
+  Pagination,
 } from "@mui/material";
 import {
   Add,
@@ -1633,6 +1634,8 @@ function AnushtanamTab({ user, isDark }) {
   const [japaForm, setJapaForm] = useState(emptyJapa);
   const [goalForm, setGoalForm] = useState(emptyGoal);
   const [saving, setSaving] = useState(false);
+  const [japaLogPage, setJapaLogPage] = useState(1);
+  const JAPA_LOG_PER_PAGE = 20;
   const today = dayjs().format("YYYY-MM-DD");
   const todayLabel = dayjs().format("dddd, D MMMM YYYY");
 
@@ -2404,8 +2407,9 @@ function AnushtanamTab({ user, isDark }) {
                   No entries yet. Log your first japa count above.
                 </Typography>
               ) : (
-                <TableContainer sx={{ maxHeight: 420 }}>
-                  <Table size="small" stickyHeader>
+                <>
+                <TableContainer>
+                  <Table size="small">
                     <TableHead>
                       <TableRow>
                         {["Date", "Japa", "Count", "Notes", ""].map((h) => (
@@ -2429,7 +2433,7 @@ function AnushtanamTab({ user, isDark }) {
                       </TableRow>
                     </TableHead>
                     <TableBody>
-                      {japaLogs.map((l, idx) => (
+                      {japaLogs.slice((japaLogPage - 1) * JAPA_LOG_PER_PAGE, japaLogPage * JAPA_LOG_PER_PAGE).map((l, idx) => (
                         <TableRow
                           key={l.id}
                           sx={{
@@ -2513,6 +2517,18 @@ function AnushtanamTab({ user, isDark }) {
                     </TableBody>
                   </Table>
                 </TableContainer>
+                {japaLogs.length > JAPA_LOG_PER_PAGE && (
+                  <Box sx={{ display: "flex", justifyContent: "center", mt: 2 }}>
+                    <Pagination
+                      count={Math.ceil(japaLogs.length / JAPA_LOG_PER_PAGE)}
+                      page={japaLogPage}
+                      onChange={(_, p) => setJapaLogPage(p)}
+                      size="small"
+                      sx={{ "& .MuiPaginationItem-root": { color: textS }, "& .MuiPaginationItem-root.Mui-selected": { background: `${INDIGO}20`, color: INDIGO } }}
+                    />
+                  </Box>
+                )}
+                </>
               )}
             </CardContent>
           </Card>

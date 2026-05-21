@@ -53,6 +53,7 @@ const NAV_ITEMS = [
     path: "/svadhyaya/dashboard",
     color: "#C07830",
   },
+  { label: "Track", icon: <FlashOn />, path: "/tracker", color: "#1A5FB0" },
   {
     label: "Disruption",
     icon: <BoltOutlined />,
@@ -102,8 +103,6 @@ const NAV_ITEMS = [
     color: "#A0522D",
     areaKey: "reading",
   },
-  { divider: true, label: "Trackers" },
-  { label: "Trackers", icon: <FlashOn />, path: "/tracker", color: "#1A5FB0" },
   { divider: true, label: "Account" },
   {
     label: "Settings",
