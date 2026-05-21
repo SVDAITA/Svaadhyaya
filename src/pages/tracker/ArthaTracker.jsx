@@ -80,8 +80,8 @@ import dayjs from "dayjs";
 
 // ─── CONSTANTS & THEME (Digital Ashram) ───────────────────────────────────────
 // Earthy, classic, spiritual colors fitting an "Artha" (Wealth/Meaning) tracker
-const COLOR_HERO = "#D97706"; // Saffron / Gold (Primary Hero)
-const COLOR_DARK = "#B45309";
+const COLOR_HERO = "#1A7A6E"; // Teal — matches Artha life area
+const COLOR_DARK = "#0D5C54";
 const RED = "#C53030"; // Terracotta Red
 const GREEN = "#38A169"; // Sage Green
 const AMBER = "#DD6B20"; // Earthy Orange

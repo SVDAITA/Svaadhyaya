@@ -2327,7 +2327,7 @@ export default function TodayPage() {
         supabase.from("naada_sequence_items").select("*").eq("user_id", user.id).order("order_index"),
         supabase.from("naada_sequence_completions").select("naada_item_id,is_completed").eq("user_id", user.id).eq("completion_date", today),
         supabase.from("vritti_projects").select("id,title,status,priority").eq("user_id", user.id).eq("status", "active").order("order_index"),
-        supabase.from("books").select("id,title,author,current_page,total_pages,status").eq("user_id", user.id).eq("status", "reading").limit(5),
+        supabase.from("books").select("id,title,author,pages_read,total_pages,status").eq("user_id", user.id).eq("status", "reading").limit(5),
         supabase.from("vidya_practice_items").select("*").eq("user_id", user.id).order("order_index"),
         supabase.from("vidya_practice_completions").select("vidya_item_id,is_completed").eq("user_id", user.id).eq("completion_date", today),
       ]);
@@ -2807,7 +2807,7 @@ export default function TodayPage() {
     } else if (item.id === "reading") {
       const book = currentBooks[0];
       if (book) {
-        const prog = book.total_pages > 0 ? `${book.current_page || 0}/${book.total_pages} pages` : null;
+        const prog = book.total_pages > 0 ? `${book.pages_read || 0}/${book.total_pages} pages` : null;
         subtitle = [book.title, prog].filter(Boolean).join(" · ");
       } else {
         subtitle = "Open reading tracker →";
@@ -3809,7 +3809,7 @@ export default function TodayPage() {
         <DialogContent sx={{ px: 2.5, py: 1.5 }}>
           {/* Current books */}
           {currentBooks.map((b) => {
-            const prog = b.total_pages > 0 ? Math.round(((b.current_page || 0) / b.total_pages) * 100) : 0;
+            const prog = b.total_pages > 0 ? Math.round(((b.pages_read || 0) / b.total_pages) * 100) : 0;
             const barColor = prog >= 90 ? "#2D7A4F" : prog >= 60 ? "#C07830" : "#A0522D";
             return (
               <Box key={b.id} sx={{ mb: 2, p: 1.5, borderRadius: 2, bgcolor: isDark ? "rgba(160,82,45,0.08)" : "rgba(160,82,45,0.06)", border: `1px solid ${isDark ? "rgba(160,82,45,0.18)" : "rgba(160,82,45,0.15)"}` }}>
@@ -3818,7 +3818,7 @@ export default function TodayPage() {
                 {b.total_pages > 0 && (
                   <Box sx={{ mt: 1 }}>
                     <Box sx={{ display: "flex", justifyContent: "space-between", mb: 0.3 }}>
-                      <Typography sx={{ fontSize: 10, color: isDark ? "#9C8A74" : "#7A5A3A" }}>Page {b.current_page || 0} of {b.total_pages}</Typography>
+                      <Typography sx={{ fontSize: 10, color: isDark ? "#9C8A74" : "#7A5A3A" }}>Page {b.pages_read || 0} of {b.total_pages}</Typography>
                       <Typography sx={{ fontSize: 10, color: barColor, fontWeight: 700 }}>{prog}%</Typography>
                     </Box>
                     <Box sx={{ height: 4, borderRadius: 2, bgcolor: `${barColor}22`, overflow: "hidden" }}>

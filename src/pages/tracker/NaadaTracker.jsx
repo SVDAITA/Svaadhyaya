@@ -64,6 +64,52 @@ const isVisibleToday = (item) => {
 // ── CACHE ─────────────────────────────────────────────────────────────────────
 let _naadaCache = null;
 
+// ── VEENA WATERMARK ───────────────────────────────────────────────────────────
+function VeenaBg({ isDark }) {
+  const op = isDark ? 0.035 : 0.05;
+  const C = NAADA_GOLD;
+  // Neck vector from (310,300) to (60,72) — length ~355
+  const nLen = Math.sqrt(250*250 + 228*228);
+  // Perpendicular unit vector for frets
+  const px = 228/nLen, py = -250/nLen;
+  const frets = Array.from({length:8},(_,i)=>{
+    const t = 0.12 + i*0.10;
+    const x = 310 - 250*t, y = 300 - 228*t;
+    const hw = 9;
+    return <line key={i} x1={x-px*hw} y1={y-py*hw} x2={x+px*hw} y2={y+py*hw} stroke={C} strokeWidth="1" />;
+  });
+  // 4 strings alongside the neck
+  const strings = [[-4,-2],[0,0],[4,2],[8,4]].map(([dx,dy],i)=>(
+    <line key={i} x1={310+dx} y1={300+dy} x2={60+dx} y2={72+dy} stroke={C} strokeWidth="0.6" opacity="0.7" />
+  ));
+  return (
+    <svg width="480" height="420" viewBox="0 0 480 420" fill="none"
+      style={{position:"absolute",bottom:0,right:0,pointerEvents:"none",opacity:op,zIndex:0}}>
+      {/* Main body — large gourd */}
+      <ellipse cx="380" cy="345" rx="82" ry="58" stroke={C} strokeWidth="1.5" fill="none" transform="rotate(-18,380,345)" />
+      {/* Sound holes */}
+      <circle cx="368" cy="336" r="14" stroke={C} strokeWidth="0.8" fill="none" />
+      <circle cx="392" cy="358" r="9" stroke={C} strokeWidth="0.8" fill="none" />
+      {/* Bridge */}
+      <line x1="348" y1="370" x2="408" y2="328" stroke={C} strokeWidth="2" strokeLinecap="round" />
+      {/* Neck */}
+      <path d="M308 298 L58 70" stroke={C} strokeWidth="7" strokeLinecap="round" />
+      {/* Frets */}
+      {frets}
+      {/* Strings */}
+      {strings}
+      {/* Small gourd at head */}
+      <ellipse cx="50" cy="64" rx="24" ry="17" stroke={C} strokeWidth="1" fill="none" transform="rotate(-42,50,64)" />
+      {/* Tuning pegs */}
+      {[[-6,-14],[6,-17],[14,-8],[12,4]].map(([dx,dy],i)=>(
+        <circle key={i} cx={50+dx} cy={64+dy} r="3.5" stroke={C} strokeWidth="0.8" fill="none" />
+      ))}
+      {/* Decorative dot on body */}
+      <circle cx="380" cy="345" r="5" fill={C} opacity="0.3" />
+    </svg>
+  );
+}
+
 // ── STARS component ───────────────────────────────────────────────────────────
 function Stars({ value, onChange, size=18 }) {
   return (
@@ -464,7 +510,11 @@ export default function NaadaTracker({ embedded = false }) {
 
   // ── RENDER ────────────────────────────────────────────────────────────────
   return (
-    <Box sx={embedded ? { color:textP } : { p:{xs:2,md:3},minHeight:"100vh",color:textP }}>
+    <Box sx={embedded
+      ? { position:"relative",overflow:"hidden",color:textP }
+      : { position:"relative",overflow:"hidden",p:{xs:2,md:3},minHeight:"100vh",color:textP }
+    }>
+      <VeenaBg isDark={isDark} />
       {/* ── PAGE HEADER (hidden when embedded) ── */}
       {!embedded && (
         <Box sx={{ mb:3,display:"flex",alignItems:"center",gap:2 }}>

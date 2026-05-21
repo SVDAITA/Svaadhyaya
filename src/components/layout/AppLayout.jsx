@@ -35,6 +35,7 @@ import {
   ChevronRight,
   SettingsOutlined,
   Spa,
+  GridViewOutlined,
 } from "@mui/icons-material";
 import { useAuth } from "../../hooks/useAuth";
 import { useThemeMode } from "../../hooks/useTheme";
@@ -63,7 +64,7 @@ const NAV_ITEMS = [
     label: "Nādam",
     icon: <MusicNote />,
     path: "/svadhyaya/nadam",
-    color: "#7C4DAB",
+    color: "#C07830",
     areaKey: "music",
   },
   {
@@ -100,6 +101,12 @@ const NAV_ITEMS = [
     icon: <SettingsOutlined />,
     path: "/svadhyaya/settings",
     color: "#7C4DAB",
+  },
+  {
+    label: "All Trackers",
+    icon: <GridViewOutlined />,
+    path: "/tracker",
+    color: "#64748b",
   },
 ];
 

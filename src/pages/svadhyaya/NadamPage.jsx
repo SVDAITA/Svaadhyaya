@@ -58,41 +58,42 @@ export default function NadamPage() {
     );
 
   return (
-    <Box sx={{ p: { xs: 2, md: 4 }, maxWidth: 960, mx: "auto", minHeight: "100vh", position: "relative", overflow: "hidden" }}>
+    <Box sx={{ minHeight: "100vh", position: "relative", overflow: "hidden" }}>
       <NadamBg isDark={isDark} />
+      <Box sx={{ p: { xs: 2, md: 3 } }}>
+        {/* ── AREA TABS ── */}
+        <Tabs
+          value={tab} onChange={(_, v) => setTab(v)}
+          sx={{
+            mb: 3,
+            "& .MuiTab-root": { textTransform: "none", fontWeight: 600, fontSize: 13, letterSpacing: 0.3 },
+            "& .Mui-selected": { color: `${safeColor} !important` },
+            "& .MuiTabs-indicator": { bgcolor: safeColor },
+          }}
+        >
+          <Tab label="🕉 Sankalpa" />
+          <Tab label="🎵 Tracker" />
+        </Tabs>
 
-      {/* ── AREA TABS ── */}
-      <Tabs
-        value={tab} onChange={(_, v) => setTab(v)}
-        sx={{
-          mb: 3,
-          "& .MuiTab-root": { textTransform: "none", fontWeight: 600, fontSize: 13, letterSpacing: 0.3 },
-          "& .Mui-selected": { color: `${safeColor} !important` },
-          "& .MuiTabs-indicator": { bgcolor: safeColor },
-        }}
-      >
-        <Tab label="🕉 Sankalpa" />
-        <Tab label="🎵 Tracker" />
-      </Tabs>
+        {/* ── SANKALPA TAB ── */}
+        {tab === 0 && (
+          <>
+            <AreaBanner color={safeColor} emoji="🎵" title="Nādam" subtitle={subtitle}
+              quote="Through Nādam, we structure the silence." />
+            <SankalpaPurpose area={AREA} color={safeColor} isDark={isDark} />
+            <Grid container spacing={2} sx={{ mb: 3 }}>
+              <Grid item xs={6}><StatCard value={activeLakshyas} label="Active Visions" color={safeColor} sub="Lakshyas" /></Grid>
+              <Grid item xs={6}><StatCard value={totalSiddhis} label="Milestones Set" color={safeColor} sub="Siddhis" /></Grid>
+            </Grid>
+            <LakshyaSection area={AREA} color={safeColor} lakshyas={lakshyas} onUpdate={reload} />
+            <AreaJournal area={AREA} color={safeColor} />
+            <WeeklyGoals area={AREA} color={safeColor} />
+          </>
+        )}
 
-      {/* ── SANKALPA TAB ── */}
-      {tab === 0 && (
-        <>
-          <AreaBanner color={safeColor} emoji="🎵" title="Nādam" subtitle={subtitle}
-            quote="Through Nādam, we structure the silence." />
-          <SankalpaPurpose area={AREA} color={safeColor} isDark={isDark} />
-          <Grid container spacing={2} sx={{ mb: 3 }}>
-            <Grid item xs={6}><StatCard value={activeLakshyas} label="Active Visions" color={safeColor} sub="Lakshyas" /></Grid>
-            <Grid item xs={6}><StatCard value={totalSiddhis} label="Milestones Set" color={safeColor} sub="Siddhis" /></Grid>
-          </Grid>
-          <LakshyaSection area={AREA} color={safeColor} lakshyas={lakshyas} onUpdate={reload} />
-          <AreaJournal area={AREA} color={safeColor} />
-          <WeeklyGoals area={AREA} color={safeColor} />
-        </>
-      )}
-
-      {/* ── TRACKER TAB ── */}
-      {tab === 1 && <NaadaTracker embedded />}
+        {/* ── TRACKER TAB ── */}
+        {tab === 1 && <NaadaTracker embedded />}
+      </Box>
     </Box>
   );
 }
