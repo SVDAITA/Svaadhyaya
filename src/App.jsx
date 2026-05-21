@@ -34,6 +34,7 @@ import VrittiTracker from "./pages/tracker/VrittiTracker";
 import PathanamTracker from "./pages/tracker/PathanamTracker";
 import PurohitamTracker from "./pages/tracker/PurohitamTracker";
 import YatraTracker from "./pages/tracker/YatraTracker";
+import NaadaTracker from "./pages/tracker/NaadaTracker";
 
 import NotFoundPage from "./pages/NotFoundPage";
 import AdminPage from "./pages/AdminPage";
@@ -97,6 +98,7 @@ export default function App() {
                 <Route path="/tracker/reading" element={<PathanamTracker />} />
                 <Route path="/tracker/sacred" element={<PurohitamTracker />} />
                 <Route path="/tracker/journey" element={<YatraTracker />} />
+                <Route path="/tracker/nadam" element={<NaadaTracker />} />
               </Route>
 
               <Route path="/svdaiadmin" element={<ProtectedRoute><AdminPage /></ProtectedRoute>} />

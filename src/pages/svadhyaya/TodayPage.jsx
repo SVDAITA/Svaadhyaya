@@ -71,7 +71,7 @@ const DEFAULT_SACRED = [
     label: "Naada Saadhana",
     emoji: "🎵",
     locked: true,
-    deep: true,
+    readOnly: true,
   },
   {
     id: "walk",
@@ -2209,6 +2209,13 @@ export default function TodayPage() {
   const [seqCompletions, setSeqCompletions] = useState({});
   const [seqOpen, setSeqOpen] = useState(false);
 
+  // Naada Saadhana popup
+  const [naadaSeqOpen, setNaadaSeqOpen] = useState(false);
+  const [naadaSeqItems, setNaadaSeqItems] = useState([]);
+  const [naadaSeqCompletions, setNaadaSeqCompletions] = useState({});
+  const [naadaSeqDone, setNaadaSeqDone] = useState(0);
+  const [naadaSeqTotal, setNaadaSeqTotal] = useState(0);
+
   // Vyaayamam popup
   const [walkOpen, setWalkOpen] = useState(false);
   const [walkExType, setWalkExType] = useState("walk");
@@ -2301,12 +2308,14 @@ export default function TodayPage() {
     try {
       const yesterday = dayjs().subtract(1, "day").format("YYYY-MM-DD");
       const sevenAgo = dayjs().subtract(7, "day").format("YYYY-MM-DD");
-      const [{ data: dayData }, { data: yData }, { data: seqItems }, { data: seqComps }, { data: actData }] = await Promise.all([
+      const [{ data: dayData }, { data: yData }, { data: seqItems }, { data: seqComps }, { data: actData }, { data: naadaItems }, { data: naadaComps }] = await Promise.all([
         supabase.from("days").select("*").eq("user_id", user.id).eq("day_date", today).maybeSingle(),
         supabase.from("days").select("tomorrow_tasks").eq("user_id", user.id).eq("day_date", yesterday).maybeSingle(),
         supabase.from("daily_items").select("*").eq("user_id", user.id).order("order_index"),
         supabase.from("daily_item_completions").select("daily_item_id,is_completed").eq("user_id", user.id).eq("completion_date", today),
         supabase.from("daily_activity").select("*").eq("user_id", user.id).gte("date", sevenAgo).order("date", { ascending: false }),
+        supabase.from("naada_sequence_items").select("*").eq("user_id", user.id).order("order_index"),
+        supabase.from("naada_sequence_completions").select("naada_item_id,is_completed").eq("user_id", user.id).eq("completion_date", today),
       ]);
       // Load walk popup data
       if (actData) {
@@ -2333,6 +2342,21 @@ export default function TodayPage() {
         setSeqCompletions(compMap);
         setSeqTotal(visible.length);
         setSeqDone(visible.filter((s) => compMap[s.id]).length);
+      }
+      // Naada sequence stats
+      if (naadaItems) {
+        const todayDay2 = dayjs();
+        const naadaVisible = naadaItems.filter((s) => {
+          if (s.frequency === "daily") return true;
+          if (s.frequency === "weekly") return todayDay2.day() === (s.frequency_day ?? 0);
+          if (s.frequency === "monthly") return todayDay2.date() === (s.frequency_day ?? 1);
+          return true;
+        });
+        const naadaCompMap = Object.fromEntries((naadaComps || []).map((c) => [c.naada_item_id, c.is_completed]));
+        setNaadaSeqItems(naadaItems);
+        setNaadaSeqCompletions(naadaCompMap);
+        setNaadaSeqTotal(naadaVisible.length);
+        setNaadaSeqDone(naadaVisible.filter((s) => naadaCompMap[s.id]).length);
       }
 
       if (dayData) {
@@ -2481,6 +2505,7 @@ export default function TodayPage() {
     if (dayClosed) return;
     if (item.readOnly) {
       if (item.id === "walk") { setWalkOpen(true); return; }
+      if (item.id === "saadhana") { setNaadaSeqOpen(true); return; }
       setSeqOpen(true); return;
     }
     if (!habits[item.id]) {
@@ -2526,6 +2551,34 @@ export default function TodayPage() {
     );
     if (allDone) {
       setHabits((prev) => ({ ...prev, anushthanam: true }));
+    }
+  };
+
+  const handleNaadaSeqToggle = async (itemId) => {
+    const isDone = !naadaSeqCompletions[itemId];
+    const newComps = { ...naadaSeqCompletions, [itemId]: isDone };
+    setNaadaSeqCompletions(newComps);
+    const visible = naadaSeqItems.filter((s) => {
+      if (s.frequency === "daily") return true;
+      const td = dayjs();
+      if (s.frequency === "weekly") return td.day() === (s.frequency_day ?? 0);
+      if (s.frequency === "monthly") return td.date() === (s.frequency_day ?? 1);
+      return true;
+    });
+    const done = visible.filter((s) => newComps[s.id]).length;
+    setNaadaSeqDone(done);
+    await supabase.from("naada_sequence_completions").upsert(
+      { user_id: user.id, naada_item_id: itemId, completion_date: today, is_completed: isDone },
+      { onConflict: "user_id,naada_item_id,completion_date" },
+    );
+    const allDone = visible.length > 0 && visible.every((s) => newComps[s.id]);
+    const { data: dayRow } = await supabase.from("days").select("habits").eq("user_id", user.id).eq("day_date", today).maybeSingle();
+    await supabase.from("days").upsert(
+      { user_id: user.id, day_date: today, habits: { ...(dayRow?.habits || {}), saadhana: allDone } },
+      { onConflict: "user_id,day_date" },
+    );
+    if (allDone) {
+      setHabits((prev) => ({ ...prev, saadhana: true }));
     }
   };
 
@@ -2721,6 +2774,8 @@ export default function TodayPage() {
     let subtitle = null;
     if (item.id === "anushthanam") {
       subtitle = seqTotal > 0 ? `${seqDone} of ${seqTotal} rituals complete` : "Open daily sequence →";
+    } else if (item.id === "saadhana") {
+      subtitle = naadaSeqTotal > 0 ? `${naadaSeqDone} of ${naadaSeqTotal} complete` : "Open music practice →";
     } else if (item.id === "walk") {
       const todayAct = walkActivityLogs.find((a) => a.date === today);
       if (todayAct) {
@@ -3657,6 +3712,168 @@ export default function TodayPage() {
             sx={{ background: "#2D7A4F", color: "#fff", textTransform: "none", fontWeight: 600, borderRadius: 2, fontSize: 13, "&:hover": { background: "#1A5F3A" }, ml: "auto" }}
           >
             {walkSavingMov ? "Saving…" : "Log it ✓"}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* ── NAADA SAADHANA POPUP ── */}
+      <Dialog
+        open={naadaSeqOpen}
+        onClose={() => setNaadaSeqOpen(false)}
+        fullWidth
+        maxWidth="xs"
+        PaperProps={{
+          sx: {
+            borderRadius: 3,
+            background: isDark ? "#1A1916" : "#FDFCFA",
+            border: `1px solid ${isDark ? "rgba(255,255,255,0.08)" : "#E2DDD6"}`,
+            overflow: "hidden",
+          },
+        }}
+      >
+        <Box
+          sx={{
+            px: 3,
+            pt: 2.5,
+            pb: 1.5,
+            display: "flex",
+            alignItems: "center",
+            gap: 1.5,
+            borderBottom: `1px solid ${isDark ? "rgba(255,255,255,0.06)" : "#EAE6E0"}`,
+          }}
+        >
+          <Typography sx={{ fontSize: 18 }}>🎵</Typography>
+          <Box sx={{ flex: 1 }}>
+            <Typography
+              sx={{
+                fontFamily: '"Fraunces","Lora",serif',
+                fontWeight: 600,
+                fontSize: 17,
+                color: isDark ? "#F0EDE8" : "#2C2C2C",
+                lineHeight: 1.2,
+              }}
+            >
+              Naada Saadhana
+            </Typography>
+            {naadaSeqTotal > 0 && (
+              <Typography sx={{ fontSize: 11, color: "#C07830", fontWeight: 500, mt: 0.2 }}>
+                {naadaSeqDone} of {naadaSeqTotal} practice items complete
+              </Typography>
+            )}
+          </Box>
+          <IconButton size="small" onClick={() => setNaadaSeqOpen(false)} sx={{ color: isDark ? "#7C7A74" : "#9C9A94" }}>
+            <Close sx={{ fontSize: 18 }} />
+          </IconButton>
+        </Box>
+
+        <DialogContent sx={{ px: 2.5, py: 1.5 }}>
+          {(() => {
+            const todayDay = dayjs();
+            const visibleNaada = naadaSeqItems.filter((s) => {
+              if (s.frequency === "daily") return true;
+              if (s.frequency === "weekly") return todayDay.day() === (s.frequency_day ?? 0);
+              if (s.frequency === "monthly") return todayDay.date() === (s.frequency_day ?? 1);
+              return true;
+            });
+            if (visibleNaada.length === 0) {
+              return (
+                <Box sx={{ py: 4, textAlign: "center" }}>
+                  <Typography sx={{ fontSize: 13, color: isDark ? "#7C7A74" : "#9C9A94" }}>
+                    No practice items scheduled for today.
+                  </Typography>
+                  <Typography sx={{ fontSize: 12, color: isDark ? "#5C5A54" : "#B0AEA8", mt: 0.5 }}>
+                    Add items in the Naada Saadhana tracker.
+                  </Typography>
+                </Box>
+              );
+            }
+            return visibleNaada.map((item) => {
+              const done = !!naadaSeqCompletions[item.id];
+              return (
+                <Box
+                  key={item.id}
+                  onClick={() => { haptic(8); handleNaadaSeqToggle(item.id); }}
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 1.5,
+                    py: 1.25,
+                    px: 1,
+                    borderRadius: 2,
+                    cursor: "pointer",
+                    borderBottom: `1px solid ${isDark ? "rgba(255,255,255,0.04)" : "#F0EDE8"}`,
+                    "&:last-child": { borderBottom: "none" },
+                    "&:hover": { background: isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.02)" },
+                    transition: "background 0.12s",
+                    opacity: done ? 0.6 : 1,
+                  }}
+                >
+                  <Box
+                    sx={{
+                      width: 26,
+                      height: 26,
+                      borderRadius: "50%",
+                      flexShrink: 0,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      background: done ? "#C07830" : isDark ? "#1F1E1B" : "#F0EDE8",
+                      border: `1.5px solid ${done ? "#C07830" : isDark ? "#3C3C3C" : "#D1D0CF"}`,
+                      transition: "all 0.15s",
+                    }}
+                  >
+                    {done
+                      ? <CheckCircle sx={{ fontSize: 14, color: "#fff" }} />
+                      : <RadioButtonUnchecked sx={{ fontSize: 14, color: isDark ? "#5C5A54" : "#C8C6C0" }} />
+                    }
+                  </Box>
+                  <Box sx={{ flex: 1, minWidth: 0 }}>
+                    <Typography
+                      noWrap
+                      sx={{
+                        fontSize: 13,
+                        fontWeight: 500,
+                        color: done ? (isDark ? "#5C5A54" : "#9C9A94") : (isDark ? "#F0EDE8" : "#2C2C2C"),
+                        textDecoration: done ? "line-through" : "none",
+                      }}
+                    >
+                      {item.emoji ? `${item.emoji} ` : ""}{item.label}
+                    </Typography>
+                    {item.duration_minutes && (
+                      <Typography sx={{ fontSize: 10, color: isDark ? "#6C6A64" : "#B0AEA8", mt: 0.1 }}>
+                        {item.duration_minutes} min
+                      </Typography>
+                    )}
+                  </Box>
+                </Box>
+              );
+            });
+          })()}
+        </DialogContent>
+
+        <DialogActions sx={{ px: 2.5, pb: 2, pt: 0.5, justifyContent: "space-between" }}>
+          <Button
+            size="small"
+            onClick={() => { setNaadaSeqOpen(false); navigate("/tracker/nadam"); }}
+            sx={{ color: isDark ? "#7C7A74" : "#9C9A94", textTransform: "none", fontSize: 12 }}
+          >
+            Open full tracker →
+          </Button>
+          <Button
+            variant="contained"
+            size="small"
+            onClick={() => setNaadaSeqOpen(false)}
+            sx={{
+              background: "#C07830",
+              color: "#fff",
+              textTransform: "none",
+              fontWeight: 600,
+              borderRadius: 2,
+              fontSize: 13,
+              "&:hover": { background: "#A0621A" },
+            }}
+          >
+            Done
           </Button>
         </DialogActions>
       </Dialog>
