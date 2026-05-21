@@ -2186,6 +2186,9 @@ export default function TodayPage() {
   const navigate = useNavigate();
   const [seqDone, setSeqDone] = useState(0);
   const [seqTotal, setSeqTotal] = useState(0);
+  const [seqItems, setSeqItems] = useState([]);
+  const [seqCompletions, setSeqCompletions] = useState({});
+  const [seqOpen, setSeqOpen] = useState(false);
   const isDark = mode === "dark";
   const { data: panchangam, loading: panchLoading } = usePanchang();
   const today = dayjs().format("YYYY-MM-DD");
@@ -2271,7 +2274,7 @@ export default function TodayPage() {
       const [{ data: dayData }, { data: yData }, { data: seqItems }, { data: seqComps }] = await Promise.all([
         supabase.from("days").select("*").eq("user_id", user.id).eq("day_date", today).maybeSingle(),
         supabase.from("days").select("tomorrow_tasks").eq("user_id", user.id).eq("day_date", yesterday).maybeSingle(),
-        supabase.from("daily_items").select("id,frequency,frequency_day").eq("user_id", user.id),
+        supabase.from("daily_items").select("*").eq("user_id", user.id).order("order_index"),
         supabase.from("daily_item_completions").select("daily_item_id,is_completed").eq("user_id", user.id).eq("completion_date", today),
       ]);
       // Compute visible-today sequence stats
@@ -2284,6 +2287,8 @@ export default function TodayPage() {
           return true;
         });
         const compMap = Object.fromEntries((seqComps || []).map((c) => [c.daily_item_id, c.is_completed]));
+        setSeqItems(seqItems);
+        setSeqCompletions(compMap);
         setSeqTotal(visible.length);
         setSeqDone(visible.filter((s) => compMap[s.id]).length);
       }
@@ -2432,7 +2437,7 @@ export default function TodayPage() {
 
   const handleToggle = (item) => {
     if (dayClosed) return;
-    if (item.readOnly) { navigate(item.navTo); return; }
+    if (item.readOnly) { setSeqOpen(true); return; }
     if (!habits[item.id]) {
       if (item.deep) {
         setCompletionItem(item);
@@ -2445,6 +2450,37 @@ export default function TodayPage() {
       const next = { ...habits, [item.id]: false };
       setHabits(next);
       sync({ habits: next });
+    }
+  };
+
+  const handleSeqToggle = async (itemId) => {
+    const isDone = !seqCompletions[itemId];
+    const newComps = { ...seqCompletions, [itemId]: isDone };
+    setSeqCompletions(newComps);
+    // Update done count
+    const visible = seqItems.filter((s) => {
+      if (s.frequency === "daily") return true;
+      const td = dayjs();
+      if (s.frequency === "weekly") return td.day() === (s.frequency_day ?? 0);
+      if (s.frequency === "monthly") return td.date() === (s.frequency_day ?? 1);
+      return true;
+    });
+    const done = visible.filter((s) => newComps[s.id]).length;
+    setSeqDone(done);
+    // Persist completion
+    await supabase.from("daily_item_completions").upsert(
+      { user_id: user.id, daily_item_id: itemId, completion_date: today, is_completed: isDone },
+      { onConflict: "user_id,daily_item_id,completion_date" },
+    );
+    // Update day's anushthanam habit flag
+    const allDone = visible.length > 0 && visible.every((s) => newComps[s.id]);
+    const { data: dayRow } = await supabase.from("days").select("habits").eq("user_id", user.id).eq("day_date", today).maybeSingle();
+    await supabase.from("days").upsert(
+      { user_id: user.id, day_date: today, habits: { ...(dayRow?.habits || {}), anushthanam: allDone } },
+      { onConflict: "user_id,day_date" },
+    );
+    if (allDone) {
+      setHabits((prev) => ({ ...prev, anushthanam: true }));
     }
   };
 
@@ -3352,6 +3388,170 @@ export default function TodayPage() {
           sx: { background: "#2C2C2C", borderRadius: 2, fontSize: 13 },
         }}
       />
+
+      {/* ── DAILY SEQUENCE POPUP ── */}
+      <Dialog
+        open={seqOpen}
+        onClose={() => setSeqOpen(false)}
+        fullWidth
+        maxWidth="xs"
+        PaperProps={{
+          sx: {
+            borderRadius: 3,
+            background: isDark ? "#1A1916" : "#FDFCFA",
+            border: `1px solid ${isDark ? "rgba(255,255,255,0.08)" : "#E2DDD6"}`,
+            overflow: "hidden",
+          },
+        }}
+      >
+        {/* header */}
+        <Box
+          sx={{
+            px: 3,
+            pt: 2.5,
+            pb: 1.5,
+            display: "flex",
+            alignItems: "center",
+            gap: 1.5,
+            borderBottom: `1px solid ${isDark ? "rgba(255,255,255,0.06)" : "#EAE6E0"}`,
+          }}
+        >
+          <Typography sx={{ fontSize: 18 }}>🪔</Typography>
+          <Box sx={{ flex: 1 }}>
+            <Typography
+              sx={{
+                fontFamily: '"Fraunces","Lora",serif',
+                fontWeight: 600,
+                fontSize: 17,
+                color: isDark ? "#F0EDE8" : "#2C2C2C",
+                lineHeight: 1.2,
+              }}
+            >
+              Daily Sequence
+            </Typography>
+            {seqTotal > 0 && (
+              <Typography sx={{ fontSize: 11, color: "#C07830", fontWeight: 500, mt: 0.2 }}>
+                {seqDone} of {seqTotal} rituals complete
+              </Typography>
+            )}
+          </Box>
+          <IconButton size="small" onClick={() => setSeqOpen(false)} sx={{ color: isDark ? "#7C7A74" : "#9C9A94" }}>
+            <Close sx={{ fontSize: 18 }} />
+          </IconButton>
+        </Box>
+
+        <DialogContent sx={{ px: 2.5, py: 1.5 }}>
+          {(() => {
+            const todayDay = dayjs();
+            const visibleSeq = seqItems.filter((s) => {
+              if (s.frequency === "daily") return true;
+              if (s.frequency === "weekly") return todayDay.day() === (s.frequency_day ?? 0);
+              if (s.frequency === "monthly") return todayDay.date() === (s.frequency_day ?? 1);
+              return true;
+            });
+            if (visibleSeq.length === 0) {
+              return (
+                <Box sx={{ py: 4, textAlign: "center" }}>
+                  <Typography sx={{ fontSize: 13, color: isDark ? "#7C7A74" : "#9C9A94" }}>
+                    No rituals scheduled for today.
+                  </Typography>
+                  <Typography sx={{ fontSize: 12, color: isDark ? "#5C5A54" : "#B0AEA8", mt: 0.5 }}>
+                    Add rituals in the Sacred tracker.
+                  </Typography>
+                </Box>
+              );
+            }
+            return visibleSeq.map((item) => {
+              const done = !!seqCompletions[item.id];
+              return (
+                <Box
+                  key={item.id}
+                  onClick={() => handleSeqToggle(item.id)}
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 1.5,
+                    py: 1.25,
+                    px: 1,
+                    borderRadius: 2,
+                    cursor: "pointer",
+                    borderBottom: `1px solid ${isDark ? "rgba(255,255,255,0.04)" : "#F0EDE8"}`,
+                    "&:last-child": { borderBottom: "none" },
+                    "&:hover": { background: isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.02)" },
+                    transition: "background 0.12s",
+                    opacity: done ? 0.6 : 1,
+                  }}
+                >
+                  <Box
+                    sx={{
+                      width: 26,
+                      height: 26,
+                      borderRadius: "50%",
+                      flexShrink: 0,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      background: done ? "#C07830" : isDark ? "#1F1E1B" : "#F0EDE8",
+                      border: `1.5px solid ${done ? "#C07830" : isDark ? "#3C3C3C" : "#D1D0CF"}`,
+                      transition: "all 0.15s",
+                    }}
+                  >
+                    {done
+                      ? <CheckCircle sx={{ fontSize: 14, color: "#fff" }} />
+                      : <RadioButtonUnchecked sx={{ fontSize: 14, color: isDark ? "#5C5A54" : "#C8C6C0" }} />
+                    }
+                  </Box>
+                  <Box sx={{ flex: 1, minWidth: 0 }}>
+                    <Typography
+                      noWrap
+                      sx={{
+                        fontSize: 13,
+                        fontWeight: 500,
+                        color: done ? (isDark ? "#5C5A54" : "#9C9A94") : (isDark ? "#F0EDE8" : "#2C2C2C"),
+                        textDecoration: done ? "line-through" : "none",
+                      }}
+                    >
+                      {item.emoji ? `${item.emoji} ` : ""}{item.label}
+                    </Typography>
+                    {item.duration_minutes && (
+                      <Typography sx={{ fontSize: 10, color: isDark ? "#6C6A64" : "#B0AEA8", mt: 0.1 }}>
+                        {item.duration_minutes} min
+                      </Typography>
+                    )}
+                  </Box>
+                </Box>
+              );
+            });
+          })()}
+        </DialogContent>
+
+        <DialogActions sx={{ px: 2.5, pb: 2, pt: 0.5, justifyContent: "space-between" }}>
+          <Button
+            size="small"
+            onClick={() => { setSeqOpen(false); navigate("/tracker/sacred"); }}
+            sx={{ color: isDark ? "#7C7A74" : "#9C9A94", textTransform: "none", fontSize: 12 }}
+          >
+            Open full tracker →
+          </Button>
+          <Button
+            variant="contained"
+            size="small"
+            onClick={() => setSeqOpen(false)}
+            sx={{
+              background: "#C07830",
+              color: "#fff",
+              textTransform: "none",
+              fontWeight: 600,
+              borderRadius: 2,
+              fontSize: 13,
+              "&:hover": { background: "#A0621A" },
+            }}
+          >
+            Done
+          </Button>
+        </DialogActions>
+      </Dialog>
+
     </Box>
   );
 }
