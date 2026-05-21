@@ -3854,7 +3854,7 @@ export default function TodayPage() {
           ))}
         </DialogContent>
         <DialogActions sx={{ px: 2.5, pb: 2, pt: 0.5, justifyContent: "space-between" }}>
-          <Button size="small" onClick={() => { setVrittiOpen(false); navigate("/svadhyaya/vrutti"); }}
+          <Button size="small" onClick={() => { setVrittiOpen(false); navigate("/svadhyaya/vrutti", { state: { tab: 1 } }); }}
             sx={{ color: isDark ? "#7C7A74" : "#9C9A94", textTransform: "none", fontSize: 12 }}>Open full tracker →</Button>
           <Button variant="contained" size="small" onClick={() => setVrittiOpen(false)}
             sx={{ background: "#1A5FB0", color: "#fff", textTransform: "none", fontWeight: 600, borderRadius: 2, fontSize: 13, "&:hover": { background: "#1050A0" } }}>
@@ -3944,7 +3944,7 @@ export default function TodayPage() {
           )}
         </DialogContent>
         <DialogActions sx={{ px: 2.5, pb: 2, pt: 0.5, justifyContent: "space-between" }}>
-          <Button size="small" onClick={() => { setReadingOpen(false); navigate("/svadhyaya/vidya"); }}
+          <Button size="small" onClick={() => { setReadingOpen(false); navigate("/svadhyaya/vidya", { state: { tab: 1 } }); }}
             sx={{ color: isDark ? "#7C7A74" : "#9C9A94", textTransform: "none", fontSize: 12 }}>Open full tracker →</Button>
           <Button variant="contained" size="small" onClick={() => setReadingOpen(false)}
             sx={{ background: "#C07830", color: "#fff", textTransform: "none", fontWeight: 600, borderRadius: 2, fontSize: 13, "&:hover": { background: "#A0621A" } }}>
@@ -4091,7 +4091,7 @@ export default function TodayPage() {
         <DialogActions sx={{ px: 2.5, pb: 2, pt: 0.5, justifyContent: "space-between" }}>
           <Button
             size="small"
-            onClick={() => { setNaadaSeqOpen(false); navigate("/tracker/nadam"); }}
+            onClick={() => { setNaadaSeqOpen(false); navigate("/svadhyaya/nadam", { state: { tab: 1 } }); }}
             sx={{ color: isDark ? "#7C7A74" : "#9C9A94", textTransform: "none", fontSize: 12 }}
           >
             Open full tracker →
@@ -4254,7 +4254,7 @@ export default function TodayPage() {
         <DialogActions sx={{ px: 2.5, pb: 2, pt: 0.5, justifyContent: "space-between" }}>
           <Button
             size="small"
-            onClick={() => { setSeqOpen(false); navigate("/tracker/sacred"); }}
+            onClick={() => { setSeqOpen(false); navigate("/svadhyaya/anushthanam", { state: { tab: 1 } }); }}
             sx={{ color: isDark ? "#7C7A74" : "#9C9A94", textTransform: "none", fontSize: 12 }}
           >
             Open full tracker →

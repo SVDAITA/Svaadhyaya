@@ -1536,7 +1536,7 @@ export default function NaadaTracker({ embedded = false }) {
       </Dialog>
 
       {/* ── SNACKBAR ── */}
-      <Snackbar open={snack.open} autoHideDuration={3000} onClose={()=>setSnack((p)=>({...p,open:false}))} anchorOrigin={{ vertical:"bottom",horizontal:"center" }}>
+      <Snackbar open={snack.open} autoHideDuration={3000} onClose={()=>setSnack((p)=>({...p,open:false}))} anchorOrigin={{ vertical:"top",horizontal:"center" }}>
         <Alert onClose={()=>setSnack((p)=>({...p,open:false}))} severity={snack.sev} sx={{ borderRadius:2 }}>{snack.msg}</Alert>
       </Snackbar>
     </Box>

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useLocation } from "react-router-dom";
 import { Box, Grid, CircularProgress, Tabs, Tab } from "@mui/material";
 import {
   AreaBanner, StatCard, LakshyaSection, AreaJournal, WeeklyGoals,
@@ -41,7 +42,8 @@ export default function VruttiPage() {
   const isDark = mode === "dark";
   const safeColor = isDark ? "#6AAEE8" : COLOR;
   const subtitle = useAreaSubtitle(AREA);
-  const [tab, setTab] = useState(0);
+  const location = useLocation();
+  const [tab, setTab] = useState(location.state?.tab ?? 0);
 
   const activeLakshyas = lakshyas.filter((l) => l.status === "active").length;
   const totalSiddhis = lakshyas.reduce((acc,l) => acc + (l.siddhis?.length||0), 0);

@@ -903,7 +903,7 @@ export default function VrittiTracker({ embedded = false }) {
 
       {/* Snackbar */}
       <Snackbar open={snack.open} autoHideDuration={3000} onClose={() => setSnack((s) => ({ ...s, open: false }))}
-        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}>
+        anchorOrigin={{ vertical: "top", horizontal: "center" }}>
         <Alert severity={snack.sev} onClose={() => setSnack((s) => ({ ...s, open: false }))} sx={{ borderRadius: 2, fontWeight: 600 }}>
           {snack.msg}
         </Alert>

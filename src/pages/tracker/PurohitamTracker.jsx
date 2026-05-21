@@ -2811,11 +2811,11 @@ function AnushtanamTab({ user, isDark }) {
 // ═══════════════════════════════════════════════════════════════════
 // ROOT COMPONENT
 // ═══════════════════════════════════════════════════════════════════
-export default function PurohitamTracker({ embedded = false }) {
+export default function PurohitamTracker({ embedded = false, defaultTab = 0 }) {
   const { user } = useAuth();
   const { mode } = useThemeMode();
   const isDark = mode === "dark";
-  const [tab, setTab] = useState(0);
+  const [tab, setTab] = useState(defaultTab);
 
   const bgSaffron = isDark
     ? `radial-gradient(ellipse 90% 35% at 50% -5%, ${SAFFRON}10 0%, #0D0B08 65%)`
@@ -2878,7 +2878,7 @@ export default function PurohitamTracker({ embedded = false }) {
               mt: 0.25,
             }}
           >
-            {tab === 0 ? "Purohitam Tracker" : "Anushtanam Tracker"}
+            {tab === 0 ? "Nitya Karma Tracker" : "Anushtanam Tracker"}
           </Typography>
           <Typography sx={{ fontSize: 13, color: textS, mt: 0.25 }}>
             {tab === 0
