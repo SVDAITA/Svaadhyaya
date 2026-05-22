@@ -393,7 +393,7 @@ export default function VrittiTracker({ embedded = false }) {
           </Box>
           <Box>
             <Typography sx={{ fontFamily: '"Fraunces","Lora",serif', fontSize: { xs: 24, md: 30 }, fontWeight: 500, color: textP, lineHeight: 1.1 }}>
-              Vṛtti Tracker
+              Vritti Tracker
             </Typography>
             <Typography sx={{ fontSize: 11, color: blue, fontWeight: 600, letterSpacing: 0.8 }}>
               वृत्ति — Your Professional Practice

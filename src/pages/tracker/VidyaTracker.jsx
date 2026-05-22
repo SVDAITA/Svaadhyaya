@@ -515,7 +515,7 @@ export default function VidyaTracker({ embedded = false }) {
           </Box>
           <Box>
             <Typography sx={{ fontFamily: '"Fraunces","Lora",serif', fontSize: { xs: 24, md: 30 }, fontWeight: 500, color: textP, lineHeight: 1.1 }}>
-              Vidyā Tracker
+              Vidya Tracker
             </Typography>
             <Typography sx={{ fontSize: 11, color: gold, fontWeight: 600, letterSpacing: 0.8 }}>
               विद्या — Your Learning Practice
