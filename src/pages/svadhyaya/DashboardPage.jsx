@@ -2467,6 +2467,7 @@ function VitalsHero({
   todayJapa,
   japaGoal,
   todayActivity,
+  yesterdayActivity,
   readingBooks = [],
   heroColor,
   isDark,
@@ -3310,6 +3311,7 @@ export default function DashboardPage() {
           todayJapa={todayJapa}
           japaGoal={japaGoals[0] || null}
           todayActivity={todayActivity}
+          yesterdayActivity={yesterdayActivity}
           readingBooks={readingBooks}
           heroColor={heroColor}
           isDark={isDark}
