@@ -4,22 +4,26 @@ import { Box, TextField, Button, Typography, Alert, CircularProgress, Link, Icon
 import { ArrowBack, DarkMode, LightMode, CheckCircle } from '@mui/icons-material'
 import { useAuth } from '../../hooks/useAuth'
 import { useThemeMode } from '../../hooks/useTheme'
-import { getAllQuotes } from '../../lib/quotes'
-const QUOTES = getAllQuotes()
+import { QUOTES as BUILTIN_QUOTES, getAllQuotesAsync } from '../../lib/quotes'
+import { supabase } from '../../lib/supabase'
 import MandalaSVG from '../../components/shared/MandalaSVG'
 
 
 function QuotePanel({ isDark, primaryColor }) {
-  const [idx, setIdx] = useState(() => Math.floor(Math.random() * QUOTES.length))
+  const [quotes, setQuotes] = useState(BUILTIN_QUOTES)
+  const [idx, setIdx] = useState(() => Math.floor(Math.random() * BUILTIN_QUOTES.length))
   const [visible, setVisible] = useState(true)
-  const q = QUOTES[idx]
+  const q = quotes[idx]
+  useEffect(() => {
+    getAllQuotesAsync(supabase).then((all) => { setQuotes(all); setIdx(Math.floor(Math.random() * all.length)) })
+  }, [])
   useEffect(() => {
     const t = setInterval(() => {
       setVisible(false)
-      setTimeout(() => { setIdx(i => (i + 1) % QUOTES.length); setVisible(true) }, 500)
+      setTimeout(() => { setIdx(i => (i + 1) % quotes.length); setVisible(true) }, 500)
     }, 7000)
     return () => clearInterval(t)
-  }, [])
+  }, [quotes.length])
   const bg = isDark ? 'linear-gradient(160deg,#1A1916 0%,#110F0C 100%)' : 'linear-gradient(160deg,#FAF9F6 0%,#F2EEE6 100%)'
   const tc = isDark ? '#F0EDE8' : '#2C2C2C'
   const sc = isDark ? '#9C9A94' : '#5F5F5F'

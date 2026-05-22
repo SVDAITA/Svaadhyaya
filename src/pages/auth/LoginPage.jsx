@@ -8,8 +8,8 @@ import {
 import { Visibility, VisibilityOff } from '@mui/icons-material'
 import { useAuth } from '../../hooks/useAuth'
 import { useThemeMode } from '../../hooks/useTheme'
-import { getAllQuotes } from '../../lib/quotes'
-const QUOTES = getAllQuotes()
+import { QUOTES as BUILTIN_QUOTES, getAllQuotesAsync } from '../../lib/quotes'
+import { supabase } from '../../lib/supabase'
 
 const BG = '#F8FAFC'
 const PANEL_BG = 'linear-gradient(160deg, #EEF2FF 0%, #F0F9FF 100%)'
@@ -19,20 +19,28 @@ const SUBTEXT = '#475569'
 
 
 function QuotePanel({ primaryColor }) {
-  const [idx, setIdx] = useState(() => Math.floor(Math.random() * QUOTES.length))
+  const [quotes, setQuotes] = useState(BUILTIN_QUOTES)
+  const [idx, setIdx] = useState(() => Math.floor(Math.random() * BUILTIN_QUOTES.length))
   const [visible, setVisible] = useState(true)
-  const q = QUOTES[idx]
+  const q = quotes[idx]
+
+  useEffect(() => {
+    getAllQuotesAsync(supabase).then((all) => {
+      setQuotes(all)
+      setIdx(Math.floor(Math.random() * all.length))
+    })
+  }, [])
 
   useEffect(() => {
     const timer = setInterval(() => {
       setVisible(false)
       setTimeout(() => {
-        setIdx(i => (i + 1) % QUOTES.length)
+        setIdx(i => (i + 1) % quotes.length)
         setVisible(true)
       }, 500)
     }, 7000)
     return () => clearInterval(timer)
-  }, [])
+  }, [quotes.length])
 
   return (
     <Box sx={{

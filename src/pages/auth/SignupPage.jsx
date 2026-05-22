@@ -4,8 +4,8 @@ import { Box, TextField, Button, Typography, InputAdornment, IconButton, Alert, 
 import { Visibility, VisibilityOff, CheckCircle } from '@mui/icons-material'
 import { useAuth } from '../../hooks/useAuth'
 import { useThemeMode } from '../../hooks/useTheme'
-import { getAllQuotes } from '../../lib/quotes'
-const QUOTES = getAllQuotes()
+import { QUOTES as BUILTIN_QUOTES, getAllQuotesAsync } from '../../lib/quotes'
+import { supabase } from '../../lib/supabase'
 import MandalaSVG from '../../components/shared/MandalaSVG'
 
 const BG = '#F8FAFC'
@@ -16,16 +16,20 @@ const SUBTEXT = '#475569'
 
 
 function QuotePanel({ primaryColor }) {
-  const [idx, setIdx] = useState(() => Math.floor(Math.random() * QUOTES.length))
+  const [quotes, setQuotes] = useState(BUILTIN_QUOTES)
+  const [idx, setIdx] = useState(() => Math.floor(Math.random() * BUILTIN_QUOTES.length))
   const [visible, setVisible] = useState(true)
-  const q = QUOTES[idx]
+  const q = quotes[idx]
+  useEffect(() => {
+    getAllQuotesAsync(supabase).then((all) => { setQuotes(all); setIdx(Math.floor(Math.random() * all.length)) })
+  }, [])
   useEffect(() => {
     const t = setInterval(() => {
       setVisible(false)
-      setTimeout(() => { setIdx(i => (i + 1) % QUOTES.length); setVisible(true) }, 500)
+      setTimeout(() => { setIdx(i => (i + 1) % quotes.length); setVisible(true) }, 500)
     }, 7000)
     return () => clearInterval(t)
-  }, [])
+  }, [quotes.length])
 
   return (
     <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'flex-start', background: PANEL_BG, p: { md: 6, lg: 8 }, borderRight: `1px solid ${BORDER}`, position: 'relative', overflow: 'hidden' }}>

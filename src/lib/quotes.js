@@ -1,10 +1,16 @@
-export function getAllQuotes() {
+// Async version — fetches custom quotes from DB (public read, no auth required)
+export async function getAllQuotesAsync(supabase) {
   try {
-    const extra = JSON.parse(localStorage.getItem("sv_admin_quotes") || "[]");
-    return [...QUOTES, ...extra];
+    const { data } = await supabase.from("custom_quotes").select("text,translation,source");
+    return [...QUOTES, ...(data || [])];
   } catch {
     return QUOTES;
   }
+}
+
+// Sync fallback — used only when async not feasible
+export function getAllQuotes() {
+  return QUOTES;
 }
 
 export const QUOTES = [

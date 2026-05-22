@@ -52,7 +52,7 @@ import { useAuth } from "../../hooks/useAuth";
 import { useThemeMode } from "../../hooks/useTheme";
 import { supabase } from "../../lib/supabase";
 import { usePanchang } from "../../hooks/usePanchang";
-import { getAllQuotes } from "../../lib/quotes";
+import { QUOTES, getAllQuotesAsync } from "../../lib/quotes";
 import { bustLakshyaSiddhisCache } from "../../hooks/useLakshyaSiddhis";
 import dayjs from "dayjs";
 import { ASHTA_SIDDHI_SCALE } from "../../components/shared/AreaComponents";
@@ -2315,10 +2315,15 @@ export default function TodayPage() {
   const [deleteTaskConfirm, setDeleteTaskConfirm] = useState({ open: false, section: null, id: null, label: "" });
 
   // Pick a stable daily quote (changes once per day)
-  const dailyQuote = useMemo(() => {
-    const quotes = getAllQuotes();
+  const [dailyQuote, setDailyQuote] = useState(() => {
     const dayIndex = dayjs().diff(dayjs("2024-01-01"), "day");
-    return quotes[((dayIndex % quotes.length) + quotes.length) % quotes.length];
+    return QUOTES[((dayIndex % QUOTES.length) + QUOTES.length) % QUOTES.length];
+  });
+  useEffect(() => {
+    getAllQuotesAsync(supabase).then((quotes) => {
+      const dayIndex = dayjs().diff(dayjs("2024-01-01"), "day");
+      setDailyQuote(quotes[((dayIndex % quotes.length) + quotes.length) % quotes.length]);
+    });
   }, []);
 
   const isWeekend = isWeekendDay();
