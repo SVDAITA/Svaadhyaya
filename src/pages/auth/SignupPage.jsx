@@ -17,13 +17,14 @@ const SUBTEXT = '#475569'
 
 function QuotePanel({ primaryColor }) {
   const [quotes, setQuotes] = useState(BUILTIN_QUOTES)
-  const [idx, setIdx] = useState(() => Math.floor(Math.random() * BUILTIN_QUOTES.length))
+  const [idx, setIdx] = useState(0)
   const [visible, setVisible] = useState(true)
-  const q = quotes[idx]
+  const q = quotes.length > 0 ? quotes[idx % quotes.length] : null
   useEffect(() => {
     getAllQuotesAsync(supabase).then((all) => { setQuotes(all); setIdx(Math.floor(Math.random() * all.length)) })
   }, [])
   useEffect(() => {
+    if (!quotes.length) return
     const t = setInterval(() => {
       setVisible(false)
       setTimeout(() => { setIdx(i => (i + 1) % quotes.length); setVisible(true) }, 500)
@@ -39,11 +40,13 @@ function QuotePanel({ primaryColor }) {
       <MandalaSVG size={48} color={primaryColor} />
       <Typography sx={{ fontFamily: '"Fraunces","Lora",serif', fontWeight: 300, fontSize: 26, color: TEXT, mt: 3, mb: 1 }}>Begin here.</Typography>
       <Typography variant="caption" sx={{ color: primaryColor, letterSpacing: 3, textTransform: 'uppercase', fontSize: 10, display: 'block', mb: 5, fontWeight: 600 }}>Your practice awaits</Typography>
-      <Box sx={{ opacity: visible ? 1 : 0, transform: visible ? 'translateY(0)' : 'translateY(8px)', transition: 'opacity 0.5s ease, transform 0.5s ease', mt: 'auto' }}>
-        <Typography sx={{ fontFamily: '"Fraunces","Lora",serif', fontStyle: 'italic', fontSize: 17, color: TEXT, lineHeight: 1.75, mb: 1 }}>"{q.text}"</Typography>
-        {q.translation && <Typography sx={{ fontSize: 13, color: primaryColor, mb: 0.75, fontStyle: 'italic' }}>{q.translation}</Typography>}
-        <Typography variant="caption" sx={{ color: SUBTEXT, letterSpacing: 1, fontSize: 11 }}>— {q.source}</Typography>
-      </Box>
+      {q && (
+        <Box sx={{ opacity: visible ? 1 : 0, transform: visible ? 'translateY(0)' : 'translateY(8px)', transition: 'opacity 0.5s ease, transform 0.5s ease', mt: 'auto' }}>
+          <Typography sx={{ fontFamily: '"Fraunces","Lora",serif', fontStyle: 'italic', fontSize: 17, color: TEXT, lineHeight: 1.75, mb: 1 }}>"{q.text}"</Typography>
+          {q.translation && <Typography sx={{ fontSize: 13, color: primaryColor, mb: 0.75, fontStyle: 'italic' }}>{q.translation}</Typography>}
+          <Typography variant="caption" sx={{ color: SUBTEXT, letterSpacing: 1, fontSize: 11 }}>— {q.source}</Typography>
+        </Box>
+      )}
       <Box sx={{ display: 'flex', gap: 0.5, mt: 3 }}>
         {[...Array(5)].map((_, i) => (
           <Box key={i} sx={{ width: i === idx % 5 ? 16 : 5, height: 4, borderRadius: 3, background: i === idx % 5 ? primaryColor : BORDER, transition: 'width 0.3s ease' }} />

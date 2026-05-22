@@ -20,9 +20,9 @@ const SUBTEXT = '#475569'
 
 function QuotePanel({ primaryColor }) {
   const [quotes, setQuotes] = useState(BUILTIN_QUOTES)
-  const [idx, setIdx] = useState(() => Math.floor(Math.random() * BUILTIN_QUOTES.length))
+  const [idx, setIdx] = useState(0)
   const [visible, setVisible] = useState(true)
-  const q = quotes[idx]
+  const q = quotes.length > 0 ? quotes[idx % quotes.length] : null
 
   useEffect(() => {
     getAllQuotesAsync(supabase).then((all) => {
@@ -32,6 +32,7 @@ function QuotePanel({ primaryColor }) {
   }, [])
 
   useEffect(() => {
+    if (!quotes.length) return
     const timer = setInterval(() => {
       setVisible(false)
       setTimeout(() => {
@@ -62,17 +63,17 @@ function QuotePanel({ primaryColor }) {
         स्वाध्याय · Self-study
       </Typography>
 
-      <Box sx={{ opacity: visible ? 1 : 0, transform: visible ? 'translateY(0)' : 'translateY(8px)', transition: 'opacity 0.5s ease, transform 0.5s ease', mt: 'auto' }}>
-        {q.text && (
+      {q && (
+        <Box sx={{ opacity: visible ? 1 : 0, transform: visible ? 'translateY(0)' : 'translateY(8px)', transition: 'opacity 0.5s ease, transform 0.5s ease', mt: 'auto' }}>
           <Typography sx={{ fontFamily: '"Fraunces","Lora",serif', fontStyle: 'italic', fontWeight: 400, fontSize: 17, color: TEXT, lineHeight: 1.75, mb: 1 }}>
             "{q.text}"
           </Typography>
-        )}
-        {q.translation && (
-          <Typography sx={{ fontSize: 13, color: primaryColor, mb: 0.75, fontStyle: 'italic' }}>{q.translation}</Typography>
-        )}
-        <Typography variant="caption" sx={{ color: SUBTEXT, letterSpacing: 1, fontSize: 11 }}>— {q.source}</Typography>
-      </Box>
+          {q.translation && (
+            <Typography sx={{ fontSize: 13, color: primaryColor, mb: 0.75, fontStyle: 'italic' }}>{q.translation}</Typography>
+          )}
+          <Typography variant="caption" sx={{ color: SUBTEXT, letterSpacing: 1, fontSize: 11 }}>— {q.source}</Typography>
+        </Box>
+      )}
 
       <Box sx={{ display: 'flex', gap: 0.5, mt: 3 }}>
         {[...Array(5)].map((_, i) => (

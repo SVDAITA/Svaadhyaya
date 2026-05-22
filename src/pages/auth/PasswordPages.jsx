@@ -11,13 +11,14 @@ import MandalaSVG from '../../components/shared/MandalaSVG'
 
 function QuotePanel({ isDark, primaryColor }) {
   const [quotes, setQuotes] = useState(BUILTIN_QUOTES)
-  const [idx, setIdx] = useState(() => Math.floor(Math.random() * BUILTIN_QUOTES.length))
+  const [idx, setIdx] = useState(0)
   const [visible, setVisible] = useState(true)
-  const q = quotes[idx]
+  const q = quotes.length > 0 ? quotes[idx % quotes.length] : null
   useEffect(() => {
     getAllQuotesAsync(supabase).then((all) => { setQuotes(all); setIdx(Math.floor(Math.random() * all.length)) })
   }, [])
   useEffect(() => {
+    if (!quotes.length) return
     const t = setInterval(() => {
       setVisible(false)
       setTimeout(() => { setIdx(i => (i + 1) % quotes.length); setVisible(true) }, 500)
@@ -34,11 +35,13 @@ function QuotePanel({ isDark, primaryColor }) {
       <Typography sx={{ fontFamily:'"Fraunces","Lora",serif', fontWeight:300, fontSize:28, lineHeight:1.1, color:tc, mt:3, mb:0.5 }}>Svādhyāya</Typography>
       <Typography variant="caption" sx={{ fontSize:12, fontFamily:'"Noto Sans Devanagari","Mangal",sans-serif', color:primaryColor, fontWeight:600, display:'block', mb:1 }}>स्वाध्याय</Typography>
       <Typography variant="caption" sx={{ color:primaryColor, letterSpacing:3, textTransform:'uppercase', fontSize:10, display:'block', mb:5 }}>The path continues</Typography>
-      <Box sx={{ opacity:visible?1:0, transform:visible?'translateY(0)':'translateY(8px)', transition:'opacity 0.5s ease,transform 0.5s ease', mt:'auto' }}>
-        <Typography sx={{ fontFamily:'"Fraunces","Lora",serif', fontStyle:'italic', fontSize:18, color:tc, lineHeight:1.7, mb:1 }}>"{q.text}"</Typography>
-        {q.translation && <Typography sx={{ fontSize:13, color:primaryColor, mb:0.75, fontStyle:'italic' }}>{q.translation}</Typography>}
-        <Typography variant="caption" sx={{ color:sc, letterSpacing:1, fontSize:11 }}>— {q.source}</Typography>
-      </Box>
+      {q && (
+        <Box sx={{ opacity:visible?1:0, transform:visible?'translateY(0)':'translateY(8px)', transition:'opacity 0.5s ease,transform 0.5s ease', mt:'auto' }}>
+          <Typography sx={{ fontFamily:'"Fraunces","Lora",serif', fontStyle:'italic', fontSize:18, color:tc, lineHeight:1.7, mb:1 }}>"{q.text}"</Typography>
+          {q.translation && <Typography sx={{ fontSize:13, color:primaryColor, mb:0.75, fontStyle:'italic' }}>{q.translation}</Typography>}
+          <Typography variant="caption" sx={{ color:sc, letterSpacing:1, fontSize:11 }}>— {q.source}</Typography>
+        </Box>
+      )}
     </Box>
   )
 }

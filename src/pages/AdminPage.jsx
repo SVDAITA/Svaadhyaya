@@ -8,11 +8,10 @@ import {
 } from "@mui/material";
 import {
   Delete, Add, ContentCopy, FormatQuote, Palette, Lock,
-  Check, Edit, Save, Cancel, LibraryBooks, Analytics,
+  Check, Edit, Save, Cancel, Analytics,
   SwapHoriz, People, Refresh,
 } from "@mui/icons-material";
 import MandalaSVG from "../components/shared/MandalaSVG";
-import { QUOTES } from "../lib/quotes";
 import { supabase } from "../lib/supabase";
 import dayjs from "dayjs";
 
@@ -214,8 +213,8 @@ export default function AdminPage() {
 
   const handleTabChange = (_, v) => {
     setTab(v);
-    if (v === 3 && !healthData) loadHealth();
-    if (v === 4 && !usersData) loadUsers();
+    if (v === 2 && !healthData) loadHealth();
+    if (v === 3 && !usersData) loadUsers();
   };
 
   if (user?.email !== ADMIN_EMAIL) return (
@@ -244,7 +243,6 @@ export default function AdminPage() {
               variant="scrollable" scrollButtons="auto"
               sx={{ px: 2, "& .MuiTab-root": { fontSize: 12, textTransform: "none", fontWeight: 700, minHeight: 52 } }}>
               <Tab icon={<FormatQuote sx={{ fontSize: 17 }} />} iconPosition="start" label="Quotes" />
-              <Tab icon={<LibraryBooks sx={{ fontSize: 17 }} />} iconPosition="start" label="Built-in library" />
               <Tab icon={<Palette sx={{ fontSize: 17 }} />} iconPosition="start" label="Theme tokens" />
               <Tab icon={<Analytics sx={{ fontSize: 17 }} />} iconPosition="start" label="App health" />
               <Tab icon={<People sx={{ fontSize: 17 }} />} iconPosition="start" label="Users" />
@@ -260,10 +258,8 @@ export default function AdminPage() {
               </Typography>
 
               {/* Preview panel */}
-              {(() => {
-                const allQ = [...adminQuotes, ...QUOTES];
-                if (!allQ.length) return null;
-                const q = allQ[previewIdx % allQ.length];
+              {adminQuotes.length > 0 && (() => {
+                const q = adminQuotes[previewIdx % adminQuotes.length];
                 return (
                   <Box sx={{ mb: 3, p: 2.5, borderRadius: 2, background: "linear-gradient(160deg,#EEF2FF 0%,#F0F9FF 100%)", border: `1px solid ${BORDER}`, position: "relative" }}>
                     <Typography sx={{ fontSize: 9, fontWeight: 700, letterSpacing: 1, color: SUBTEXT, textTransform: "uppercase", mb: 1 }}>Preview</Typography>
@@ -271,9 +267,9 @@ export default function AdminPage() {
                     {q?.translation && <Typography sx={{ fontSize: 11, color: SUBTEXT, mb: 0.25 }}>{q.translation}</Typography>}
                     <Typography sx={{ fontSize: 11, color: SUBTEXT, opacity: 0.7 }}>— {q?.source}</Typography>
                     <Box sx={{ position: "absolute", top: 10, right: 10, display: "flex", gap: 0.5, alignItems: "center" }}>
-                      <IconButton size="small" onClick={() => setPreviewIdx((i) => (i - 1 + allQ.length) % allQ.length)} sx={{ color: SUBTEXT }}>‹</IconButton>
-                      <Typography sx={{ fontSize: 10, color: SUBTEXT }}>{(previewIdx % allQ.length) + 1}/{allQ.length}</Typography>
-                      <IconButton size="small" onClick={() => setPreviewIdx((i) => (i + 1) % allQ.length)} sx={{ color: SUBTEXT }}>›</IconButton>
+                      <IconButton size="small" onClick={() => setPreviewIdx((i) => (i - 1 + adminQuotes.length) % adminQuotes.length)} sx={{ color: SUBTEXT }}>‹</IconButton>
+                      <Typography sx={{ fontSize: 10, color: SUBTEXT }}>{(previewIdx % adminQuotes.length) + 1}/{adminQuotes.length}</Typography>
+                      <IconButton size="small" onClick={() => setPreviewIdx((i) => (i + 1) % adminQuotes.length)} sx={{ color: SUBTEXT }}>›</IconButton>
                     </Box>
                   </Box>
                 );
@@ -422,35 +418,10 @@ export default function AdminPage() {
                 </Box>
               )}
 
-              <Divider sx={{ borderColor: BORDER, my: 3 }} />
-              <Typography sx={{ fontSize: 12, color: SUBTEXT }}>
-                Built-in: <strong>{QUOTES.length}</strong> · Custom: <strong>{adminQuotes.length}</strong> · Total: <strong>{QUOTES.length + adminQuotes.length}</strong>
-              </Typography>
-            </TabPanel>
-
-            {/* ── BUILT-IN LIBRARY TAB ── */}
-            <TabPanel value={tab} index={1}>
-              <Typography sx={{ fontSize: 12, color: SUBTEXT, mb: 3, lineHeight: 1.8 }}>
-                These {QUOTES.length} quotes are hardcoded in{" "}
-                <code style={{ background: "#F4F3EC", padding: "2px 5px", borderRadius: 3, fontFamily: "monospace" }}>src/lib/quotes.js</code>.
-                Read-only — edit the source and redeploy to change them.
-              </Typography>
-              <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
-                {QUOTES.map((q, i) => (
-                  <Box key={i} sx={{ p: 1.75, border: `1px solid ${BORDER}`, borderRadius: 2, background: "#FAFAF8", display: "flex", alignItems: "flex-start", gap: 1.5 }}>
-                    <Typography sx={{ fontSize: 11, color: SUBTEXT, minWidth: 24, mt: 0.1 }}>#{i + 1}</Typography>
-                    <Box sx={{ flex: 1, minWidth: 0 }}>
-                      <Typography sx={{ fontSize: 13, color: TEXT, fontFamily: '"Fraunces","Lora",serif', fontStyle: "italic", mb: 0.2 }}>"{q.text}"</Typography>
-                      {q.translation && <Typography sx={{ fontSize: 11, color: SUBTEXT, mb: 0.2 }}>{q.translation}</Typography>}
-                      <Typography sx={{ fontSize: 10, color: SUBTEXT, opacity: 0.7 }}>— {q.source}</Typography>
-                    </Box>
-                  </Box>
-                ))}
-              </Box>
             </TabPanel>
 
             {/* ── THEME TOKENS TAB ── */}
-            <TabPanel value={tab} index={2}>
+            <TabPanel value={tab} index={1}>
               <Typography sx={{ fontSize: 12, color: SUBTEXT, mb: 3, lineHeight: 1.8 }}>
                 Pillar colors for the six life areas. Edit{" "}
                 <code style={{ background: "#F4F3EC", padding: "2px 6px", borderRadius: 4, fontFamily: "monospace" }}>src/theme/themeFactory.js</code>{" "}
@@ -483,7 +454,7 @@ export default function AdminPage() {
             </TabPanel>
 
             {/* ── APP HEALTH TAB ── */}
-            <TabPanel value={tab} index={3}>
+            <TabPanel value={tab} index={2}>
               <Typography sx={{ fontSize: 12, color: SUBTEXT, mb: 3, lineHeight: 1.8 }}>
                 Live row counts from the database. Useful for verifying migrations ran and data is accumulating correctly.
               </Typography>
@@ -530,7 +501,7 @@ export default function AdminPage() {
             </TabPanel>
 
             {/* ── USERS TAB ── */}
-            <TabPanel value={tab} index={4}>
+            <TabPanel value={tab} index={3}>
               <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 1 }}>
                 <Box>
                   <Typography sx={{ fontSize: 12, color: SUBTEXT, lineHeight: 1.8 }}>

@@ -2314,13 +2314,11 @@ export default function TodayPage() {
   const [dismissMorning, setDismissMorning] = useState(false);
   const [deleteTaskConfirm, setDeleteTaskConfirm] = useState({ open: false, section: null, id: null, label: "" });
 
-  // Pick a stable daily quote (changes once per day)
-  const [dailyQuote, setDailyQuote] = useState(() => {
-    const dayIndex = dayjs().diff(dayjs("2024-01-01"), "day");
-    return QUOTES[((dayIndex % QUOTES.length) + QUOTES.length) % QUOTES.length];
-  });
+  // Pick a stable daily quote (changes once per day) — loaded async from DB
+  const [dailyQuote, setDailyQuote] = useState(null);
   useEffect(() => {
     getAllQuotesAsync(supabase).then((quotes) => {
+      if (!quotes.length) return;
       const dayIndex = dayjs().diff(dayjs("2024-01-01"), "day");
       setDailyQuote(quotes[((dayIndex % quotes.length) + quotes.length) % quotes.length]);
     });
