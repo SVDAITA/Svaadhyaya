@@ -83,6 +83,9 @@ const DEFAULT_TARGETS = {
   body_age: { alert: "" },
   fat_pct: { alert: "" },
   bmi: { alert: "" },
+  steps: { target: "" },
+  km: { target: "" },
+  calories: { target: "" },
 };
 
 const COLOR_HEALTH = "#2D7A4F";
@@ -159,8 +162,12 @@ export default function ShariramHealthOS({ embedded = false }) {
   const [movSleepQ, setMovSleepQ] = useState(0);
   const [savingMov, setSavingMov] = useState(false);
 
-  // Activity targets (defaults, can be made user-configurable later)
-  const ACT_TARGETS = { steps: 10000, km: 6, calories: 500 };
+  // Activity targets — user-configurable via Set Targets dialog
+  const ACT_TARGETS = {
+    steps:    targets.steps?.target    ? Number(targets.steps.target)    : 10000,
+    km:       targets.km?.target       ? Number(targets.km.target)       : 6,
+    calories: targets.calories?.target ? Number(targets.calories.target) : 500,
+  };
 
   const fetchLogs = useCallback(async () => {
     if (!user) return;
@@ -869,8 +876,7 @@ export default function ShariramHealthOS({ embedded = false }) {
                 variant="body2"
                 sx={{ color: "text.secondary", mb: 3 }}
               >
-                Log data from any health tracker app· Steps auto-estimate
-                calories if manual calories are blank
+                Log data from any health tracker app (Apple Health, Google Fit, etc.)
               </Typography>
               <Grid container spacing={3} alignItems="flex-start">
                 {/* Input panel */}
@@ -1034,7 +1040,6 @@ export default function ShariramHealthOS({ embedded = false }) {
                       type="number"
                       size="small"
                       placeholder="From Apple Health → Active Calories"
-                      helperText="Leave blank to auto-estimate from steps"
                       value={movCalories}
                       onChange={(e) => setMovCalories(e.target.value)}
                       inputProps={{ min: 0 }}
@@ -1836,6 +1841,7 @@ export default function ShariramHealthOS({ embedded = false }) {
               values without status coloring.
             </Typography>
             <Stack spacing={2.5}>
+              {/* ── Biometric targets ── */}
               {Object.entries(METRIC_META).map(([key, meta]) => (
                 <Box key={key}>
                   <Typography
@@ -1881,6 +1887,50 @@ export default function ShariramHealthOS({ embedded = false }) {
                   </Stack>
                 </Box>
               ))}
+
+              {/* ── Activity targets ── */}
+              <Divider sx={{ my: 0.5 }} />
+              <Typography
+                variant="caption"
+                sx={{ fontWeight: 800, textTransform: "uppercase", letterSpacing: 1, color: "text.secondary" }}
+              >
+                Daily Activity Targets
+              </Typography>
+              <Stack direction="row" spacing={2}>
+                <TextField
+                  label="Steps target"
+                  type="number"
+                  size="small"
+                  placeholder="e.g. 10000"
+                  value={targets.steps?.target ?? ""}
+                  onChange={(e) =>
+                    setTargets((t) => ({ ...t, steps: { target: e.target.value } }))
+                  }
+                  sx={{ flex: 1 }}
+                />
+                <TextField
+                  label="km target"
+                  type="number"
+                  size="small"
+                  placeholder="e.g. 6"
+                  value={targets.km?.target ?? ""}
+                  onChange={(e) =>
+                    setTargets((t) => ({ ...t, km: { target: e.target.value } }))
+                  }
+                  sx={{ flex: 1 }}
+                />
+                <TextField
+                  label="Calories target (kcal)"
+                  type="number"
+                  size="small"
+                  placeholder="e.g. 500"
+                  value={targets.calories?.target ?? ""}
+                  onChange={(e) =>
+                    setTargets((t) => ({ ...t, calories: { target: e.target.value } }))
+                  }
+                  sx={{ flex: 1 }}
+                />
+              </Stack>
             </Stack>
           </DialogContent>
           <DialogActions sx={{ p: 3, pt: 1 }}>
