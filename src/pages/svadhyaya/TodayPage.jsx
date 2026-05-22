@@ -119,7 +119,7 @@ const DEFAULT_CORE = [
     label: "Vidya",
     emoji: "📚",
     locked: true,
-    deep: true,
+    readOnly: true,
   },
 ];
 
@@ -2256,6 +2256,13 @@ export default function TodayPage() {
   const [vidyaPracItems, setVidyaPracItems] = useState(_todayCache?.vidyaPracItems ?? []);
   const [vidyaPracComps, setVidyaPracComps] = useState(_todayCache?.vidyaPracComps ?? {});
 
+  // Vidya study log popup
+  const [vidyaOpen, setVidyaOpen] = useState(false);
+  const [vidyaTodayLogs, setVidyaTodayLogs] = useState(_todayCache?.vidyaTodayLogs ?? []);
+  const [vidyaCourses, setVidyaCourses] = useState(_todayCache?.vidyaCourses ?? []);
+  const [vidyaLogForm, setVidyaLogForm] = useState({ hours: "", source_type: "book", source_id: "", notes: "" });
+  const [vidyaLogSaving, setVidyaLogSaving] = useState(false);
+
   // Vyaayamam popup
   const [walkOpen, setWalkOpen] = useState(false);
   const [walkExType, setWalkExType] = useState(_todayCache?.walkExType ?? "walk");
@@ -2348,7 +2355,7 @@ export default function TodayPage() {
     try {
       const yesterday = dayjs().subtract(1, "day").format("YYYY-MM-DD");
       const sevenAgo = dayjs().subtract(7, "day").format("YYYY-MM-DD");
-      const [{ data: dayData }, { data: yData }, { data: seqItems }, { data: seqComps }, { data: actData }, { data: naadaItems }, { data: naadaComps }, { data: vProjects }, { data: rBooks }, { data: vPracItems }, { data: vPracComps }] = await Promise.all([
+      const [{ data: dayData }, { data: yData }, { data: seqItems }, { data: seqComps }, { data: actData }, { data: naadaItems }, { data: naadaComps }, { data: vProjects }, { data: rBooks }, { data: vPracItems }, { data: vPracComps }, { data: vidyaLogs }, { data: vidyaCoursesData }] = await Promise.all([
         supabase.from("days").select("*").eq("user_id", user.id).eq("day_date", today).maybeSingle(),
         supabase.from("days").select("tomorrow_tasks").eq("user_id", user.id).eq("day_date", yesterday).maybeSingle(),
         supabase.from("daily_items").select("*").eq("user_id", user.id).order("order_index"),
@@ -2360,6 +2367,8 @@ export default function TodayPage() {
         supabase.from("books").select("id,title,author,pages_read,total_pages,status").eq("user_id", user.id).eq("status", "reading").limit(5),
         supabase.from("vidya_practice_items").select("*").eq("user_id", user.id).order("order_index"),
         supabase.from("vidya_practice_completions").select("vidya_item_id,is_completed").eq("user_id", user.id).eq("completion_date", today),
+        supabase.from("vidya_study_log").select("*").eq("user_id", user.id).eq("date", today).order("created_at", { ascending: false }),
+        supabase.from("vidya_courses").select("id,title,status").eq("user_id", user.id).neq("status", "archived").order("title"),
       ]);
       // Load walk popup data
       if (actData) {
@@ -2404,6 +2413,9 @@ export default function TodayPage() {
       }
       // Vritti active projects
       if (vProjects) setVrittiProjects(vProjects);
+      // Vidya study log
+      if (vidyaLogs) setVidyaTodayLogs(vidyaLogs);
+      if (vidyaCoursesData) setVidyaCourses(vidyaCoursesData);
       // Reading / Vidya
       if (rBooks) setCurrentBooks(rBooks);
       if (vPracItems) {
@@ -2514,6 +2526,7 @@ export default function TodayPage() {
         naadaSeqItems: naadaItems||[], naadaSeqCompletions: _naadaCMap,
         naadaSeqDone: _naadaVis.filter((s)=>_naadaCMap[s.id]).length, naadaSeqTotal: _naadaVis.length,
         vrittiProjects: vProjects||[], currentBooks: rBooks||[],
+        vidyaTodayLogs: vidyaLogs||[], vidyaCourses: vidyaCoursesData||[],
         vidyaPracItems: vPracItems||[], vidyaPracComps: _vPMap,
         walkActivityLogs: actData||[],
         walkExType: _act?.exercise_type||"walk",
@@ -2633,6 +2646,7 @@ export default function TodayPage() {
       if (item.id === "saadhana") { setNaadaSeqOpen(true); return; }
       if (item.id === "office")   { setVrittiOpen(true);  return; }
       if (item.id === "reading")  { setReadingOpen(true); return; }
+      if (item.id === "vidya")    { setVidyaOpen(true);   return; }
       setSeqOpen(true); return;
     }
     if (!habits[item.id]) {
@@ -2959,6 +2973,11 @@ export default function TodayPage() {
       } else {
         subtitle = "Open reading tracker →";
       }
+    } else if (item.id === "vidya") {
+      const todayHours = vidyaTodayLogs.reduce((s, l) => s + (Number(l.hours) || 0), 0);
+      subtitle = vidyaTodayLogs.length > 0
+        ? `${todayHours.toFixed(1)}h logged today · ${vidyaTodayLogs.length} session${vidyaTodayLogs.length > 1 ? "s" : ""}`
+        : "Log today's study →";
     } else if (item.id === "walk") {
       const todayAct = walkActivityLogs.find((a) => a.date === today);
       if (todayAct) {
@@ -2980,7 +2999,7 @@ export default function TodayPage() {
         onDelete={
           isDeletable ? () => handleDeleteTask(section, item.id) : undefined
         }
-        onLink={item.locked && !item.readOnly ? () => setLinkingTask(richItem) : undefined}
+        onLink={!item.locked && !item.siddhi_id ? () => setLinkingTask(richItem) : undefined}
         heroColor={heroColor}
         isDark={isDark}
         locked={!!item.locked}
@@ -3954,6 +3973,138 @@ export default function TodayPage() {
             setVrittiOpen(false);
           }}
             sx={{ background: "#1A5FB0", color: "#fff", textTransform: "none", fontWeight: 600, borderRadius: 2, fontSize: 13, "&:hover": { background: "#1050A0" } }}>
+            Mark Done ✓
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* ── VIDYA STUDY LOG POPUP ── */}
+      <Dialog open={vidyaOpen} onClose={() => { setVidyaOpen(false); setVidyaLogForm({ hours: "", source_type: "book", source_id: "", notes: "" }); }}
+        fullWidth maxWidth="xs"
+        PaperProps={{ sx: { borderRadius: 3, background: isDark ? "#1A1210" : "#FDF8F5", border: `1px solid ${isDark ? "rgba(139,58,47,0.25)" : "rgba(139,58,47,0.20)"}`, overflow: "hidden" } }}>
+        <Box sx={{ px: 3, pt: 2.5, pb: 1.5, display: "flex", alignItems: "center", gap: 1.5, borderBottom: `1px solid ${isDark ? "rgba(139,58,47,0.15)" : "#F0E0DC"}` }}>
+          <Typography sx={{ fontSize: 18 }}>📚</Typography>
+          <Box sx={{ flex: 1 }}>
+            <Typography sx={{ fontFamily: '"Fraunces","Lora",serif', fontWeight: 600, fontSize: 17, color: isDark ? "#F0EDE8" : "#2C1210", lineHeight: 1.2 }}>
+              Vidyā
+            </Typography>
+            <Typography sx={{ fontSize: 11, color: "#8B3A2F", fontWeight: 500, mt: 0.2 }}>
+              {vidyaTodayLogs.length > 0
+                ? `${vidyaTodayLogs.reduce((s, l) => s + (Number(l.hours) || 0), 0).toFixed(1)}h logged today`
+                : "Log today's learning"}
+            </Typography>
+          </Box>
+          <IconButton size="small" onClick={() => setVidyaOpen(false)} sx={{ color: isDark ? "#7C7A74" : "#9C9A94" }}><Close sx={{ fontSize: 18 }} /></IconButton>
+        </Box>
+        <DialogContent sx={{ px: 2.5, py: 1.5 }}>
+          {/* Past sessions today */}
+          {vidyaTodayLogs.length > 0 && (
+            <Box sx={{ mb: 2 }}>
+              {vidyaTodayLogs.map((log) => (
+                <Box key={log.id} sx={{ display: "flex", alignItems: "center", gap: 1.5, py: 0.9, px: 1, borderRadius: 2,
+                  borderBottom: `1px solid ${isDark ? "rgba(255,255,255,0.04)" : "#F4EAE8"}`, "&:last-child": { borderBottom: "none" } }}>
+                  <Box sx={{ minWidth: 36, height: 36, borderRadius: 2, bgcolor: isDark ? "rgba(139,58,47,0.18)" : "rgba(139,58,47,0.10)",
+                    display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <Typography sx={{ fontSize: 12, fontWeight: 700, color: "#8B3A2F" }}>{Number(log.hours).toFixed(1)}h</Typography>
+                  </Box>
+                  <Box sx={{ flex: 1, minWidth: 0 }}>
+                    <Typography noWrap sx={{ fontSize: 13, fontWeight: 500, color: isDark ? "#F0EDE8" : "#2C1210" }}>
+                      {log.source_title || (log.source_type === "book" ? "Book study" : "Course study")}
+                    </Typography>
+                    {log.notes && <Typography noWrap sx={{ fontSize: 11, color: isDark ? "#8C7A74" : "#9C8A84", mt: 0.1 }}>{log.notes}</Typography>}
+                  </Box>
+                </Box>
+              ))}
+            </Box>
+          )}
+          {/* Quick log form */}
+          <Box sx={{ bgcolor: isDark ? "rgba(139,58,47,0.08)" : "rgba(139,58,47,0.05)", borderRadius: 2, p: 1.5, border: `1px solid ${isDark ? "rgba(139,58,47,0.18)" : "rgba(139,58,47,0.14)"}` }}>
+            <Typography sx={{ fontSize: 11, fontWeight: 700, color: "#8B3A2F", letterSpacing: 0.5, textTransform: "uppercase", mb: 1.25 }}>Log a session</Typography>
+            {/* Source type toggle */}
+            <Box sx={{ display: "flex", gap: 1, mb: 1.25 }}>
+              {["book", "course"].map((t) => (
+                <Box key={t} onClick={() => setVidyaLogForm((f) => ({ ...f, source_type: t, source_id: "" }))}
+                  sx={{ flex: 1, py: 0.6, borderRadius: 1.5, textAlign: "center", cursor: "pointer", fontSize: 12, fontWeight: 600,
+                    bgcolor: vidyaLogForm.source_type === t ? "#8B3A2F" : (isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.04)"),
+                    color: vidyaLogForm.source_type === t ? "#fff" : (isDark ? "#9C8A84" : "#7A6A64"),
+                    border: `1px solid ${vidyaLogForm.source_type === t ? "#8B3A2F" : (isDark ? "rgba(255,255,255,0.08)" : "#E0D8D4")}`,
+                    transition: "all 0.15s" }}>
+                  {t === "book" ? "📖 Book" : "🎓 Course"}
+                </Box>
+              ))}
+            </Box>
+            {/* Source picker */}
+            {(vidyaLogForm.source_type === "book" ? currentBooks : vidyaCourses).length > 0 && (
+              <Box component="select"
+                value={vidyaLogForm.source_id}
+                onChange={(e) => setVidyaLogForm((f) => ({ ...f, source_id: e.target.value }))}
+                sx={{ width: "100%", mb: 1.25, p: "6px 10px", borderRadius: 1.5, fontSize: 13,
+                  bgcolor: isDark ? "rgba(255,255,255,0.06)" : "#fff",
+                  color: isDark ? "#F0EDE8" : "#2C1210",
+                  border: `1px solid ${isDark ? "rgba(255,255,255,0.12)" : "#D8CCC8"}`,
+                  outline: "none" }}>
+                <option value="">— pick {vidyaLogForm.source_type} —</option>
+                {(vidyaLogForm.source_type === "book" ? currentBooks : vidyaCourses).map((s) => (
+                  <option key={s.id} value={s.id}>{s.title}</option>
+                ))}
+              </Box>
+            )}
+            {/* Hours */}
+            <Box sx={{ display: "flex", gap: 1, alignItems: "center", mb: 1.25 }}>
+              <Typography sx={{ fontSize: 12, color: isDark ? "#9C8A84" : "#7A6A64", minWidth: 40 }}>Hours</Typography>
+              <Box component="input" type="number" min="0.25" max="12" step="0.25"
+                value={vidyaLogForm.hours}
+                onChange={(e) => setVidyaLogForm((f) => ({ ...f, hours: e.target.value }))}
+                placeholder="e.g. 1.5"
+                sx={{ flex: 1, p: "5px 10px", borderRadius: 1.5, fontSize: 13,
+                  bgcolor: isDark ? "rgba(255,255,255,0.06)" : "#fff",
+                  color: isDark ? "#F0EDE8" : "#2C1210",
+                  border: `1px solid ${isDark ? "rgba(255,255,255,0.12)" : "#D8CCC8"}`,
+                  outline: "none" }} />
+            </Box>
+            {/* Notes */}
+            <Box component="textarea" rows={2}
+              value={vidyaLogForm.notes}
+              onChange={(e) => setVidyaLogForm((f) => ({ ...f, notes: e.target.value }))}
+              placeholder="Notes (optional)"
+              sx={{ width: "100%", p: "6px 10px", borderRadius: 1.5, fontSize: 12, resize: "none",
+                bgcolor: isDark ? "rgba(255,255,255,0.06)" : "#fff",
+                color: isDark ? "#F0EDE8" : "#2C1210",
+                border: `1px solid ${isDark ? "rgba(255,255,255,0.12)" : "#D8CCC8"}`,
+                outline: "none", boxSizing: "border-box" }} />
+            <Button fullWidth variant="contained" size="small" disabled={!vidyaLogForm.hours || vidyaLogSaving}
+              onClick={async () => {
+                if (!vidyaLogForm.hours) return;
+                setVidyaLogSaving(true);
+                const src = (vidyaLogForm.source_type === "book" ? currentBooks : vidyaCourses).find((s) => s.id === vidyaLogForm.source_id);
+                const { data: newLog } = await supabase.from("vidya_study_log").insert({
+                  user_id: user.id,
+                  date: today,
+                  hours: Number(vidyaLogForm.hours),
+                  source_type: vidyaLogForm.source_id ? vidyaLogForm.source_type : "manual",
+                  source_id: vidyaLogForm.source_id || null,
+                  source_title: src?.title || null,
+                  notes: vidyaLogForm.notes || null,
+                }).select().single();
+                if (newLog) setVidyaTodayLogs((prev) => [newLog, ...prev]);
+                setVidyaLogForm({ hours: "", source_type: "book", source_id: "", notes: "" });
+                setVidyaLogSaving(false);
+              }}
+              sx={{ mt: 1.25, background: "#8B3A2F", color: "#fff", textTransform: "none", fontWeight: 600, borderRadius: 2, fontSize: 13, "&:hover": { background: "#6A2A1F" }, "&:disabled": { opacity: 0.5 } }}>
+              {vidyaLogSaving ? "Saving…" : "Log Session"}
+            </Button>
+          </Box>
+        </DialogContent>
+        <DialogActions sx={{ px: 2.5, pb: 2, pt: 0.5, justifyContent: "space-between" }}>
+          <Button size="small" onClick={() => { setVidyaOpen(false); navigate("/tracker/vidya"); }}
+            sx={{ color: isDark ? "#7C7A74" : "#9C9A94", textTransform: "none", fontSize: 12 }}>Open full tracker →</Button>
+          <Button variant="contained" size="small" onClick={() => {
+            const nextHabits = { ...habits, vidya: true };
+            setHabits(nextHabits);
+            sync({ habits: nextHabits });
+            setVidyaOpen(false);
+          }}
+            sx={{ background: "#8B3A2F", color: "#fff", textTransform: "none", fontWeight: 600, borderRadius: 2, fontSize: 13, "&:hover": { background: "#6A2A1F" } }}>
             Mark Done ✓
           </Button>
         </DialogActions>
