@@ -23,7 +23,16 @@ export const AuthProvider = ({ children }) => {
       });
       setLoading(false);
     })
-    return () => subscription.unsubscribe()
+
+    // Proactively refresh the session whenever the tab regains focus — prevents
+    // silent 401s after the tab has been backgrounded for a long time
+    const handleFocus = () => { supabase.auth.getSession(); };
+    window.addEventListener("focus", handleFocus);
+
+    return () => {
+      subscription.unsubscribe();
+      window.removeEventListener("focus", handleFocus);
+    };
   }, [])
 
   const signIn = async (email, password) => {

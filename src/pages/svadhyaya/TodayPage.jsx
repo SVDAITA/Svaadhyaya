@@ -2561,12 +2561,21 @@ export default function TodayPage() {
   const sync = async (patch) => {
     _patchCache(patch);
     setSyncing(true);
-    const { error: syncErr } = await supabase
-      .from("days")
-      .upsert(
-        { user_id: user.id, day_date: today, ...patch },
-        { onConflict: "user_id,day_date" },
-      );
+    const doUpsert = () =>
+      supabase
+        .from("days")
+        .upsert(
+          { user_id: user.id, day_date: today, ...patch },
+          { onConflict: "user_id,day_date" },
+        );
+    let { error: syncErr } = await doUpsert();
+    // If the JWT has expired, refresh the session and retry once
+    if (syncErr && (syncErr.code === "PGRST301" || syncErr.message?.includes("JWT") || syncErr.message?.includes("security policy"))) {
+      const { error: refreshErr } = await supabase.auth.refreshSession();
+      if (!refreshErr) {
+        ({ error: syncErr } = await doUpsert());
+      }
+    }
     if (syncErr) {
       console.error("sync error:", syncErr.message);
       setErrSnack(true);
