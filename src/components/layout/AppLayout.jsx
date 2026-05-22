@@ -410,7 +410,7 @@ export default function AppLayout() {
           <Box sx={{ flex: 1, overflow: "hidden" }}>
             <Typography
               sx={{
-                fontFamily: '"Fraunces","Lora",serif',
+                fontFamily: '"Lora", serif',
                 fontWeight: 700,
                 fontSize: 19,
                 lineHeight: 1.1,
@@ -646,7 +646,7 @@ export default function AppLayout() {
                 <Box>
                   <Typography
                     sx={{
-                      fontFamily: '"Fraunces","Lora",serif',
+                      fontFamily: '"Lora", serif',
                       fontWeight: 600,
                       fontSize: 18,
                       lineHeight: 1.1,
