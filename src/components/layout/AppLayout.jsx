@@ -40,6 +40,7 @@ import {
 import { useAuth } from "../../hooks/useAuth";
 import { useThemeMode } from "../../hooks/useTheme";
 import { useVisibility } from "../../hooks/useVisibility";
+import { useSiddhiLevel } from "../../hooks/useSiddhiLevel";
 
 const DRAWER_WIDTH = 240; // Slightly wider for a more breathable layout
 const COLLAPSED_WIDTH = 72;
@@ -208,6 +209,7 @@ function MandalaWatermark({ color }) {
 
 function TopBar({ user, heroColor, mode, toggleTheme, isDark }) {
   const navigate = useNavigate();
+  const { level, siddhi } = useSiddhiLevel();
   const name = user?.user_metadata?.full_name || "Subbu";
   const initials = name
     .split(" ")
@@ -311,7 +313,7 @@ function TopBar({ user, heroColor, mode, toggleTheme, isDark }) {
             {name}
           </Typography>
           <Typography sx={{ fontSize: 10, color: textS, letterSpacing: 0.5 }}>
-            Sādhaka
+            {siddhi ? `${siddhi.name} · Level ${level}` : "Sādhaka"}
           </Typography>
         </Box>
         <SettingsOutlined sx={{ fontSize: 16, color: textS, ml: 0.5 }} />

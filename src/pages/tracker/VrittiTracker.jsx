@@ -14,6 +14,8 @@ import {
 import { useAuth } from "../../hooks/useAuth";
 import { useThemeMode } from "../../hooks/useTheme";
 import { supabase } from "../../lib/supabase";
+import { useLakshyaSiddhis } from "../../hooks/useLakshyaSiddhis";
+import SiddhiPicker from "../../components/shared/SiddhiPicker";
 import dayjs from "dayjs";
 
 // ── CONSTANTS ─────────────────────────────────────────────────────────────────
@@ -113,6 +115,8 @@ export default function VrittiTracker({ embedded = false }) {
   const isDark      = mode === "dark";
   const today       = dayjs().format("YYYY-MM-DD");
 
+  const { siddhis: allSiddhis } = useLakshyaSiddhis();
+
   const blue   = VRITTI_BLUE;
   const textP  = isDark ? "#F0EDE8" : "#0A1628";
   const textS  = isDark ? "#8A9AB8" : "#5A7090";
@@ -130,7 +134,7 @@ export default function VrittiTracker({ embedded = false }) {
   const confirmDel = (title, fn) => { haptic(15); setDelDlg({ open: true, title, fn }); };
 
   // ── PROJECTS STATE ────────────────────────────────────────────────────────
-  const emptyProj = { title: "", description: "", client_id: "", status: "active", tech_stack: "", start_date: today, target_date: "", priority: 2, notes: "" };
+  const emptyProj = { title: "", description: "", client_id: "", status: "active", tech_stack: "", start_date: today, target_date: "", priority: 2, notes: "", siddhi_id: "" };
   const [projects,    setProjects]    = useState(_vrittiCache?.projects || []);
   const [projForm,    setProjForm]    = useState(emptyProj);
   const [editProj,    setEditProj]    = useState(null);
@@ -220,6 +224,7 @@ export default function VrittiTracker({ embedded = false }) {
       target_date: projForm.target_date || null,   // empty string → null (date)
       priority:    projForm.priority != null ? Number(projForm.priority) : 2,
       notes:       projForm.notes       || null,
+      siddhi_id:   projForm.siddhi_id   || null,
     };
     if (editProj) {
       const { error } = await supabase.from("vritti_projects").update(payload).eq("id", editProj);
@@ -465,11 +470,12 @@ export default function VrittiTracker({ embedded = false }) {
                                 <Stack direction="row" spacing={1.5} sx={{ mt: 0.8, flexWrap: "wrap", gap: 0.5 }}>
                                   {client && <Typography sx={{ fontSize: 11, color: VRITTI_TEAL }}>🤝 {client.name}{client.company ? ` · ${client.company}` : ""}</Typography>}
                                   {p.tech_stack && <Typography sx={{ fontSize: 11, color: textS }}>🔧 {p.tech_stack}</Typography>}
-                                  {p.target_date && <Typography sx={{ fontSize: 11, color: "#DDA74F" }}>🎯 {dayjs(p.target_date).format("D MMM YY")}</Typography>}
+                                  {p.target_date && <Typography sx={{ fontSize: 11, color: "#DDA74F" }}>📅 {dayjs(p.target_date).format("D MMM YY")}</Typography>}
+                                  {p.siddhi_id && (() => { const s = allSiddhis.find((x) => x.id === p.siddhi_id); return s ? <Chip label={`🎯 ${s.title}`} size="small" sx={{ height: 18, fontSize: 10, bgcolor: `${blue}14`, color: blue, border: `1px solid ${blue}35`, fontWeight: 600 }} /> : null; })()}
                                 </Stack>
                               </Box>
                               <Stack direction="row" spacing={0.5}>
-                                <IconButton size="small" onClick={() => { haptic(); setProjForm({ ...p, client_id: p.client_id || "" }); setEditProj(p.id); setProjDlg(true); }}
+                                <IconButton size="small" onClick={() => { haptic(); setProjForm({ ...p, client_id: p.client_id || "", siddhi_id: p.siddhi_id || "" }); setEditProj(p.id); setProjDlg(true); }}
                                   sx={{ color: textS, "&:hover": { color: blue } }}><Edit sx={{ fontSize: 15 }} /></IconButton>
                                 <IconButton size="small" onClick={() => deleteProject(p.id, p.title)}
                                   sx={{ color: textS, "&:hover": { color: "#CF4E4E" } }}><Delete sx={{ fontSize: 15 }} /></IconButton>
@@ -750,6 +756,7 @@ export default function VrittiTracker({ embedded = false }) {
               <TextField label="Target date" type="date" size="small" sx={{ flex: 1 }} InputLabelProps={{ shrink: true }} value={projForm.target_date} onChange={(e) => setProjForm((f) => ({ ...f, target_date: e.target.value }))} />
             </Box>
             <TextField label="Notes" fullWidth size="small" multiline minRows={2} value={projForm.notes} onChange={(e) => setProjForm((f) => ({ ...f, notes: e.target.value }))} />
+            <SiddhiPicker value={projForm.siddhi_id} onChange={(v) => setProjForm((f) => ({ ...f, siddhi_id: v }))} isDark={isDark} label="Link to Milestone (Siddhi)" />
           </Stack>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2.5 }}>

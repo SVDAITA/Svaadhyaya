@@ -3,7 +3,7 @@ import {
   Box, Typography, Card, CardContent, Grid, Button, TextField,
   Select, MenuItem, FormControl, InputLabel, Chip, CircularProgress,
   IconButton, Dialog, DialogTitle, DialogContent, DialogActions,
-  Snackbar, Alert, Tabs, Tab, Stack, Pagination, LinearProgress,
+  Snackbar, Alert, Tabs, Tab, Stack, Pagination, LinearProgress, Divider,
 } from "@mui/material";
 import {
   Add, Delete, Edit, CheckCircle, RadioButtonUnchecked,
@@ -11,12 +11,15 @@ import {
 import { useAuth } from "../../hooks/useAuth";
 import { useThemeMode } from "../../hooks/useTheme";
 import { supabase } from "../../lib/supabase";
+import { useLakshyaSiddhis } from "../../hooks/useLakshyaSiddhis";
+import SiddhiPicker from "../../components/shared/SiddhiPicker";
 import dayjs from "dayjs";
 
 // ── CONSTANTS ─────────────────────────────────────────────────────────────────
 const VIDYA_SIENNA = "#A0522D";
 const VIDYA_AMBER  = "#C07830";
 const VIDYA_TEAL   = "#1A7A6E";
+const VIDYA_BLUE   = "#1A5FB0";
 
 const BOOK_STATUS = [
   { value: "reading",    label: "Reading",   color: VIDYA_SIENNA, emoji: "📖" },
@@ -30,7 +33,13 @@ const COURSE_STATUS = [
   { value: "wishlist",    label: "Wishlist",    color: "#7C4DAB",    emoji: "📌" },
   { value: "dropped",     label: "Dropped",     color: "#888",       emoji: "🚫" },
 ];
-const SOURCE_TYPES = ["book","course","article","podcast","video","experience","other"];
+const SOURCE_TYPES    = ["book","course","article","podcast","video","experience","other"];
+const LOG_SOURCE_TYPES = [
+  { value: "book",     label: "Book",     emoji: "📖" },
+  { value: "course",   label: "Course",   emoji: "🎓" },
+  { value: "practice", label: "Practice", emoji: "🕉️" },
+  { value: "other",    label: "Other",    emoji: "📝" },
+];
 const LANG_OPTIONS = ["Telugu","English","Sanskrit","Hindi","Tamil","Other"];
 const SKILL_CATS   = ["Technical","Domain","Language","Philosophy","History","Science","Arts","Other"];
 const PROF_LABELS  = ["","Beginner","Basic","Intermediate","Advanced","Expert"];
@@ -112,6 +121,10 @@ export default function VidyaTracker({ embedded = false }) {
   const { mode }    = useThemeMode();
   const isDark      = mode === "dark";
   const today       = dayjs().format("YYYY-MM-DD");
+  const weekAgo     = dayjs().subtract(7,  "day").format("YYYY-MM-DD");
+  const monthAgo    = dayjs().subtract(30, "day").format("YYYY-MM-DD");
+
+  const { siddhis: allSiddhis } = useLakshyaSiddhis();
 
   const gold   = VIDYA_AMBER;
   const textP  = isDark ? "#F0EDE8" : "#1A0800";
@@ -130,7 +143,7 @@ export default function VidyaTracker({ embedded = false }) {
   const confirmDel = (title, fn) => { haptic(15); setDelDlg({ open: true, title, fn }); };
 
   // ── BOOKS STATE ───────────────────────────────────────────────────────────
-  const emptyBook = { title: "", author: "", genre: "", language: "English", status: "reading", total_pages: "", pages_read: "", notes: "", one_line: "", started_date: today, finished_date: "" };
+  const emptyBook = { title: "", author: "", genre: "", language: "English", status: "reading", total_pages: "", pages_read: "", notes: "", one_line: "", started_date: today, finished_date: "", siddhi_id: "" };
   const [books,      setBooks]      = useState(_vidyaCache?.books || []);
   const [bookForm,   setBookForm]   = useState(emptyBook);
   const [editBook,   setEditBook]   = useState(null);
@@ -139,13 +152,21 @@ export default function VidyaTracker({ embedded = false }) {
   const [bookPage,   setBookPage]   = useState(1);
 
   // ── COURSES STATE ─────────────────────────────────────────────────────────
-  const emptyCourse = { title: "", platform: "", instructor: "", url: "", status: "in_progress", progress_pct: 0, rating: 3, start_date: today, completed_date: "", notes: "" };
+  const emptyCourse = { title: "", platform: "", instructor: "", url: "", status: "in_progress", progress_pct: 0, rating: 3, start_date: today, completed_date: "", notes: "", siddhi_id: "" };
   const [courses,       setCourses]       = useState(_vidyaCache?.courses || []);
   const [courseForm,    setCourseForm]    = useState(emptyCourse);
   const [editCourse,    setEditCourse]    = useState(null);
   const [courseDlg,     setCourseDlg]     = useState(false);
   const [courseFilter,  setCourseFilter]  = useState("all");
   const [coursePage,    setCoursePage]    = useState(1);
+
+  // ── STUDY LOG STATE ───────────────────────────────────────────────────────
+  const emptyStudyLog = { date: today, hours: "", source_type: "book", source_id: "", source_title: "", notes: "" };
+  const [studyLogs,    setStudyLogs]    = useState(_vidyaCache?.studyLogs || []);
+  const [studyLogForm, setStudyLogForm] = useState(emptyStudyLog);
+  const [editStudyLog, setEditStudyLog] = useState(null);
+  const [studyLogDlg,  setStudyLogDlg]  = useState(false);
+  const [studyLogPage, setStudyLogPage] = useState(1);
 
   // ── INSIGHTS STATE ────────────────────────────────────────────────────────
   const emptyInsight = { date: today, content: "", source: "", source_type: "book" };
@@ -176,23 +197,25 @@ export default function VidyaTracker({ embedded = false }) {
     if (_vidyaCache !== null && _vidyaCache._date === today) return; // cache warm for today
     setLoading(true);
     try {
-      const [bookR, courseR, insightR, pracR, pracCompR, skillR] = await Promise.all([
+      const [bookR, courseR, insightR, pracR, pracCompR, skillR, studyLogR] = await Promise.all([
         supabase.from("books").select("*").eq("user_id", user.id).order("created_at", { ascending: false }),
         supabase.from("vidya_courses").select("*").eq("user_id", user.id).order("created_at", { ascending: false }),
         supabase.from("vidya_insights").select("*").eq("user_id", user.id).order("date", { ascending: false }),
         supabase.from("vidya_practice_items").select("*").eq("user_id", user.id).order("order_index"),
         supabase.from("vidya_practice_completions").select("vidya_item_id,is_completed").eq("user_id", user.id).eq("completion_date", today),
         supabase.from("vidya_skills").select("*").eq("user_id", user.id).order("category").order("name"),
+        supabase.from("vidya_study_log").select("*").eq("user_id", user.id).order("date", { ascending: false }).limit(300),
       ]);
       const compMap = Object.fromEntries((pracCompR.data || []).map((c) => [c.vidya_item_id, c.is_completed]));
       const data = {
-        _date:     today,
-        books:     bookR.data     || [],
-        courses:   courseR.data   || [],
-        insights:  insightR.data  || [],
-        pracItems: pracR.data     || [],
-        pracComps: compMap,
-        skills:    skillR.data    || [],
+        _date:      today,
+        books:      bookR.data      || [],
+        courses:    courseR.data    || [],
+        insights:   insightR.data   || [],
+        pracItems:  pracR.data      || [],
+        pracComps:  compMap,
+        skills:     skillR.data     || [],
+        studyLogs:  studyLogR.data  || [],
       };
       _vidyaCache = data;
       setBooks(data.books);
@@ -201,6 +224,7 @@ export default function VidyaTracker({ embedded = false }) {
       setPracItems(data.pracItems);
       setPracComps(data.pracComps);
       setSkills(data.skills);
+      setStudyLogs(data.studyLogs);
     } catch (e) {
       err("Load failed");
     } finally {
@@ -227,7 +251,6 @@ export default function VidyaTracker({ embedded = false }) {
   const saveBook = async () => {
     if (!bookForm.title.trim()) return;
     haptic(10);
-    // Only send columns that actually exist in the books table
     const payload = {
       user_id:      user.id,
       title:        bookForm.title.trim(),
@@ -241,6 +264,7 @@ export default function VidyaTracker({ embedded = false }) {
       one_line:     bookForm.one_line    || null,
       started_date: bookForm.started_date  || null,
       finished_date:bookForm.finished_date || null,
+      siddhi_id:    bookForm.siddhi_id     || null,
     };
     if (editBook) {
       const { error } = await supabase.from("books").update(payload).eq("id", editBook);
@@ -314,6 +338,7 @@ export default function VidyaTracker({ embedded = false }) {
       start_date:     courseForm.start_date     || null,
       completed_date: courseForm.completed_date || null,
       notes:          courseForm.notes       || null,
+      siddhi_id:      courseForm.siddhi_id   || null,
     };
     if (editCourse) {
       const { error } = await supabase.from("vidya_courses").update(payload).eq("id", editCourse);
@@ -330,6 +355,48 @@ export default function VidyaTracker({ embedded = false }) {
   const deleteCourse = async (id, title) => {
     confirmDel(`Delete "${title}"?`, async () => {
       await supabase.from("vidya_courses").delete().eq("id", id);
+      ok("Deleted"); bust();
+    });
+  };
+
+  // ── STUDY LOG CRUD ────────────────────────────────────────────────────────
+  const saveStudyLog = async () => {
+    if (!studyLogForm.hours) return;
+    haptic(10);
+    // Resolve source title from loaded data when type is book/course
+    let resolvedTitle = studyLogForm.source_title || null;
+    if (studyLogForm.source_type === "book" && studyLogForm.source_id) {
+      const book = books.find((b) => b.id === studyLogForm.source_id);
+      if (book) resolvedTitle = book.title;
+    } else if (studyLogForm.source_type === "course" && studyLogForm.source_id) {
+      const course = courses.find((c) => c.id === studyLogForm.source_id);
+      if (course) resolvedTitle = course.title;
+    }
+    const payload = {
+      user_id:      user.id,
+      date:         studyLogForm.date || today,
+      hours:        Number(studyLogForm.hours),
+      source_type:  studyLogForm.source_type || "other",
+      source_id:    (studyLogForm.source_id && (studyLogForm.source_type === "book" || studyLogForm.source_type === "course"))
+                      ? studyLogForm.source_id : null,
+      source_title: resolvedTitle,
+      notes:        studyLogForm.notes || null,
+    };
+    if (editStudyLog) {
+      const { error } = await supabase.from("vidya_study_log").update(payload).eq("id", editStudyLog);
+      if (error) { err("Save failed"); return; }
+      ok("Session updated");
+    } else {
+      const { error } = await supabase.from("vidya_study_log").insert(payload);
+      if (error) { err("Save failed"); return; }
+      ok("Study session logged");
+    }
+    setStudyLogDlg(false); setStudyLogForm(emptyStudyLog); setEditStudyLog(null); bust();
+  };
+
+  const deleteStudyLog = async (id) => {
+    confirmDel("Delete this study session?", async () => {
+      await supabase.from("vidya_study_log").delete().eq("id", id);
       ok("Deleted"); bust();
     });
   };
@@ -413,12 +480,17 @@ export default function VidyaTracker({ embedded = false }) {
   };
 
   // ── STATS ─────────────────────────────────────────────────────────────────
-  const readingNow  = books.filter((b) => b.status === "reading").length;
+  const readingNow     = books.filter((b) => b.status === "reading").length;
   const completedBooks = books.filter((b) => b.status === "completed").length;
   const activeCourses  = courses.filter((c) => c.status === "in_progress").length;
   const totalInsights  = insights.length;
   const visiblePrac    = pracItems.filter(isVisibleToday);
   const pracDone       = visiblePrac.filter((i) => pracComps[i.id]).length;
+
+  // Study log stats
+  const weekHours  = studyLogs.filter((l) => l.date >= weekAgo).reduce((s, l) => s + (Number(l.hours) || 0), 0);
+  const monthHours = studyLogs.filter((l) => l.date >= monthAgo).reduce((s, l) => s + (Number(l.hours) || 0), 0);
+  const totalSessions = studyLogs.length;
 
   // ── LOADING ───────────────────────────────────────────────────────────────
   if (loading && !embedded)
@@ -459,7 +531,7 @@ export default function VidyaTracker({ embedded = false }) {
           "& .Mui-selected": { color: `${gold} !important`, fontWeight: 700 },
           "& .MuiTabs-indicator": { bgcolor: gold },
         }}>
-        {[["📖","Books"],["🎓","Courses"],["💡","Insights"],["🕉️","Practice"],["🎯","Skills"]].map(([e,l],i) => (
+        {[["📖","Books"],["🎓","Courses"],["📓","Study Log"],["💡","Insights"],["🕉️","Practice"],["🎯","Skills"]].map(([e,l],i) => (
           <Tab key={i} label={<Box sx={{ display: "flex", alignItems: "center", gap: 0.6 }}><span>{e}</span><span>{l}</span></Box>} />
         ))}
       </Tabs>
@@ -531,6 +603,7 @@ export default function VidyaTracker({ embedded = false }) {
                                 <Stack direction="row" spacing={1.5} sx={{ mt: 0.6, flexWrap: "wrap" }}>
                                   {b.genre && <Typography sx={{ fontSize: 11, color: textS }}>📂 {b.genre}</Typography>}
                                   {b.language && b.language !== "English" && <Typography sx={{ fontSize: 11, color: textS }}>🌐 {b.language}</Typography>}
+                                  {b.siddhi_id && (() => { const s = allSiddhis.find((x) => x.id === b.siddhi_id); return s ? <Chip label={`🎯 ${s.title}`} size="small" sx={{ height: 16, fontSize: 10, bgcolor: `${gold}14`, color: gold, border: `1px solid ${gold}35`, fontWeight: 600 }} /> : null; })()}
                                 </Stack>
                                 {b.one_line && <Typography sx={{ fontSize: 11, color: textS, fontStyle: "italic", mt: 0.3 }}>{b.one_line}</Typography>}
                                 {b.total_pages > 0 && (
@@ -546,7 +619,7 @@ export default function VidyaTracker({ embedded = false }) {
                                 {b.notes && <Typography sx={{ fontSize: 11, color: textS, mt: 0.6, fontStyle: "italic" }}>{b.notes}</Typography>}
                               </Box>
                               <Stack direction="row" spacing={0.5}>
-                                <IconButton size="small" onClick={() => { haptic(); setBookForm({ title: b.title || "", author: b.author || "", genre: b.genre || "", language: b.language || "English", status: b.status || "reading", total_pages: b.total_pages || "", pages_read: b.pages_read || "", notes: b.notes || "", one_line: b.one_line || "", started_date: b.started_date || today, finished_date: b.finished_date || "" }); setEditBook(b.id); setBookDlg(true); }}
+                                <IconButton size="small" onClick={() => { haptic(); setBookForm({ title: b.title || "", author: b.author || "", genre: b.genre || "", language: b.language || "English", status: b.status || "reading", total_pages: b.total_pages || "", pages_read: b.pages_read || "", notes: b.notes || "", one_line: b.one_line || "", started_date: b.started_date || today, finished_date: b.finished_date || "", siddhi_id: b.siddhi_id || "" }); setEditBook(b.id); setBookDlg(true); }}
                                   sx={{ color: textS, "&:hover": { color: gold } }}><Edit sx={{ fontSize: 14 }} /></IconButton>
                                 <IconButton size="small" onClick={() => deleteBook(b.id, b.title)}
                                   sx={{ color: textS, "&:hover": { color: "#CF4E4E" } }}><Delete sx={{ fontSize: 14 }} /></IconButton>
@@ -613,6 +686,7 @@ export default function VidyaTracker({ embedded = false }) {
                                 <Stack direction="row" spacing={1.5} sx={{ mt: 0.4, flexWrap: "wrap" }}>
                                   {c.platform && <Typography sx={{ fontSize: 11, color: textS }}>🏫 {c.platform}</Typography>}
                                   {c.instructor && <Typography sx={{ fontSize: 11, color: textS }}>👤 {c.instructor}</Typography>}
+                                  {c.siddhi_id && (() => { const s = allSiddhis.find((x) => x.id === c.siddhi_id); return s ? <Chip label={`🎯 ${s.title}`} size="small" sx={{ height: 16, fontSize: 10, bgcolor: `${VIDYA_TEAL}14`, color: VIDYA_TEAL, border: `1px solid ${VIDYA_TEAL}35`, fontWeight: 600 }} /> : null; })()}
                                 </Stack>
                                 {c.progress_pct > 0 && (
                                   <Box sx={{ mt: 0.8 }}>
@@ -627,7 +701,7 @@ export default function VidyaTracker({ embedded = false }) {
                                 {c.notes && <Typography sx={{ fontSize: 11, color: textS, mt: 0.6, fontStyle: "italic" }}>{c.notes}</Typography>}
                               </Box>
                               <Stack direction="row" spacing={0.5}>
-                                <IconButton size="small" onClick={() => { haptic(); setCourseForm(c); setEditCourse(c.id); setCourseDlg(true); }}
+                                <IconButton size="small" onClick={() => { haptic(); setCourseForm({ ...c, siddhi_id: c.siddhi_id || "" }); setEditCourse(c.id); setCourseDlg(true); }}
                                   sx={{ color: textS, "&:hover": { color: VIDYA_TEAL } }}><Edit sx={{ fontSize: 14 }} /></IconButton>
                                 <IconButton size="small" onClick={() => deleteCourse(c.id, c.title)}
                                   sx={{ color: textS, "&:hover": { color: "#CF4E4E" } }}><Delete sx={{ fontSize: 14 }} /></IconButton>
@@ -652,9 +726,118 @@ export default function VidyaTracker({ embedded = false }) {
       )}
 
       {/* ══════════════════════════════════════════════════════════════════════
-          TAB 2 — INSIGHTS
+          TAB 2 — STUDY LOG
       ══════════════════════════════════════════════════════════════════════ */}
       {tab === 2 && (
+        <Grid container spacing={3}>
+          {/* Stats */}
+          <Grid item xs={6} sm={4}>
+            <StatCard value={`${weekHours.toFixed(1)}h`} label="This Week" sub="Study hours" color={VIDYA_BLUE} isDark={isDark} />
+          </Grid>
+          <Grid item xs={6} sm={4}>
+            <StatCard value={`${monthHours.toFixed(1)}h`} label="This Month" sub="30-day total" color={VIDYA_TEAL} isDark={isDark} />
+          </Grid>
+          <Grid item xs={12} sm={4}>
+            <StatCard value={totalSessions} label="Sessions" sub="Logged all time" color={gold} isDark={isDark} />
+          </Grid>
+
+          <Grid item xs={12}>
+            <SectionHead
+              title="Study Sessions"
+              onAdd={() => { setStudyLogForm({ ...emptyStudyLog, date: today }); setEditStudyLog(null); setStudyLogDlg(true); }}
+              color={VIDYA_BLUE}
+              isDark={isDark}
+              addLabel="Log Session"
+            />
+
+            {studyLogs.length === 0 ? (
+              <Typography sx={{ fontSize: 13, color: textS, py: 3, textAlign: "center" }}>
+                No sessions logged yet. Log your first study session →
+              </Typography>
+            ) : (
+              <>
+                <Stack spacing={1.5}>
+                  {studyLogs.slice((studyLogPage - 1) * PER_PAGE, studyLogPage * PER_PAGE).map((log) => {
+                    const srcInfo = LOG_SOURCE_TYPES.find((s) => s.value === log.source_type) || LOG_SOURCE_TYPES[3];
+                    return (
+                      <Card key={log.id} sx={{ borderRadius: 3, bgcolor: cardBg, border: `1px solid ${bdr}`, boxShadow: "none",
+                        "&:hover": { borderColor: VIDYA_BLUE }, transition: "border-color 0.15s" }}>
+                        <CardContent sx={{ py: 1.5, px: 2, "&:last-child": { pb: 1.5 } }}>
+                          <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1.5 }}>
+                            {/* Hours badge */}
+                            <Box sx={{ width: 46, height: 46, borderRadius: 2.5, flexShrink: 0,
+                              bgcolor: isDark ? `${VIDYA_BLUE}22` : `${VIDYA_BLUE}12`,
+                              border: `1.5px solid ${VIDYA_BLUE}40`,
+                              display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
+                              <Typography sx={{ fontFamily: '"Fraunces",serif', fontSize: 15, fontWeight: 700, color: VIDYA_BLUE, lineHeight: 1 }}>
+                                {Number(log.hours).toFixed(1)}
+                              </Typography>
+                              <Typography sx={{ fontSize: 9, color: VIDYA_BLUE, fontWeight: 600, letterSpacing: 0.3 }}>hrs</Typography>
+                            </Box>
+                            <Box sx={{ flex: 1, minWidth: 0 }}>
+                              <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
+                                <Typography sx={{ fontSize: 12, fontWeight: 700, color: textP }}>
+                                  {dayjs(log.date).format("ddd, D MMM YYYY")}
+                                </Typography>
+                                <Chip label={`${srcInfo.emoji} ${srcInfo.label}`} size="small"
+                                  sx={{ height: 18, fontSize: 10, bgcolor: `${VIDYA_BLUE}14`, color: VIDYA_BLUE, fontWeight: 600 }} />
+                              </Box>
+                              {log.source_title && (
+                                <Typography sx={{ fontSize: 12, color: gold, mt: 0.3, fontWeight: 500 }}>
+                                  📚 {log.source_title}
+                                </Typography>
+                              )}
+                              {log.notes && (
+                                <Typography sx={{ fontSize: 11, color: textS, mt: 0.3, fontStyle: "italic" }}>
+                                  {log.notes}
+                                </Typography>
+                              )}
+                            </Box>
+                            <Stack direction="row" spacing={0.3} sx={{ flexShrink: 0 }}>
+                              <IconButton size="small"
+                                onClick={() => {
+                                  haptic();
+                                  setStudyLogForm({
+                                    date:         log.date,
+                                    hours:        log.hours,
+                                    source_type:  log.source_type || "other",
+                                    source_id:    log.source_id   || "",
+                                    source_title: log.source_title || "",
+                                    notes:        log.notes       || "",
+                                  });
+                                  setEditStudyLog(log.id);
+                                  setStudyLogDlg(true);
+                                }}
+                                sx={{ color: textS, "&:hover": { color: VIDYA_BLUE } }}>
+                                <Edit sx={{ fontSize: 14 }} />
+                              </IconButton>
+                              <IconButton size="small" onClick={() => deleteStudyLog(log.id)}
+                                sx={{ color: textS, "&:hover": { color: "#CF4E4E" } }}>
+                                <Delete sx={{ fontSize: 14 }} />
+                              </IconButton>
+                            </Stack>
+                          </Box>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </Stack>
+                {studyLogs.length > PER_PAGE && (
+                  <Box sx={{ display: "flex", justifyContent: "center", mt: 2 }}>
+                    <Pagination count={Math.ceil(studyLogs.length / PER_PAGE)} page={studyLogPage} onChange={(_, v) => setStudyLogPage(v)}
+                      size="small" sx={{ "& .Mui-selected": { bgcolor: `${VIDYA_BLUE}22 !important`, color: VIDYA_BLUE } }} />
+                  </Box>
+                )}
+              </>
+            )}
+          </Grid>
+        </Grid>
+      )}
+
+      {/* ══════════════════════════════════════════════════════════════════════
+          TAB 3 — INSIGHTS
+      ══════════════════════════════════════════════════════════════════════ */}
+      {tab === 3 && (
         <Grid container spacing={3}>
           <Grid item xs={12}>
             <SectionHead title="Insights & Learnings" onAdd={() => { setInsightForm(emptyInsight); setInsightDlg(true); }} color={VIDYA_SIENNA} isDark={isDark} addLabel="Capture" />
@@ -705,9 +888,9 @@ export default function VidyaTracker({ embedded = false }) {
       )}
 
       {/* ══════════════════════════════════════════════════════════════════════
-          TAB 3 — PRACTICE SEQUENCE
+          TAB 4 — PRACTICE SEQUENCE
       ══════════════════════════════════════════════════════════════════════ */}
-      {tab === 3 && (
+      {tab === 4 && (
         <Grid container spacing={3}>
           {/* Today's practice */}
           <Grid item xs={12} md={5}>
@@ -776,9 +959,9 @@ export default function VidyaTracker({ embedded = false }) {
       )}
 
       {/* ══════════════════════════════════════════════════════════════════════
-          TAB 4 — SKILLS
+          TAB 5 — SKILLS
       ══════════════════════════════════════════════════════════════════════ */}
-      {tab === 4 && (
+      {tab === 5 && (
         <Grid container spacing={3}>
           <Grid item xs={12}>
             <SectionHead title="Skills Learned" onAdd={() => { setSkillForm(emptySkill); setEditSkill(null); setSkillDlg(true); }} color={gold} isDark={isDark} addLabel="Add Skill" />
@@ -868,6 +1051,7 @@ export default function VidyaTracker({ embedded = false }) {
               <TextField label="Finished date" type="date" size="small" sx={{ flex: 1 }} InputLabelProps={{ shrink: true }} value={bookForm.finished_date || ""} onChange={(e) => setBookForm((f) => ({ ...f, finished_date: e.target.value }))} />
             </Box>
             <TextField label="Notes" fullWidth size="small" multiline minRows={2} value={bookForm.notes || ""} onChange={(e) => setBookForm((f) => ({ ...f, notes: e.target.value }))} />
+            <SiddhiPicker value={bookForm.siddhi_id} onChange={(v) => setBookForm((f) => ({ ...f, siddhi_id: v }))} isDark={isDark} label="Link to Milestone (Siddhi)" />
           </Stack>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2.5 }}>
@@ -906,12 +1090,81 @@ export default function VidyaTracker({ embedded = false }) {
               <Stars value={courseForm.rating || 3} onChange={(v) => setCourseForm((f) => ({ ...f, rating: v }))} size={22} />
             </Box>
             <TextField label="Notes" fullWidth size="small" multiline minRows={2} value={courseForm.notes || ""} onChange={(e) => setCourseForm((f) => ({ ...f, notes: e.target.value }))} />
+            <SiddhiPicker value={courseForm.siddhi_id} onChange={(v) => setCourseForm((f) => ({ ...f, siddhi_id: v }))} isDark={isDark} label="Link to Milestone (Siddhi)" />
           </Stack>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2.5 }}>
           <Button onClick={() => setCourseDlg(false)} sx={{ color: textS, textTransform: "none" }}>Cancel</Button>
           <Button variant="contained" onClick={saveCourse} sx={{ bgcolor: VIDYA_TEAL, textTransform: "none", fontWeight: 700, borderRadius: 2, "&:hover": { bgcolor: VIDYA_TEAL, opacity: 0.88 } }}>
             {editCourse ? "Update" : "Add Course"}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Study Log Dialog */}
+      <Dialog open={studyLogDlg} onClose={() => setStudyLogDlg(false)} fullWidth maxWidth="sm"
+        PaperProps={{ sx: { borderRadius: 3, bgcolor: isDark ? "#1A1610" : "#FDFAF5", border: `1px solid ${bdr}` } }}>
+        <DialogTitle sx={{ fontFamily: '"Fraunces",serif', fontWeight: 600, fontSize: 18, pb: 1 }}>
+          {editStudyLog ? "Edit Session" : "Log Study Session"} 📓
+        </DialogTitle>
+        <DialogContent sx={{ pt: 1 }}>
+          <Stack spacing={2} sx={{ mt: 1 }}>
+            <Box sx={{ display: "flex", gap: 2 }}>
+              <TextField label="Date" type="date" size="small" sx={{ flex: 1 }} InputLabelProps={{ shrink: true }}
+                value={studyLogForm.date} onChange={(e) => setStudyLogForm((f) => ({ ...f, date: e.target.value }))} />
+              <TextField label="Hours *" type="number" size="small" sx={{ flex: 1 }}
+                inputProps={{ min: 0.1, max: 24, step: 0.25 }} placeholder="e.g. 1.5"
+                value={studyLogForm.hours} onChange={(e) => setStudyLogForm((f) => ({ ...f, hours: e.target.value }))} />
+            </Box>
+            <FormControl size="small" fullWidth>
+              <InputLabel>Source type</InputLabel>
+              <Select value={studyLogForm.source_type} label="Source type"
+                onChange={(e) => setStudyLogForm((f) => ({ ...f, source_type: e.target.value, source_id: "", source_title: "" }))}>
+                {LOG_SOURCE_TYPES.map((s) => <MenuItem key={s.value} value={s.value}>{s.emoji} {s.label}</MenuItem>)}
+              </Select>
+            </FormControl>
+
+            {studyLogForm.source_type === "book" && (
+              <FormControl size="small" fullWidth>
+                <InputLabel>Book</InputLabel>
+                <Select value={studyLogForm.source_id || ""} label="Book"
+                  onChange={(e) => setStudyLogForm((f) => ({ ...f, source_id: e.target.value }))}>
+                  <MenuItem value=""><em>— none —</em></MenuItem>
+                  {books.filter((b) => b.status === "reading" || b.status === "completed")
+                    .map((b) => <MenuItem key={b.id} value={b.id}>📖 {b.title}</MenuItem>)}
+                </Select>
+              </FormControl>
+            )}
+
+            {studyLogForm.source_type === "course" && (
+              <FormControl size="small" fullWidth>
+                <InputLabel>Course</InputLabel>
+                <Select value={studyLogForm.source_id || ""} label="Course"
+                  onChange={(e) => setStudyLogForm((f) => ({ ...f, source_id: e.target.value }))}>
+                  <MenuItem value=""><em>— none —</em></MenuItem>
+                  {courses.filter((c) => c.status === "in_progress" || c.status === "completed")
+                    .map((c) => <MenuItem key={c.id} value={c.id}>🎓 {c.title}</MenuItem>)}
+                </Select>
+              </FormControl>
+            )}
+
+            {(studyLogForm.source_type === "practice" || studyLogForm.source_type === "other") && (
+              <TextField label="What did you study?" size="small" fullWidth
+                placeholder="Topic, subject, or activity name…"
+                value={studyLogForm.source_title} onChange={(e) => setStudyLogForm((f) => ({ ...f, source_title: e.target.value }))} />
+            )}
+
+            <Divider sx={{ my: 0 }} />
+            <TextField label="Notes" fullWidth size="small" multiline minRows={2}
+              placeholder="Key takeaways, what you covered…"
+              value={studyLogForm.notes} onChange={(e) => setStudyLogForm((f) => ({ ...f, notes: e.target.value }))} />
+          </Stack>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2.5 }}>
+          <Button onClick={() => setStudyLogDlg(false)} sx={{ color: textS, textTransform: "none" }}>Cancel</Button>
+          <Button variant="contained" onClick={saveStudyLog}
+            sx={{ bgcolor: VIDYA_BLUE, textTransform: "none", fontWeight: 700, borderRadius: 2, "&:hover": { bgcolor: VIDYA_BLUE, opacity: 0.88 } }}>
+            {editStudyLog ? "Update" : "Log Session"}
           </Button>
         </DialogActions>
       </Dialog>

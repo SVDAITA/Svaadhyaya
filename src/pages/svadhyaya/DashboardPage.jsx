@@ -130,7 +130,7 @@ const HABIT_LABELS = {
 };
 
 const SIDDHI_WEIGHTS = { 1: 1, 2: 2, 3: 4, 4: 7, 5: 12, 6: 18, 7: 25, 8: 35 };
-const MAX_EXPECTED_MASS = 120;
+const MAX_EXPECTED_MASS = 145; // increased to accommodate tracker activity bonuses (max ~25 pts)
 
 // Vasara (weekday) names — index 0 = Sunday
 const VARA_NAMES = [
@@ -148,12 +148,37 @@ function calculateDailyMass(dayData) {
   const habits = dayData.habits;
   const meta = dayData.habits_data || {};
   let totalMass = 0;
+
+  // Core: per-habit mass weighted by satisfaction level
   Object.keys(habits).forEach((id) => {
     if (habits[id]) {
       const siddhiLevel = meta[id]?.satisfaction || 0;
       totalMass += 2 + (SIDDHI_WEIGHTS[siddhiLevel] || 0);
     }
   });
+
+  // Phase 5: tracker activity bonus (from _activity enrichment in dayMap)
+  const act = dayData._activity;
+  if (act) {
+    // Steps bonus — up to +8
+    const steps = act.steps_count || 0;
+    if      (steps >= 10000) totalMass += 8;
+    else if (steps >=  7500) totalMass += 5;
+    else if (steps >=  5000) totalMass += 2;
+
+    // Sleep bonus — up to +7 (only if recorded; avoids penalising missing data)
+    const sleep = act.sleep_hours || 0;
+    if      (sleep >= 7.5) totalMass += 7;
+    else if (sleep >= 7.0) totalMass += 4;
+    else if (sleep >= 6.0) totalMass += 1;
+
+    // Active calories bonus — up to +6
+    const cal = act.calories_burned || 0;
+    if      (cal >= 500) totalMass += 6;
+    else if (cal >= 300) totalMass += 3;
+    else if (cal >= 150) totalMass += 1;
+  }
+
   return totalMass;
 }
 
@@ -1687,8 +1712,9 @@ function MovementCard({ activityLogs, latestWeightKg, isDark, days = 14 }) {
 
   const todaySteps = todayEntry?.steps || 0;
   const todayKm = todayEntry?.km_walked || 0;
-  const todaySleep = todayEntry?.sleep_hours ?? null;
-  const todaySleepQ = todayEntry?.sleep_quality ?? null;
+  // Sleep is logged in morning flow for *last night* (yesterday) — read from yEntry
+  const todaySleep = yEntry?.sleep_hours ?? null;
+  const todaySleepQ = yEntry?.sleep_quality ?? null;
   const manualCals = todayEntry?.calories_burned ?? null;
   const estCals = estimateCalories(todaySteps, latestWeightKg);
   const displayCals = manualCals ?? estCals;
@@ -2467,10 +2493,10 @@ function VitalsHero({
     {
       emoji: "😴",
       label: "Sleep",
-      value: todayActivity?.sleep_hours ? `${todayActivity.sleep_hours}h` : "—",
-      sub: todayActivity?.sleep_quality
+      value: yesterdayActivity?.sleep_hours ? `${yesterdayActivity.sleep_hours}h` : "—",
+      sub: yesterdayActivity?.sleep_quality
         ? ["Poor", "Fair", "Good", "Great", "Excellent"][
-            todayActivity.sleep_quality - 1
+            yesterdayActivity.sleep_quality - 1
           ]
         : null,
     },
@@ -2849,9 +2875,14 @@ export default function DashboardPage() {
           .limit(1),
       ]);
 
+      // Build activity lookup keyed by date
+      const actMap = {};
+      (activityData || []).forEach((a) => { actMap[a.date] = a; });
+
+      // Enrich dayMap entries with _activity so calculateDailyMass can use tracker signals
       const map = {};
       (days || []).forEach((d) => {
-        map[d.day_date] = d;
+        map[d.day_date] = { ...d, _activity: actMap[d.day_date] || null };
       });
       setDayMap(map);
       setLakshyas(lData || []);
@@ -3178,6 +3209,12 @@ export default function DashboardPage() {
   const todayActivity = useMemo(
     () => activityLogs.find((a) => a.date === todayStr),
     [activityLogs, todayStr],
+  );
+  // Sleep is last night's data — morning flow writes to yesterday's daily_activity row
+  const yesterdayStr = useMemo(() => dayjs().subtract(1, "day").format("YYYY-MM-DD"), []);
+  const yesterdayActivity = useMemo(
+    () => activityLogs.find((a) => a.date === yesterdayStr),
+    [activityLogs, yesterdayStr],
   );
 
   if (loading)

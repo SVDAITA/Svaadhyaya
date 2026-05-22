@@ -17,6 +17,8 @@ import {
 import { useAuth } from "../../hooks/useAuth";
 import { useThemeMode } from "../../hooks/useTheme";
 import { supabase } from "../../lib/supabase";
+import { useLakshyaSiddhis } from "../../hooks/useLakshyaSiddhis";
+import SiddhiPicker from "../../components/shared/SiddhiPicker";
 import dayjs from "dayjs";
 
 // ── CONSTANTS ─────────────────────────────────────────────────────────────────
@@ -144,6 +146,8 @@ export default function NaadaTracker({ embedded = false }) {
   const isDark            = mode==="dark";
   const today             = dayjs().format("YYYY-MM-DD");
 
+  const { siddhis: allSiddhis } = useLakshyaSiddhis();
+
   const gold   = NAADA_GOLD;
   const textP  = isDark ? "#F0EDE8" : "#1A0800";
   const textS  = isDark ? "#9C8A74" : "#7A5A3A";
@@ -236,7 +240,7 @@ export default function NaadaTracker({ embedded = false }) {
   const SKILL_PER = 20;
 
   // ── COURSES STATE ─────────────────────────────────────────────────────────
-  const emptyCourse = { title:"",institution:"",instrument:"Vocal",level:"Visharada",status:"in_progress",start_date:"",exam_date:"",completion_date:"",result:"",guru:"",notes:"" };
+  const emptyCourse = { title:"",institution:"",instrument:"Vocal",level:"Visharada",status:"in_progress",start_date:"",exam_date:"",completion_date:"",result:"",guru:"",notes:"",siddhi_id:"" };
   const [courses,     setCourses]     = useState(_naadaCache?.courses||[]);
   const [courseForm,  setCourseForm]  = useState(emptyCourse);
   const [editCourse,  setEditCourse]  = useState(null);
@@ -492,6 +496,7 @@ export default function NaadaTracker({ embedded = false }) {
       result:          courseForm.result           || null,
       guru:            courseForm.guru             || null,
       notes:           courseForm.notes            || null,
+      siddhi_id:       courseForm.siddhi_id        || null,
     };
     if (editCourse) {
       const { user_id: _u, ...updatePayload } = payload;
@@ -1165,7 +1170,7 @@ export default function NaadaTracker({ embedded = false }) {
                               {c.institution && <Typography sx={{ fontSize:11,color:NAADA_GOLD,mt:0.3,fontWeight:500 }} noWrap>{c.institution}</Typography>}
                             </Box>
                             <Stack direction="row" spacing={0.25} sx={{ flexShrink:0 }}>
-                              <IconButton size="small" onClick={()=>{ haptic();setEditCourse(c);setCourseForm({ title:c.title,institution:c.institution||"",instrument:c.instrument||"Vocal",level:c.level||"Visharada",status:c.status||"in_progress",start_date:c.start_date||"",exam_date:c.exam_date||"",completion_date:c.completion_date||"",result:c.result||"",guru:c.guru||"",notes:c.notes||"" });setCourseDlg(true); }}>
+                              <IconButton size="small" onClick={()=>{ haptic();setEditCourse(c);setCourseForm({ title:c.title,institution:c.institution||"",instrument:c.instrument||"Vocal",level:c.level||"Visharada",status:c.status||"in_progress",start_date:c.start_date||"",exam_date:c.exam_date||"",completion_date:c.completion_date||"",result:c.result||"",guru:c.guru||"",notes:c.notes||"",siddhi_id:c.siddhi_id||"" });setCourseDlg(true); }}>
                                 <Edit sx={{ fontSize:14,color:textS }} />
                               </IconButton>
                               <IconButton size="small" onClick={()=>confirmDel(`Remove "${c.title}"?`,()=>deleteCourse(c.id))}>
@@ -1178,6 +1183,7 @@ export default function NaadaTracker({ embedded = false }) {
                             <Chip label={st.label} size="small" sx={{ bgcolor:`${st.color}18`,color:st.color,fontWeight:700,fontSize:10,height:20,border:`1px solid ${st.color}40` }} />
                             {c.level && <Chip label={c.level} size="small" sx={{ bgcolor:`${NAADA_GOLD}12`,color:NAADA_GOLD,fontSize:10,height:20 }} />}
                             {c.instrument && <Chip label={c.instrument} size="small" sx={{ bgcolor:isDark?"rgba(255,255,255,0.06)":"rgba(0,0,0,0.05)",color:textS,fontSize:10,height:20 }} />}
+                            {c.siddhi_id && (()=>{ const s=allSiddhis.find((x)=>x.id===c.siddhi_id); return s ? <Chip label={`🎯 ${s.title}`} size="small" sx={{ bgcolor:`${NAADA_GOLD}14`,color:NAADA_GOLD,fontWeight:600,fontSize:10,height:20,border:`1px solid ${NAADA_GOLD}35` }} /> : null; })()}
                           </Stack>
 
                           <Stack spacing={0.5}>
@@ -1527,6 +1533,9 @@ export default function NaadaTracker({ embedded = false }) {
             <Grid item xs={12} sm={4}><TextField label="Completion Date" type="date" size="small" fullWidth InputLabelProps={{ shrink:true }} value={courseForm.completion_date} onChange={(e)=>setCourseForm((p)=>({...p,completion_date:e.target.value}))} /></Grid>
             <Grid item xs={12}><TextField label="Result / Grade Awarded" size="small" fullWidth value={courseForm.result} onChange={(e)=>setCourseForm((p)=>({...p,result:e.target.value}))} placeholder="e.g. First Class with Distinction, Pass" /></Grid>
             <Grid item xs={12}><TextField label="Notes" size="small" fullWidth multiline rows={3} value={courseForm.notes} onChange={(e)=>setCourseForm((p)=>({...p,notes:e.target.value}))} /></Grid>
+            <Grid item xs={12}>
+              <SiddhiPicker value={courseForm.siddhi_id} onChange={(v)=>setCourseForm((p)=>({...p,siddhi_id:v}))} isDark={isDark} label="Link to Milestone (Siddhi)" />
+            </Grid>
           </Grid>
         </DialogContent>
         <DialogActions sx={{ px:3,pb:2.5 }}>

@@ -25,6 +25,8 @@ import {
   Switch,
   Slide,
   useMediaQuery,
+  Checkbox,
+  FormControlLabel,
 } from "@mui/material";
 import {
   CheckCircle,
@@ -51,6 +53,7 @@ import { useThemeMode } from "../../hooks/useTheme";
 import { supabase } from "../../lib/supabase";
 import { usePanchang } from "../../hooks/usePanchang";
 import { getAllQuotes } from "../../lib/quotes";
+import { bustLakshyaSiddhisCache } from "../../hooks/useLakshyaSiddhis";
 import dayjs from "dayjs";
 import { ASHTA_SIDDHI_SCALE } from "../../components/shared/AreaComponents";
 
@@ -383,9 +386,11 @@ function CompletionDialog({
   onClose,
   heroColor,
   isDark,
+  anshSiddhiId,   // set when this item is a DB-backed ansh linked to a siddhi
 }) {
   const [minutes, setMinutes] = useState(60);
   const [satisfaction, setSatisfaction] = useState(4);
+  const [markDone, setMarkDone] = useState(false);
 
   if (!item) return null;
   const currentSiddhi = ASHTA_SIDDHI_SCALE.find((s) => s.value === satisfaction);
@@ -515,10 +520,30 @@ function CompletionDialog({
           }}
         />
 
+        {/* Mark as permanently done — only shown for ansh items linked to a Siddhi */}
+        {anshSiddhiId && (
+          <FormControlLabel
+            control={
+              <Checkbox
+                checked={markDone}
+                onChange={(e) => setMarkDone(e.target.checked)}
+                size="small"
+                sx={{ color: heroColor, "&.Mui-checked": { color: heroColor } }}
+              />
+            }
+            label={
+              <Typography sx={{ fontSize: 12, color: isDark ? "#9C9A94" : "#5F5F5F" }}>
+                Mark this task as <strong>permanently done</strong> — advances milestone progress
+              </Typography>
+            }
+            sx={{ mt: 1, mb: 0, textAlign: "left" }}
+          />
+        )}
+
         <Button
           variant="contained"
           fullWidth
-          onClick={() => onConfirm(item, minutes / 60, satisfaction)}
+          onClick={() => onConfirm(item, minutes / 60, satisfaction, markDone)}
           sx={{
             background: heroColor,
             "&:hover": { background: heroColor, opacity: 0.9 },
@@ -2302,11 +2327,8 @@ export default function TodayPage() {
     }));
 
   const allSacred = enrichWithLakshya(DEFAULT_SACRED).concat(customSacred);
-  // Auto-skip Vritti (office) on weekends
-  const coreBase = isWeekend
-    ? DEFAULT_CORE.filter((t) => t.id !== "office")
-    : DEFAULT_CORE;
-  const allCore = enrichWithLakshya(coreBase).concat(customCore);
+  // Core always includes all DEFAULT_CORE items — weekend doesn't remove office
+  const allCore = enrichWithLakshya(DEFAULT_CORE).concat(customCore);
   const allEvening = enrichWithLakshya(DEFAULT_EVENING).concat(customEvening);
 
   const cardBg = isDark ? "#1A1916" : "#FCFBF9";
@@ -2699,7 +2721,7 @@ export default function TodayPage() {
     setWalkOpen(false);
   };
 
-  const handleCompletionConfirm = (item, hours, satisfaction) => {
+  const handleCompletionConfirm = async (item, hours, satisfaction, markDone = false) => {
     if (!item) return;
     const nextHabits = { ...habits, [item.id]: true };
     const nextData = {
@@ -2709,6 +2731,32 @@ export default function TodayPage() {
     setHabits(nextHabits);
     setHabitsData(nextData);
     sync({ habits: nextHabits, habits_data: nextData });
+
+    // Phase 4 — permanently complete an ansh and advance siddhi progress
+    if (markDone && item.siddhi_id) {
+      // Mark this ansh as completed in the DB
+      await supabase.from("anshs").update({ status: "completed" }).eq("id", item.id);
+      // Remove from local active anshs list
+      setAnshs((prev) => prev.filter((a) => a.id !== item.id));
+
+      // Recalculate progress_percent for the linked siddhi:
+      // count all non-archived anshs for this siddhi, ratio completed/total
+      const { data: siblingAnshs } = await supabase
+        .from("anshs")
+        .select("status")
+        .eq("user_id", user.id)
+        .eq("siddhi_id", item.siddhi_id)
+        .neq("status", "archived");
+
+      if (siblingAnshs && siblingAnshs.length > 0) {
+        const total     = siblingAnshs.length;
+        const completed = siblingAnshs.filter((a) => a.status === "completed").length;
+        const newPct    = Math.round((completed / total) * 100);
+        await supabase.from("siddhis").update({ progress_percent: newPct }).eq("id", item.siddhi_id);
+        bustLakshyaSiddhisCache(); // force picker + dashboard to re-fetch
+      }
+    }
+
     setCompletionItem(null);
   };
 
@@ -2735,6 +2783,24 @@ export default function TodayPage() {
       const nextHabits = { ...habits, sleep_log: sleepData };
       setHabits(nextHabits);
       patch.habits = nextHabits;
+      // Sync to daily_activity under yesterday — morning flow captures last night's sleep
+      const yesterday = dayjs().subtract(1, "day").format("YYYY-MM-DD");
+      const { data: existingAct } = await supabase
+        .from("daily_activity")
+        .select("*")
+        .eq("user_id", user.id)
+        .eq("date", yesterday)
+        .maybeSingle();
+      await supabase.from("daily_activity").upsert(
+        {
+          ...(existingAct || {}),
+          user_id: user.id,
+          date: yesterday,
+          sleep_hours: sleepData.hours ?? null,
+          sleep_quality: sleepData.quality ?? null,
+        },
+        { onConflict: "user_id,date" },
+      );
     }
     await sync(patch);
   };
@@ -3144,7 +3210,7 @@ export default function TodayPage() {
           >
             <Typography sx={{ fontSize: 16 }}>🌿</Typography>
             <Typography sx={{ fontSize: 13, color: isDark ? "#9C9A94" : "#64748b", flex: 1 }}>
-              Weekend — Vritti work task is paused. Sacred practice continues.
+              Weekend — Vritti is optional today. Tap it to mark done whenever you're ready.
             </Typography>
           </Box>
         </Fade>
@@ -3331,6 +3397,15 @@ export default function TodayPage() {
                 ) : (
                   <>
                     {allCore.map((item) => renderItem(item, item.locked ? null : "core"))}
+                    {anshs.length > 0 && (
+                      <Box sx={{ display: "flex", alignItems: "center", gap: 1, mt: 1.5, mb: 0.5, px: 0.5 }}>
+                        <Box sx={{ flex: 1, height: "1px", bgcolor: isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.07)" }} />
+                        <Typography sx={{ fontSize: 10, fontWeight: 700, letterSpacing: 0.8, textTransform: "uppercase", color: heroColor, opacity: 0.7 }}>
+                          Milestone Tasks
+                        </Typography>
+                        <Box sx={{ flex: 1, height: "1px", bgcolor: isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.07)" }} />
+                      </Box>
+                    )}
                     {anshs.map((ansh) =>
                       renderItem(
                         {
@@ -3338,6 +3413,8 @@ export default function TodayPage() {
                           label: ansh.title,
                           lakshyaTitle: ansh.lakshya?.title || null,
                           siddhiTitle: ansh.siddhi?.title || null,
+                          siddhi_id: ansh.siddhi_id || null,
+                          lakshya_id: ansh.lakshya_id || null,
                           deep: true,
                         },
                         "core",
@@ -3546,6 +3623,11 @@ export default function TodayPage() {
         onClose={() => setCompletionItem(null)}
         heroColor={heroColor}
         isDark={isDark}
+        anshSiddhiId={
+          completionItem
+            ? (anshs.find((a) => a.id === completionItem.id)?.siddhi_id ?? completionItem.siddhi_id ?? null)
+            : null
+        }
       />
       <AddTaskDialog
         open={!!addTaskFor}

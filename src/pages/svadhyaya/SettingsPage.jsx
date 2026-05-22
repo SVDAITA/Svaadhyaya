@@ -1143,9 +1143,10 @@ export default function SettingsPage() {
               <SectionLabel>Daily flows</SectionLabel>
               <Box sx={{ mb: 3 }}>
                 {[
-                  { label: "Morning flow", desc: "Open Today → review flagged items → confirm your one intention → start the day." },
+                  { label: "Morning flow", desc: "Open Today → review flagged items → confirm your one intention → start the day. When you log sleep hours in the morning flow, they are written to yesterday's activity record — so last night's sleep is always attributed to the day it affected." },
                   { label: "Night flow", desc: "Open Today → log three wins → flag tomorrow's items → mark the day complete." },
                   { label: "Grace mode", desc: "If the day was hard, use Disruption mode. It marks the day, preserves your streak, and activates sacred minimums." },
+                  { label: "Weekends", desc: "On weekends the Core section still shows your Vṛtti (office) task — it's just optional. Tap it to mark done whenever you're ready, without needing to complete any sub-tasks first. All other core tasks remain visible too." },
                 ].map(({ label, desc }) => (
                   <Box key={label} sx={{ mb: 1.5, pl: 2, borderLeft: `2px solid ${heroColor}40` }}>
                     <Typography sx={{ fontSize: 13, fontWeight: 600, color: textP, mb: 0.25 }}>{label}</Typography>
@@ -1163,9 +1164,27 @@ export default function SettingsPage() {
                 {[
                   { label: "Lakshya (लक्ष्य) — the Vision", desc: "A long-range destination in any life area. Not a task — a direction. Add one from any area page by tapping “Add Lakshya”. Set a target date, write your why, and optionally add a Sanskrit mantra. Each Lakshya has a progress ring on the Dashboard." },
                   { label: "Siddhi (सिद्धि) — the Milestone", desc: "A waypoint that proves you're moving toward your Lakshya. Add Siddhis from inside any Lakshya card. Each Siddhi can have its own Anshs (micro-tasks). Mark a Siddhi complete when you hit it — the Lakshya progress ring updates automatically." },
-                  { label: "Ansh (अंश) — the Micro-task", desc: "The smallest unit — a daily or weekly action that serves a Siddhi. Add Anshs inside any Siddhi. When you complete all Anshs under a Siddhi, the Siddhi is ready to be marked done." },
+                  { label: "Ansh (अंश) — the Micro-task", desc: "The smallest unit — a daily or weekly action that serves a Siddhi. Add Anshs inside any Siddhi. Active Anshs appear as Milestone Tasks in the Core section of Today. When completing an Ansh, check Mark as permanently done to retire it and advance the parent Siddhi's progress bar automatically." },
                 ].map(({ label, desc }) => (
                   <Box key={label} sx={{ mb: 2, pl: 2, borderLeft: `2px solid ${heroColor}40` }}>
+                    <Typography sx={{ fontSize: 13, fontWeight: 600, color: textP, mb: 0.25 }}>{label}</Typography>
+                    <Typography sx={{ fontSize: 12, color: textS, lineHeight: 1.75 }}>{desc}</Typography>
+                  </Box>
+                ))}
+              </Box>
+
+              {/* Section: Milestone Tasks in Today */}
+              <SectionLabel>Milestone Tasks in Today</SectionLabel>
+              <Typography sx={{ fontSize: 13, color: textS, mb: 2, lineHeight: 1.85 }}>
+                Any Ansh you create automatically surfaces in the <strong style={{ color: textP }}>Core</strong> section of Today under a "Milestone Tasks" sub-header — so your long-range goal work appears alongside daily habits without any extra setup.
+              </Typography>
+              <Box sx={{ mb: 3 }}>
+                {[
+                  { label: "Daily appearance", desc: "Anshs repeat each day until permanently completed. Tap to open the completion dialog." },
+                  { label: "Permanently done", desc: "In the completion dialog, check Mark as permanently done to retire the Ansh. Svaadhyaya will count how many Anshs under the parent Siddhi are now complete and update the Siddhi's progress bar accordingly." },
+                  { label: "Siddhi progress", desc: "Progress percent = completed Anshs ÷ total Anshs × 100. The Lakshya ring on the Dashboard updates as soon as a Siddhi's progress changes." },
+                ].map(({ label, desc }) => (
+                  <Box key={label} sx={{ mb: 1.5, pl: 2, borderLeft: `2px solid ${heroColor}40` }}>
                     <Typography sx={{ fontSize: 13, fontWeight: 600, color: textP, mb: 0.25 }}>{label}</Typography>
                     <Typography sx={{ fontSize: 12, color: textS, lineHeight: 1.75 }}>{desc}</Typography>
                   </Box>
@@ -1182,6 +1201,24 @@ export default function SettingsPage() {
                   { label: "Locked (sacred) tasks", desc: "Tap the 🔗 icon on any locked task row. A dialog opens — choose the life area, pick your Lakshya, then pick the specific Siddhi this task serves. Save. The task row will show the Lakshya title and ↳ Siddhi name beneath it." },
                   { label: "Custom tasks", desc: "When adding a custom task via “Add Task”, you’ll see Lakshya and Siddhi dropdowns directly in the form. Select them there. You can also link later using the 🔗 icon on the task row." },
                   { label: "Ansh tasks", desc: "Anshs are created from within a Siddhi card on any area page. They appear as micro-tasks linked automatically — no extra linking step needed." },
+                ].map(({ label, desc }) => (
+                  <Box key={label} sx={{ mb: 1.5, pl: 2, borderLeft: `2px solid ${heroColor}40` }}>
+                    <Typography sx={{ fontSize: 13, fontWeight: 600, color: textP, mb: 0.25 }}>{label}</Typography>
+                    <Typography sx={{ fontSize: 12, color: textS, lineHeight: 1.75 }}>{desc}</Typography>
+                  </Box>
+                ))}
+              </Box>
+
+              {/* Section: Tracker → Milestone links */}
+              <SectionLabel>Linking tracker items to Milestones</SectionLabel>
+              <Typography sx={{ fontSize: 13, color: textS, mb: 2, lineHeight: 1.85 }}>
+                Tracker items — books, courses, projects — can be linked to a Siddhi so that focused work in trackers is visually connected to your long-term goals.
+              </Typography>
+              <Box sx={{ mb: 3 }}>
+                {[
+                  { label: "Where to link", desc: "In the add/edit dialog for any Vṛtti project, Vidyā book, Vidyā course, or Nāda course, you'll see a Link to Milestone field at the bottom. Open it to browse your active Siddhis grouped by Lakshya." },
+                  { label: "Siddhi chip on cards", desc: "Once linked, a small 🎯 chip showing the Siddhi title appears on the tracker card as a quick reminder of what goal this activity serves." },
+                  { label: "Changing or removing a link", desc: "Re-open the edit dialog and choose a different Siddhi, or clear the field. The link is stored separately from Ansh completion — it's informational only." },
                 ].map(({ label, desc }) => (
                   <Box key={label} sx={{ mb: 1.5, pl: 2, borderLeft: `2px solid ${heroColor}40` }}>
                     <Typography sx={{ fontSize: 13, fontWeight: 600, color: textP, mb: 0.25 }}>{label}</Typography>
@@ -1215,6 +1252,110 @@ export default function SettingsPage() {
                 ))}
               </Box>
 
+              {/* Section: Ashtasiddhi & Resonance Mass */}
+              <SectionLabel>Ashtasiddhi &amp; Resonance Mass</SectionLabel>
+              <Typography sx={{ fontSize: 13, color: textS, mb: 2, lineHeight: 1.85 }}>
+                The sidebar shows your current practice level — e.g. <strong style={{ color: textP }}>Saadhana · Level 5</strong>. This is your Ashtasiddhi level, a 1–8 scale derived from how you rate each habit when you complete it. The eight levels are:
+              </Typography>
+              <Box
+                sx={{
+                  display: "grid",
+                  gridTemplateColumns: "1fr 1fr",
+                  gap: 0.75,
+                  mb: 2.5,
+                  pl: 0.5,
+                }}
+              >
+                {[
+                  { v: 1, name: "Sthiti",  emoji: "🌱", label: "Presence"   },
+                  { v: 2, name: "Prayas",  emoji: "🌿", label: "Effort"     },
+                  { v: 3, name: "Nishtha", emoji: "🌳", label: "Steadiness" },
+                  { v: 4, name: "Bodha",   emoji: "💡", label: "Awareness"  },
+                  { v: 5, name: "Saadhana",emoji: "🔥", label: "Practice"   },
+                  { v: 6, name: "Prajna",  emoji: "⚡", label: "Insight"    },
+                  { v: 7, name: "Samadhi", emoji: "🌟", label: "Absorption" },
+                  { v: 8, name: "Siddhi",  emoji: "✨", label: "Mastery"    },
+                ].map(({ v, name, emoji, label }) => (
+                  <Box
+                    key={v}
+                    sx={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 0.75,
+                      background: isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.03)",
+                      border: `1px solid ${border}`,
+                      borderRadius: 1.5,
+                      px: 1.25,
+                      py: 0.6,
+                    }}
+                  >
+                    <Typography sx={{ fontSize: 14, lineHeight: 1 }}>{emoji}</Typography>
+                    <Box>
+                      <Typography sx={{ fontSize: 11, fontWeight: 700, color: textP, lineHeight: 1.2 }}>
+                        {v}. {name}
+                      </Typography>
+                      <Typography sx={{ fontSize: 10, color: textS, lineHeight: 1.3 }}>{label}</Typography>
+                    </Box>
+                  </Box>
+                ))}
+              </Box>
+              <Box sx={{ mb: 2.5 }}>
+                {[
+                  { label: "How the level is computed", desc: "With fewer than 30 days of data, your level = yesterday's average quality rating across all completed habits. Once you have 30+ days, it switches to a rolling average across the past 30 days — smoothing out spikes and reflecting sustained practice." },
+                  { label: "Rating each habit", desc: "After completing any habit, the completion dialog asks for an Ashta Siddhi quality (1–8). Be honest — rating 8 every day will inflate your level without reflecting real depth. The scale is designed to make 5–6 the natural zone for a strong consistent practice." },
+                ].map(({ label, desc }) => (
+                  <Box key={label} sx={{ mb: 1.5, pl: 2, borderLeft: `2px solid ${heroColor}40` }}>
+                    <Typography sx={{ fontSize: 13, fontWeight: 600, color: textP, mb: 0.25 }}>{label}</Typography>
+                    <Typography sx={{ fontSize: 12, color: textS, lineHeight: 1.75 }}>{desc}</Typography>
+                  </Box>
+                ))}
+              </Box>
+
+              <Typography sx={{ fontSize: 13, color: textS, mb: 1.5, lineHeight: 1.85 }}>
+                <strong style={{ color: textP }}>Resonance Mass</strong> is the raw score behind the level. Every completed habit adds <strong style={{ color: textP }}>2 pts base</strong> plus a quality bonus. The bonus curve is intentionally nonlinear — deeper practice is rewarded exponentially:
+              </Typography>
+              <Box
+                sx={{
+                  background: isDark ? "rgba(255,255,255,0.04)" : "#F4F3EC",
+                  border: `1px solid ${border}`,
+                  borderRadius: 2,
+                  p: 2,
+                  mb: 1.5,
+                  fontFamily: "monospace",
+                  fontSize: 11,
+                  color: textS,
+                  lineHeight: 1.8,
+                  whiteSpace: "pre",
+                }}
+              >{`Level  Quality bonus  Total per habit
+  1    + 1 pt         3 pts
+  2    + 2 pts        4 pts
+  3    + 4 pts        6 pts
+  4    + 7 pts        9 pts
+  5    +12 pts       14 pts
+  6    +18 pts       20 pts
+  7    +25 pts       27 pts
+  8    +35 pts       37 pts`}</Box>
+              <Typography sx={{ fontSize: 12, color: textS, mb: 2.5, lineHeight: 1.75 }}>
+                A day where every habit is rated 8 contributes 37× more mass per habit than a day rated 1. The Dashboard constellation's orbit radius is driven by Resonance Mass — higher mass means a wider, more energetic orbit. A perfect-quality day of habits alone reaches ~100 mass; combined with strong physical activity it can reach 145.
+              </Typography>
+
+              <Typography sx={{ fontSize: 13, color: textS, mb: 2, lineHeight: 1.85 }}>
+                <strong style={{ color: textP }}>Activity bonuses</strong> add up to +21 pts of Resonance Mass on top of habit scores:
+              </Typography>
+              <Box sx={{ mb: 3 }}>
+                {[
+                  { label: "Steps", desc: "≥ 10 000 steps → +8 pts · ≥ 7 500 → +5 pts · ≥ 5 000 → +2 pts. Log steps daily in the Sharīram tracker, or via the morning flow." },
+                  { label: "Sleep", desc: "≥ 7.5 h → +7 pts · ≥ 7.0 h → +4 pts · ≥ 6.0 h → +1 pt. Sleep is logged in the morning flow (written to yesterday's record)." },
+                  { label: "Calories burned", desc: "≥ 500 kcal → +6 pts · ≥ 300 → +3 pts · ≥ 150 → +1 pt. Log in Sharīram tracker → Activity. Set your daily targets under Sharīram → Set Targets." },
+                ].map(({ label, desc }) => (
+                  <Box key={label} sx={{ mb: 1.5, pl: 2, borderLeft: `2px solid ${heroColor}40` }}>
+                    <Typography sx={{ fontSize: 13, fontWeight: 600, color: textP, mb: 0.25 }}>{label}</Typography>
+                    <Typography sx={{ fontSize: 12, color: textS, lineHeight: 1.75 }}>{desc}</Typography>
+                  </Box>
+                ))}
+              </Box>
+
               {/* Section: Disruption baselines */}
               <SectionLabel>Disruption baselines</SectionLabel>
               <Typography sx={{ fontSize: 13, color: textS, mb: 2, lineHeight: 1.85 }}>
@@ -1241,9 +1382,26 @@ export default function SettingsPage() {
 
               {/* Section: Trackers */}
               <SectionLabel>Trackers</SectionLabel>
-              <Typography sx={{ fontSize: 13, color: textS, mb: 3, lineHeight: 1.85 }}>
-                Trackers handle day-to-day logging and are separate from life area pages. Go to the Trackers section in the sidebar. Each tracker is purpose-built: Anna (food & macros), Sharīram (body metrics), Pathanam (books & library), Artha (finance), Vṛtti (career tasks), Purohitam (sacred practice), and Yatra (journeys).
+              <Typography sx={{ fontSize: 13, color: textS, mb: 2, lineHeight: 1.85 }}>
+                Trackers handle day-to-day logging and are separate from life area pages. Go to the Trackers section in the sidebar. Each tracker is purpose-built:
               </Typography>
+              <Box sx={{ mb: 3 }}>
+                {[
+                  { label: "Anna", desc: "Food & macros — log meals, track against your vital macro targets, manage your pantry." },
+                  { label: "Sharīram", desc: "Body metrics — weight, measurements, daily activity (steps, calories, sleep). Set your activity targets under Sharīram → Set Targets." },
+                  { label: "Vidyā", desc: "Learning — Books tab, Courses tab, and Study Log tab. Log study sessions with hours, source (book or course), and notes. Link any book or course to a Siddhi via the Link to Milestone field." },
+                  { label: "Nāda", desc: "Music — practice sessions, Courses tab for structured music courses. Link courses to a Siddhi." },
+                  { label: "Vṛtti", desc: "Career — projects with work-log sessions (hours + Ashta Siddhi quality). Link projects to a Siddhi." },
+                  { label: "Artha", desc: "Finance — transactions, loans, asset tracking." },
+                  { label: "Purohitam", desc: "Sacred practice — rituals and observances log." },
+                  { label: "Yatra", desc: "Journeys — travel and pilgrimage records." },
+                ].map(({ label, desc }) => (
+                  <Box key={label} sx={{ mb: 1.25, pl: 2, borderLeft: `2px solid ${heroColor}40` }}>
+                    <Typography sx={{ fontSize: 13, fontWeight: 600, color: textP, mb: 0.25 }}>{label}</Typography>
+                    <Typography sx={{ fontSize: 12, color: textS, lineHeight: 1.75 }}>{desc}</Typography>
+                  </Box>
+                ))}
+              </Box>
 
               {/* Section: JSON Formats */}
               <SectionLabel>JSON upload formats</SectionLabel>
