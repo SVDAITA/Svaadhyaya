@@ -1155,16 +1155,16 @@ export default function SettingsPage() {
                 ))}
               </Box>
 
-              {/* Section: Lakshya → Siddhi → Ansh */}
-              <SectionLabel>Lakshya → Siddhi → Ansh</SectionLabel>
+              {/* Section: Lakshya & Milestones */}
+              <SectionLabel>Lakshya &amp; Milestones</SectionLabel>
               <Typography sx={{ fontSize: 13, color: textS, mb: 2, lineHeight: 1.85 }}>
-                Svaadhyaya uses a three-level goal hierarchy to connect daily work to long-range visions.
+                Svaadhyaya uses a two-level vision structure to connect daily practice to long-range destinations.
               </Typography>
               <Box sx={{ mb: 2 }}>
                 {[
-                  { label: "Lakshya (लक्ष्य) — the Vision", desc: "A long-range destination in any life area. Not a task — a direction. Add one from any area page by tapping “Add Lakshya”. Set a target date, write your why, and optionally add a Sanskrit mantra. Each Lakshya has a progress ring on the Dashboard." },
-                  { label: "Siddhi (सिद्धि) — the Milestone", desc: "A waypoint that proves you're moving toward your Lakshya. Add Siddhis from inside any Lakshya card. Each Siddhi can have its own Anshs (micro-tasks). Mark a Siddhi complete when you hit it — the Lakshya progress ring updates automatically." },
-                  { label: "Ansh (अंश) — the Micro-task", desc: "The smallest unit — a daily or weekly action that serves a Siddhi. Add Anshs inside any Siddhi. Active Anshs appear as Milestone Tasks in the Core section of Today. When completing an Ansh, check Mark as permanently done to retire it and advance the parent Siddhi's progress bar automatically." },
+                  { label: "Lakshya (लक्ष्य) — the Vision", desc: "A long-range destination in any life area. Not a task — a direction. Add one from any area page by tapping ‘New Vision’. Choose a goal type, set a target date, write your why, and optionally add a Sanskrit mantra." },
+                  { label: "Goal types", desc: "Each Lakshya has a type that shapes how progress is shown. Habit — build consistency over time (streak + 30-day %). Completion — finish X of Y discrete things. Outcome — hit a measurable number (current → target). Mastery — reach a quality level on the 8-point Ashtasiddhi scale." },
+                  { label: "Milestone — the Waypoint", desc: "Binary checkpoints under a Lakshya. Add them from inside any Lakshya card. Mark one complete when you reach it — the card’s progress bar updates automatically. Keep them meaningful: e.g. ‘Finish Part I’ or ‘Complete 50 sessions’." },
                 ].map(({ label, desc }) => (
                   <Box key={label} sx={{ mb: 2, pl: 2, borderLeft: `2px solid ${heroColor}40` }}>
                     <Typography sx={{ fontSize: 13, fontWeight: 600, color: textP, mb: 0.25 }}>{label}</Typography>
@@ -1173,16 +1173,15 @@ export default function SettingsPage() {
                 ))}
               </Box>
 
-              {/* Section: Milestone Tasks in Today */}
-              <SectionLabel>Milestone Tasks in Today</SectionLabel>
+              {/* Section: Today’s connection */}
+              <SectionLabel>Today’s connection to your Lakshyas</SectionLabel>
               <Typography sx={{ fontSize: 13, color: textS, mb: 2, lineHeight: 1.85 }}>
-                Any Ansh you create automatically surfaces in the <strong style={{ color: textP }}>Core</strong> section of Today under a "Milestone Tasks" sub-header — so your long-range goal work appears alongside daily habits without any extra setup.
+                The Today page shows a <strong style={{ color: textP }}>"Today you’re working toward"</strong> banner above your habit sections — chips for every active Lakshya whose tracker is linked to your daily practice. When you check off a habit, its linked Lakshya chips light up green so you feel the connection between today’s action and your long-range vision.
               </Typography>
               <Box sx={{ mb: 3 }}>
                 {[
-                  { label: "Daily appearance", desc: "Anshs repeat each day until permanently completed. Tap to open the completion dialog." },
-                  { label: "Permanently done", desc: "In the completion dialog, check Mark as permanently done to retire the Ansh. Svaadhyaya will count how many Anshs under the parent Siddhi are now complete and update the Siddhi's progress bar accordingly." },
-                  { label: "Siddhi progress", desc: "Progress percent = completed Anshs ÷ total Anshs × 100. The Lakshya ring on the Dashboard updates as soon as a Siddhi's progress changes." },
+                  { label: "Setting it up", desc: "On any area’s Sankalpa tab, look for the ‘Serving Lakshyas’ (or ‘Tracking Toward’ / ‘Fuelling’) section just above your Lakshya cards. Tap it to declare which Lakshyas this area’s tracker is feeding." },
+                  { label: "How it lights up", desc: "When you mark today’s Anushthanam, Nāda, exercise, office work, or study done, every Lakshya linked to that tracker glows green in the banner — real-time feedback that practice and vision are aligned." },
                 ].map(({ label, desc }) => (
                   <Box key={label} sx={{ mb: 1.5, pl: 2, borderLeft: `2px solid ${heroColor}40` }}>
                     <Typography sx={{ fontSize: 13, fontWeight: 600, color: textP, mb: 0.25 }}>{label}</Typography>
@@ -1194,13 +1193,12 @@ export default function SettingsPage() {
               {/* Section: Linking tasks to Lakshyas */}
               <SectionLabel>Linking tasks to Lakshyas</SectionLabel>
               <Typography sx={{ fontSize: 13, color: textS, mb: 2, lineHeight: 1.85 }}>
-                Every task in Today can be linked to a Lakshya and Siddhi, so your daily actions pull forward your long-term visions.
+                Tasks in Today can be linked to a Lakshya so your daily actions visibly pull forward your long-term visions.
               </Typography>
               <Box sx={{ mb: 3 }}>
                 {[
-                  { label: "Locked (sacred) tasks", desc: "Tap the 🔗 icon on any locked task row. A dialog opens — choose the life area, pick your Lakshya, then pick the specific Siddhi this task serves. Save. The task row will show the Lakshya title and ↳ Siddhi name beneath it." },
-                  { label: "Custom tasks", desc: "When adding a custom task via “Add Task”, you’ll see Lakshya and Siddhi dropdowns directly in the form. Select them there. You can also link later using the 🔗 icon on the task row." },
-                  { label: "Ansh tasks", desc: "Anshs are created from within a Siddhi card on any area page. They appear as micro-tasks linked automatically — no extra linking step needed." },
+                  { label: "Locked (sacred) tasks", desc: "Tap the 🔗 icon on any locked task row. A dialog opens — choose the life area and pick the Lakshya this task serves. The task row will show the Lakshya title beneath it." },
+                  { label: "Custom tasks", desc: "When adding a custom task via ‘Add Task’, you’ll see a Lakshya dropdown directly in the form. You can also link later using the 🔗 icon on the task row." },
                 ].map(({ label, desc }) => (
                   <Box key={label} sx={{ mb: 1.5, pl: 2, borderLeft: `2px solid ${heroColor}40` }}>
                     <Typography sx={{ fontSize: 13, fontWeight: 600, color: textP, mb: 0.25 }}>{label}</Typography>
@@ -1209,16 +1207,16 @@ export default function SettingsPage() {
                 ))}
               </Box>
 
-              {/* Section: Tracker → Milestone links */}
-              <SectionLabel>Linking tracker items to Milestones</SectionLabel>
+              {/* Section: Tracker → Lakshya links */}
+              <SectionLabel>Linking trackers to Lakshyas</SectionLabel>
               <Typography sx={{ fontSize: 13, color: textS, mb: 2, lineHeight: 1.85 }}>
-                Tracker items — books, courses, projects — can be linked to a Siddhi so that focused work in trackers is visually connected to your long-term goals.
+                Each area’s tracker can be connected to one or more Lakshyas — so that logging a practice session or finance entry is understood as moving you toward your vision, not just ticking a box.
               </Typography>
               <Box sx={{ mb: 3 }}>
                 {[
-                  { label: "Where to link", desc: "In the add/edit dialog for any Vṛtti project, Vidyā book, Vidyā course, or Nāda course, you'll see a Link to Milestone field at the bottom. Open it to browse your active Siddhis grouped by Lakshya." },
-                  { label: "Siddhi chip on cards", desc: "Once linked, a small 🎯 chip showing the Siddhi title appears on the tracker card as a quick reminder of what goal this activity serves." },
-                  { label: "Changing or removing a link", desc: "Re-open the edit dialog and choose a different Siddhi, or clear the field. The link is stored separately from Ansh completion — it's informational only." },
+                  { label: "Where to link", desc: "On any area’s Sankalpa tab, the ‘Serving Lakshyas’ panel (labelled ‘Tracking Toward’ for Artha, ‘Fuelling’ for Vṛtti) shows which Lakshyas this area feeds. Tap the panel to add or remove Lakshyas." },
+                  { label: "Last practiced signal", desc: "The panel also shows when you last logged activity in this area — ‘Practiced today’, ‘yesterday’, or ‘Xd ago’ — so you can see at a glance whether your practice is keeping pace with your vision." },
+                  { label: "Habit card streak", desc: "Habit-type Lakshyas show a live streak and 30-day consistency % pulled directly from the linked tracker’s activity table — no manual entry needed." },
                 ].map(({ label, desc }) => (
                   <Box key={label} sx={{ mb: 1.5, pl: 2, borderLeft: `2px solid ${heroColor}40` }}>
                     <Typography sx={{ fontSize: 13, fontWeight: 600, color: textP, mb: 0.25 }}>{label}</Typography>
@@ -1230,7 +1228,7 @@ export default function SettingsPage() {
               {/* Section: Deep Work */}
               <SectionLabel>Deep work</SectionLabel>
               <Typography sx={{ fontSize: 13, color: textS, mb: 3, lineHeight: 1.85 }}>
-                When adding a custom task, toggle <strong style={{ color: textP }}>Deep work</strong> on. When you complete the task, Svaadhyaya will ask for hours spent and an Ashta Siddhi quality rating (1–8). These entries build your deep work log — visible in the Vṛtti tracker. Use this for any task that demands sustained, focused attention.
+                When adding a custom task, toggle <strong style={{ color: textP }}>Deep work</strong> on. When you complete the task, Svaadhyaya will ask for hours spent and an Ashtasiddhi quality rating (1–8). These entries build your deep work log — visible in the Vṛtti tracker. Use this for any task that demands sustained, focused attention.
               </Typography>
 
               {/* Section: Dashboard constellation */}
@@ -1240,10 +1238,9 @@ export default function SettingsPage() {
               </Typography>
               <Box sx={{ mb: 3 }}>
                 {[
-                  { label: "Progress ring", desc: "Fills as your Lakshyas move forward. Completed Siddhis drive the ring." },
-                  { label: "Milestone count", desc: "X / Y Siddhis complete across all active Lakshyas in that area." },
-                  { label: "Ansh count", desc: "X / Y Anshs complete — shows daily micro-task momentum." },
-                  { label: "Active Siddhi", desc: "↳ The name of the current milestone you're working toward (the earliest incomplete Siddhi)." },
+                  { label: "Progress ring", desc: "Fills as your Lakshyas move forward. Completed milestones drive the ring." },
+                  { label: "Milestone count", desc: "X / Y milestones complete across all active Lakshyas in that area." },
+                  { label: "Active milestone", desc: "↳ The name of the current waypoint you're working toward (the earliest incomplete milestone)." },
                 ].map(({ label, desc }) => (
                   <Box key={label} sx={{ mb: 1.25, pl: 2, borderLeft: `2px solid ${heroColor}40` }}>
                     <Typography sx={{ fontSize: 13, fontWeight: 600, color: textP, mb: 0.25 }}>{label}</Typography>
@@ -1302,7 +1299,7 @@ export default function SettingsPage() {
               <Box sx={{ mb: 2.5 }}>
                 {[
                   { label: "How the level is computed", desc: "With fewer than 30 days of data, your level = yesterday's average quality rating across all completed habits. Once you have 30+ days, it switches to a rolling average across the past 30 days — smoothing out spikes and reflecting sustained practice." },
-                  { label: "Rating each habit", desc: "After completing any habit, the completion dialog asks for an Ashta Siddhi quality (1–8). Be honest — rating 8 every day will inflate your level without reflecting real depth. The scale is designed to make 5–6 the natural zone for a strong consistent practice." },
+                  { label: "Rating each habit", desc: "After completing any habit, the completion dialog asks for an Ashtasiddhi quality (1–8). Be honest — rating 8 every day will inflate your level without reflecting real depth. The scale is designed to make 5–6 the natural zone for a strong consistent practice." },
                 ].map(({ label, desc }) => (
                   <Box key={label} sx={{ mb: 1.5, pl: 2, borderLeft: `2px solid ${heroColor}40` }}>
                     <Typography sx={{ fontSize: 13, fontWeight: 600, color: textP, mb: 0.25 }}>{label}</Typography>
@@ -1365,7 +1362,7 @@ export default function SettingsPage() {
                 {[
                   { label: "Holiday baseline", desc: "On days marked as Holiday disruption, only the tasks you mark here are required. Everything else is optional. Typical choice: Anushthanam, Naada Saadhana, Vyaayamam." },
                   { label: "Vacation baseline", desc: "On Vacation disruption days, an even smaller set is required — usually just Anushthanam. The rest of the day is truly free." },
-                  { label: "Required vs optional", desc: "Each task in the baseline can be toggled “Required” (must be done) or given a minimum count. Tasks not in the baseline are silently skipped on disruption days." },
+                  { label: "Required vs optional", desc: "Each task in the baseline can be toggled 'Required' (must be done) or given a minimum count. Tasks not in the baseline are silently skipped on disruption days." },
                 ].map(({ label, desc }) => (
                   <Box key={label} sx={{ mb: 1.5, pl: 2, borderLeft: `2px solid ${heroColor}40` }}>
                     <Typography sx={{ fontSize: 13, fontWeight: 600, color: textP, mb: 0.25 }}>{label}</Typography>
@@ -1389,9 +1386,9 @@ export default function SettingsPage() {
                 {[
                   { label: "Anna", desc: "Food & macros — log meals, track against your vital macro targets, manage your pantry." },
                   { label: "Sharīram", desc: "Body metrics — weight, measurements, daily activity (steps, calories, sleep). Set your activity targets under Sharīram → Set Targets." },
-                  { label: "Vidyā", desc: "Learning — Books tab, Courses tab, and Study Log tab. Log study sessions with hours, source (book or course), and notes. Link any book or course to a Siddhi via the Link to Milestone field." },
-                  { label: "Nāda", desc: "Music — practice sessions, Courses tab for structured music courses. Link courses to a Siddhi." },
-                  { label: "Vṛtti", desc: "Career — projects with work-log sessions (hours + Ashta Siddhi quality). Link projects to a Siddhi." },
+                  { label: "Vidyā", desc: "Learning — Books tab, Courses tab, and Study Log tab. Log study sessions with hours, source (book or course), and notes. Link any book or course to a Lakshya to track contribution toward your vision." },
+                  { label: "Nāda", desc: "Music — practice sessions and Courses tab for structured music courses. Link courses to a Lakshya on the Nādam Sankalpa tab." },
+                  { label: "Vṛtti", desc: "Career — projects with work-log sessions (hours + Ashtasiddhi quality). Link projects to a Lakshya on the Vṛtti Sankalpa tab." },
                   { label: "Artha", desc: "Finance — transactions, loans, asset tracking." },
                   { label: "Purohitam", desc: "Sacred practice — rituals and observances log." },
                   { label: "Yatra", desc: "Journeys — travel and pilgrimage records." },
@@ -1617,7 +1614,7 @@ export default function SettingsPage() {
               {/* Section: Data export */}
               <SectionLabel>Exporting your data</SectionLabel>
               <Typography sx={{ fontSize: 13, color: textS, mb: 3, lineHeight: 1.85 }}>
-                Go to Settings → Security → "Export Svaadhyaya data". You'll receive a full JSON file containing all your days, logs, books, milestones, Lakshyas, Siddhis, and Anshs. This is your backup — keep it safe.
+                Go to Settings → Security → "Export Svaadhyaya data". You'll receive a full JSON file containing all your days, logs, books, Lakshyas, milestones, and tracker activity. This is your backup — keep it safe.
               </Typography>
 
               {/* Section: Visibility */}

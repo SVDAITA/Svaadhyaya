@@ -2223,6 +2223,118 @@ function EmptyState({ message, heroColor, isDark, onAdd }) {
   );
 }
 
+// ── TODAY LAKSHYA BANNER ───────────────────────────────────────────────────────
+// Maps each tracker_type to the habit ID(s) in the `habits` state that signal
+// "practiced today". Used to light up Lakshya chips when the habit is done.
+const TRACKER_TO_HABIT = {
+  spirit:  "anushthanam",
+  music:   "saadhana",
+  health:  "walk",
+  career:  "office",
+  reading: ["reading", "vidya"],
+};
+
+function TodayLakshyaBanner({ habits, heroColor, isDark, textP }) {
+  const { user } = useAuth();
+  const [linked, setLinked] = useState([]);
+
+  useEffect(() => {
+    if (!user) return;
+    supabase
+      .from("tracker_lakshya_links")
+      .select("tracker_type, lakshya_id, lakshya:lakshyas(title, status)")
+      .eq("user_id", user.id)
+      .then(({ data }) => {
+        if (!data?.length) return;
+        const map = new Map();
+        data.forEach((row) => {
+          if (row.lakshya?.status !== "active") return;
+          if (!map.has(row.lakshya_id)) {
+            map.set(row.lakshya_id, {
+              id: row.lakshya_id,
+              title: row.lakshya.title,
+              trackerTypes: [],
+            });
+          }
+          map.get(row.lakshya_id).trackerTypes.push(row.tracker_type);
+        });
+        setLinked([...map.values()]);
+      });
+  }, [user]);
+
+  if (!linked.length) return null;
+
+  const isPracticed = (trackerTypes) =>
+    trackerTypes.some((type) => {
+      const keys = TRACKER_TO_HABIT[type];
+      if (!keys) return false;
+      return Array.isArray(keys) ? keys.some((k) => habits[k]) : !!habits[keys];
+    });
+
+  return (
+    <Box
+      sx={{
+        mb: 2,
+        px: 2,
+        py: 1.5,
+        borderRadius: 2.5,
+        border: `1px solid ${heroColor}30`,
+        background: `${heroColor}07`,
+      }}
+    >
+      <Typography
+        sx={{
+          fontSize: 10,
+          fontWeight: 700,
+          letterSpacing: 0.9,
+          textTransform: "uppercase",
+          color: heroColor,
+          mb: 1,
+          opacity: 0.85,
+        }}
+      >
+        Today you're working toward
+      </Typography>
+      <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.75 }}>
+        {linked.map((l) => {
+          const done = isPracticed(l.trackerTypes);
+          return (
+            <Box
+              key={l.id}
+              sx={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 0.5,
+                px: 1.5,
+                py: 0.4,
+                borderRadius: 12,
+                border: `1px solid ${done ? "#2D9E6B" : heroColor + "35"}`,
+                background: done ? "#2D9E6B15" : "transparent",
+                boxShadow: done ? "0 0 8px #2D9E6B28" : "none",
+                transition: "all 0.3s ease",
+              }}
+            >
+              {done && (
+                <CheckCircle sx={{ fontSize: 11, color: "#2D9E6B" }} />
+              )}
+              <Typography
+                sx={{
+                  fontSize: 12,
+                  fontWeight: 600,
+                  color: done ? "#2D9E6B" : textP,
+                  lineHeight: 1.3,
+                }}
+              >
+                {l.title}
+              </Typography>
+            </Box>
+          );
+        })}
+      </Box>
+    </Box>
+  );
+}
+
 // ── MODULE-LEVEL CACHE ─────────────────────────────────────────────────────────
 // Persists across in-session navigation so TodayPage never shows a spinner again
 // after the first load. Keyed to today's date — auto-invalidates at midnight.
@@ -3372,6 +3484,13 @@ export default function TodayPage() {
           </Typography>
         </Box>
       )}
+
+      <TodayLakshyaBanner
+        habits={habits}
+        heroColor={heroColor}
+        isDark={isDark}
+        textP={textP}
+      />
 
       <Box
         sx={{

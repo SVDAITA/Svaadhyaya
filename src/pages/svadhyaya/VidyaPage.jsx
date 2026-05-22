@@ -7,6 +7,7 @@ import {
   LakshyaSection,
   AreaJournal,
   WeeklyGoals,
+  TrackerLakshyaLink,
 } from "../../components/shared/AreaComponents";
 import SankalpaPurpose from "../../components/shared/SankalpaPurpose";
 import VidyaTracker from "../tracker/VidyaTracker";
@@ -138,7 +139,7 @@ export default function VidyaPage() {
   const [tab, setTab] = useState(location.state?.tab ?? 0);
 
   const activeLakshyas = lakshyas.filter((l) => l.status === "active").length;
-  const totalSiddhis = lakshyas.reduce(
+  const totalMilestones = lakshyas.reduce(
     (acc, l) => acc + (l.siddhis?.length || 0),
     0,
   );
@@ -200,13 +201,14 @@ export default function VidyaPage() {
               </Grid>
               <Grid item xs={6}>
                 <StatCard
-                  value={totalSiddhis}
+                  value={totalMilestones}
                   label="Milestones Set"
                   color={safeColor}
-                  sub="Siddhis"
+                  sub="Milestones"
                 />
               </Grid>
             </Grid>
+            <TrackerLakshyaLink area={AREA} color={safeColor} lakshyas={lakshyas} />
             <LakshyaSection
               area={AREA}
               color={safeColor}

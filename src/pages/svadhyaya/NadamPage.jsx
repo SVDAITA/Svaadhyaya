@@ -7,6 +7,7 @@ import {
   LakshyaSection,
   AreaJournal,
   WeeklyGoals,
+  TrackerLakshyaLink,
 } from "../../components/shared/AreaComponents";
 import SankalpaPurpose from "../../components/shared/SankalpaPurpose";
 import NaadaTracker from "../tracker/NaadaTracker";
@@ -50,7 +51,7 @@ export default function NadamPage() {
   const [tab, setTab] = useState(location.state?.tab ?? 0);
 
   const activeLakshyas = lakshyas.filter((l) => l.status === "active").length;
-  const totalSiddhis = lakshyas.reduce((acc, l) => acc + (l.siddhis?.length || 0), 0);
+  const totalMilestones = lakshyas.reduce((acc, l) => acc + (l.siddhis?.length || 0), 0);
 
   if (loading)
     return (
@@ -85,8 +86,9 @@ export default function NadamPage() {
             <SankalpaPurpose area={AREA} color={safeColor} isDark={isDark} />
             <Grid container spacing={2} sx={{ mb: 3 }}>
               <Grid item xs={6}><StatCard value={activeLakshyas} label="Active Visions" color={safeColor} sub="Lakshyas" /></Grid>
-              <Grid item xs={6}><StatCard value={totalSiddhis} label="Milestones Set" color={safeColor} sub="Siddhis" /></Grid>
+              <Grid item xs={6}><StatCard value={totalMilestones} label="Milestones Set" color={safeColor} sub="Milestones" /></Grid>
             </Grid>
+            <TrackerLakshyaLink area={AREA} color={safeColor} lakshyas={lakshyas} />
             <LakshyaSection area={AREA} color={safeColor} lakshyas={lakshyas} onUpdate={reload} />
             <AreaJournal area={AREA} color={safeColor} />
             <WeeklyGoals area={AREA} color={safeColor} />

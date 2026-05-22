@@ -29,19 +29,22 @@ import {
   Check,
   Delete,
   Edit,
-  ExpandMore,
-  ExpandLess,
   Flag,
   CheckCircle,
   RadioButtonUnchecked,
   FlashOn,
   AutoAwesome,
-  EditNote,
-  Spa,
   Timeline,
   Insights,
   SelfImprovement,
   MenuBook,
+  Loop,
+  CheckBox,
+  TrendingUp,
+  Stars,
+  Link as LinkIcon,
+  Close,
+  ArrowForward,
 } from "@mui/icons-material";
 import { keyframes } from "@mui/system";
 import dayjs from "dayjs";
@@ -290,868 +293,939 @@ export function StatCard({ value, label, color, sub }) {
   );
 }
 
-// ── LAKSHYA HIERARCHY (Lakshya -> Siddhi -> Ansh) ──────────────────────────────
-function SiddhiRow({ siddhi, lakshyaId, color, onUpdate }) {
+// ── SHARED HELPERS ─────────────────────────────────────────────────────────────
+function relDate(dateStr) {
+  if (!dateStr) return null;
+  const diff = dayjs().startOf("day").diff(dayjs(dateStr).startOf("day"), "day");
+  if (diff === 0) return "today";
+  if (diff === 1) return "yesterday";
+  return `${diff}d ago`;
+}
+
+// Maps tracker_type → the table that actually records daily activity
+const TRACKER_ACTIVITY = {
+  spirit:  { table: "days",                       col: "day_date" },
+  music:   { table: "naada_sequence_completions", col: "completion_date" },
+  health:  { table: "health_logs",                col: "date" },
+  finance: { table: "finance_logs",               col: "date" },
+  career:  { table: "vritti_daily_log",           col: "date" },
+  reading: { table: "vidya_study_log",            col: "date" },
+};
+
+async function fetchActivityDates(user, trackerTypes) {
+  const since = dayjs().subtract(60, "day").format("YYYY-MM-DD");
+  const all = new Set();
+  await Promise.all(
+    trackerTypes.map(async (type) => {
+      const m = TRACKER_ACTIVITY[type];
+      if (!m) return;
+      const { data } = await supabase.from(m.table).select(m.col)
+        .eq("user_id", user.id).gte(m.col, since);
+      (data || []).forEach(d => all.add(d[m.col]));
+    })
+  );
+  return [...all].sort().reverse();
+}
+
+function calcStreak(datesDesc) {
+  if (!datesDesc.length) return 0;
+  let streak = 0;
+  let cursor = dayjs().startOf("day");
+  for (const d of datesDesc) {
+    const dd = dayjs(d).startOf("day");
+    if (dd.isSame(cursor)) { streak++; cursor = cursor.subtract(1, "day"); }
+    else if (streak === 0 && dd.isSame(cursor.subtract(1, "day"))) {
+      cursor = cursor.subtract(1, "day"); streak++; cursor = cursor.subtract(1, "day");
+    } else if (dd.isBefore(cursor)) break;
+  }
+  return streak;
+}
+
+// ── GOAL TYPE CONFIG ───────────────────────────────────────────────────────────
+export const GOAL_TYPES = [
+  { id: "habit",      label: "Habit",      desc: "Build consistency over time — streaks, daily practice",  Icon: Loop,      color: "#7C6AF7" },
+  { id: "completion", label: "Completion", desc: "Finish X out of Y things — books, courses, projects",    Icon: CheckBox,  color: "#2D9E6B" },
+  { id: "outcome",    label: "Outcome",    desc: "Hit a measurable number — weight, income, distance",     Icon: TrendingUp, color: "#E07A2F" },
+  { id: "mastery",    label: "Mastery",    desc: "Reach a quality level on the Ashtasiddhi scale",         Icon: Stars,     color: "#C9A24A" },
+];
+
+function GoalTypeChip({ type, small = false }) {
+  const gt = GOAL_TYPES.find(g => g.id === type) || GOAL_TYPES[0];
+  const { Icon, label, color } = gt;
+  return (
+    <Chip
+      icon={<Icon sx={{ fontSize: small ? 11 : 13, color: `${color} !important` }} />}
+      label={label}
+      size="small"
+      sx={{
+        height: small ? 18 : 22,
+        fontSize: small ? 9 : 11,
+        fontWeight: 700,
+        bgcolor: `${color}12`,
+        color,
+        border: `1px solid ${color}28`,
+        "& .MuiChip-icon": { ml: "4px" },
+      }}
+    />
+  );
+}
+
+// ── HABIT HERO ─────────────────────────────────────────────────────────────────
+// Shows streak + 30-day consistency + today's signal for Habit-type Lakshyas.
+// Fetches its own data: linked trackers -> activity dates.
+function HabitHero({ lakshyaId, color }) {
   const { user } = useAuth();
+  const [data, setData] = useState(null); // null = loading
+
+  useEffect(() => {
+    if (!user) return;
+    const load = async () => {
+      // 1. Get linked tracker types for this Lakshya
+      const { data: links } = await supabase
+        .from("tracker_lakshya_links")
+        .select("tracker_type")
+        .eq("lakshya_id", lakshyaId)
+        .eq("user_id", user.id)
+        .is("tracker_item_id", null);
+
+      const trackerTypes = (links || []).map(l => l.tracker_type);
+
+      if (!trackerTypes.length) {
+        setData({ linked: false });
+        return;
+      }
+
+      // 2. Get activity dates
+      const datesDesc = await fetchActivityDates(user, trackerTypes);
+
+      // 3. Streak
+      const streak = calcStreak(datesDesc);
+
+      // 4. 30-day consistency
+      const cutoff = dayjs().subtract(30, "day").format("YYYY-MM-DD");
+      const last30 = new Set(datesDesc.filter(d => d >= cutoff));
+      const consistency = Math.round((last30.size / 30) * 100);
+
+      // 5. Last practiced
+      const lastDate = datesDesc[0] || null;
+
+      setData({ linked: true, streak, consistency, lastDate, trackerTypes });
+    };
+    load();
+  }, [user, lakshyaId]);
+
+  // Loading — render nothing while fetching (avoids layout flash)
+  if (!data) return null;
+
+  if (!data.linked) {
+    return (
+      <Box sx={{ px: 2.5, pt: 0.5, pb: 0, mb: 2 }}>
+        <Box sx={{ p: 2, borderRadius: 2.5, background: `${color}06`, border: `1px solid ${color}15` }}>
+          <Typography sx={{ fontSize: 13, color: "text.secondary", fontStyle: "italic" }}>
+            Link a tracker above to start tracking consistency for this vision.
+          </Typography>
+        </Box>
+      </Box>
+    );
+  }
+
+  const { streak, consistency, lastDate } = data;
+  const practicedToday = lastDate === dayjs().format("YYYY-MM-DD");
+  const GREEN = "#2D9E6B";
+
+  return (
+    <Box sx={{ px: 2.5, pt: 0.5, pb: 0, mb: 2 }}>
+      <Box sx={{ p: 2, borderRadius: 2.5, background: `${color}06`, border: `1px solid ${color}15` }}>
+        {/* Streak + Consistency row */}
+        <Box sx={{ display: "flex", gap: 1.5, mb: 1.5 }}>
+          {/* Streak */}
+          <Box sx={{
+            flex: 1, textAlign: "center", py: 1.25, px: 1, borderRadius: 2,
+            bgcolor: streak > 0 ? `${color}10` : "rgba(0,0,0,0.02)",
+            border: `1px solid ${streak > 0 ? color + "22" : "transparent"}`,
+          }}>
+            <Typography sx={{ fontSize: 22, lineHeight: 1, mb: 0.5 }}>
+              {streak > 6 ? "🔥" : streak > 0 ? "✨" : "💤"}
+            </Typography>
+            <Typography sx={{ fontFamily: '"Fraunces", serif', fontSize: 26, fontWeight: 400, color, lineHeight: 1 }}>
+              {streak}
+            </Typography>
+            <Typography variant="caption" sx={{ fontSize: 10, color: "text.disabled", textTransform: "uppercase", letterSpacing: 1, display: "block", mt: 0.4 }}>
+              day streak
+            </Typography>
+          </Box>
+
+          {/* 30-day consistency */}
+          <Box sx={{ flex: 1, textAlign: "center", py: 1.25, px: 1, borderRadius: 2, border: `1px solid ${color}15` }}>
+            <Typography sx={{ fontFamily: '"Fraunces", serif', fontSize: 26, fontWeight: 400, color, lineHeight: 1, mb: 0.75 }}>
+              {consistency}%
+            </Typography>
+            <LinearProgress variant="determinate" value={consistency}
+              sx={{ height: 4, borderRadius: 2, bgcolor: `${color}18`, mb: 0.5,
+                "& .MuiLinearProgress-bar": { bgcolor: consistency > 70 ? GREEN : consistency > 40 ? color : "#CF4E4E", borderRadius: 2 } }} />
+            <Typography variant="caption" sx={{ fontSize: 10, color: "text.disabled", textTransform: "uppercase", letterSpacing: 1, display: "block" }}>
+              30-day consistency
+            </Typography>
+          </Box>
+        </Box>
+
+        {/* Today's signal */}
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1, pt: 1.25, borderTop: `1px solid ${color}12` }}>
+          <Box sx={{
+            width: 8, height: 8, borderRadius: "50%", flexShrink: 0,
+            bgcolor: practicedToday ? GREEN : "text.disabled",
+            boxShadow: practicedToday ? `0 0 6px ${GREEN}80` : "none",
+            transition: "all 0.3s",
+          }} />
+          <Typography sx={{ fontSize: 12, color: practicedToday ? GREEN : "text.secondary", fontWeight: practicedToday ? 600 : 400 }}>
+            {practicedToday
+              ? "Practiced today ✓"
+              : lastDate
+              ? `Last practiced ${relDate(lastDate)}`
+              : "No activity recorded yet"}
+          </Typography>
+        </Box>
+      </Box>
+    </Box>
+  );
+}
+
+// ── LAKSHYA HIERARCHY (Lakshya -> Milestone) ───────────────────────────────────
+function MilestoneCard({ milestone, color, onUpdate }) {
   const { mode } = useThemeMode();
   const isDark = mode === "dark";
-  const GREEN_COMPLETE = isDark ? "#5EC98A" : "#2D7A4F";
+  const GREEN = isDark ? "#5EC98A" : "#2D7A4F";
   const [editing, setEditing] = useState(false);
-  const [progress, setProgress] = useState(siddhi.progress_percent || 0);
-  const [spawningAnsh, setSpawningAnsh] = useState(false);
-  const [anshTitle, setAnshTitle] = useState("");
-  const [snack, setSnack] = useState({ open: false, msg: "", severity: "error" });
+  const [editForm, setEditForm] = useState({ title: milestone.title, target_date: milestone.target_date || "" });
+  const [saving, setSaving] = useState(false);
+  const [toggling, setToggling] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [snack, setSnack] = useState({ open: false, msg: "", severity: "error" });
 
-  const showSnack = (msg, severity = "error") => setSnack({ open: true, msg, severity });
+  const isAchieved = milestone.status === "completed";
+  const overdue = milestone.target_date && dayjs(milestone.target_date).isBefore(dayjs(), "day") && !isAchieved;
 
-  const save = async () => {
-    const safeProgress = Math.min(100, Math.max(0, Number(progress) || 0));
-    const status = safeProgress >= 100 ? "completed" : "active";
-    const { error } = await supabase
-      .from("siddhis")
-      .update({ progress_percent: safeProgress, status })
-      .eq("id", siddhi.id);
-    if (error) { showSnack("Failed to save progress"); return; }
-    if (onUpdate) onUpdate();
-    setEditing(false);
+  const toggleAchieved = async () => {
+    setToggling(true);
+    const { error } = await supabase.from("siddhis")
+      .update({ status: isAchieved ? "active" : "completed" })
+      .eq("id", milestone.id);
+    if (error) setSnack({ open: true, msg: "Failed to update", severity: "error" });
+    else if (onUpdate) onUpdate();
+    setToggling(false);
   };
 
-  const archive = async () => {
-    const { error } = await supabase
-      .from("siddhis")
-      .update({ status: "archived" })
-      .eq("id", siddhi.id);
-    if (error) { showSnack("Failed to archive milestone"); return; }
-    showSnack("Milestone archived", "info");
-    if (onUpdate) onUpdate();
+  const saveEdit = async () => {
+    if (!editForm.title.trim()) return;
+    setSaving(true);
+    const { error } = await supabase.from("siddhis").update({
+      title: editForm.title.trim(),
+      target_date: editForm.target_date || null,
+    }).eq("id", milestone.id);
+    if (error) setSnack({ open: true, msg: "Failed to save", severity: "error" });
+    else { setEditing(false); if (onUpdate) onUpdate(); }
+    setSaving(false);
   };
 
   const remove = async () => {
-    const { error } = await supabase.from("siddhis").delete().eq("id", siddhi.id);
-    if (error) { showSnack("Failed to delete milestone"); return; }
+    const { error } = await supabase.from("siddhis").delete().eq("id", milestone.id);
+    if (!error && onUpdate) onUpdate();
     setConfirmDelete(false);
-    if (onUpdate) onUpdate();
   };
-
-  const spawnAnsh = async () => {
-    if (!anshTitle.trim() || !user) return;
-    const { error } = await supabase.from("anshs").insert({
-      user_id: user.id,
-      lakshya_id: lakshyaId,
-      siddhi_id: siddhi.id,
-      title: anshTitle.trim(),
-      status: "active",
-    });
-    if (error) { showSnack("Failed to add task"); return; }
-    setAnshTitle("");
-    setSpawningAnsh(false);
-    if (onUpdate) onUpdate();
-  };
-
-  const isComplete = siddhi.status === "completed" || progress >= 100;
-  const overdue =
-    siddhi.target_date &&
-    dayjs(siddhi.target_date).isBefore(dayjs(), "day") &&
-    !isComplete;
 
   return (
-    <Box
-      sx={{
-        mb: 1.5,
-        borderRadius: 2.5,
-        border: "1px solid",
-        borderColor: isComplete ? `${GREEN_COMPLETE}35` : `${color}25`,
-        background: isComplete
-          ? isDark ? "rgba(94,201,138,0.05)" : "rgba(45,122,79,0.04)"
-          : isDark ? `rgba(255,255,255,0.03)` : `${color}05`,
-        overflow: "hidden",
-        transition: "all 0.2s ease",
-        "&:hover": { borderColor: isComplete ? `${GREEN_COMPLETE}50` : `${color}40` },
-      }}
-    >
-      {/* Header row */}
-      <Box sx={{ display: "flex", alignItems: "center", gap: 1, px: 1.5, pt: 1.25, pb: 0.75 }}>
-        <Box
-          sx={{
-            width: 28, height: 28, borderRadius: "50%", flexShrink: 0,
-            display: "flex", alignItems: "center", justifyContent: "center",
-            background: isComplete ? `${GREEN_COMPLETE}18` : `${color}12`,
-            border: `1.5px solid ${isComplete ? GREEN_COMPLETE : color}40`,
-          }}
-        >
-          {isComplete ? (
-            <CheckCircle sx={{ fontSize: 15, color: GREEN_COMPLETE }} />
-          ) : (
-            <RadioButtonUnchecked sx={{ fontSize: 15, color }} />
-          )}
-        </Box>
-
-        <Typography
-          sx={{
-            fontSize: 13.5,
-            fontWeight: isComplete ? 400 : 600,
-            color: isComplete ? "text.disabled" : "text.primary",
-            textDecoration: isComplete ? "line-through" : "none",
-            flex: 1,
-            lineHeight: 1.4,
-          }}
-        >
-          {siddhi.title}
-        </Typography>
-
-        {siddhi.target_date && (
-          <Chip
-            label={dayjs(siddhi.target_date).format("D MMM YY")}
-            size="small"
-            sx={{
-              height: 19,
-              fontSize: 10,
-              fontWeight: overdue ? 700 : 400,
-              bgcolor: overdue ? "#CF4E4E15" : "transparent",
-              color: overdue ? "#CF4E4E" : "text.disabled",
-              border: `1px solid ${overdue ? "#CF4E4E50" : "transparent"}`,
-            }}
-          />
-        )}
-
-        <Box sx={{ display: "flex", gap: 0 }}>
-          <Tooltip title="Edit Progress">
-            <IconButton
-              size="small"
-              onClick={() => setEditing((p) => !p)}
-              sx={{ p: 0.5, color: editing ? color : "text.disabled", "&:hover": { color, background: `${color}10` } }}
-            >
-              <Edit sx={{ fontSize: 13 }} />
+    <>
+      <Box sx={{
+        mb: 1.25, borderRadius: 2.5, border: "1px solid",
+        borderColor: isAchieved ? `${GREEN}35` : `${color}22`,
+        background: isAchieved
+          ? isDark ? "rgba(94,201,138,0.06)" : "rgba(45,122,79,0.04)"
+          : isDark ? "rgba(255,255,255,0.025)" : `${color}04`,
+        overflow: "hidden", transition: "all 0.2s ease",
+        "&:hover": { borderColor: isAchieved ? `${GREEN}55` : `${color}40` },
+      }}>
+        {editing ? (
+          <Box sx={{ p: 2, display: "flex", flexDirection: "column", gap: 1.25 }}>
+            <TextField size="small" fullWidth label="Milestone title" autoFocus
+              value={editForm.title} onChange={(e) => setEditForm(f => ({ ...f, title: e.target.value }))}
+              onKeyDown={(e) => e.key === "Enter" && saveEdit()} />
+            <TextField size="small" fullWidth type="date" label="Target date (optional)"
+              value={editForm.target_date} onChange={(e) => setEditForm(f => ({ ...f, target_date: e.target.value }))}
+              InputLabelProps={{ shrink: true }} />
+            <Box sx={{ display: "flex", gap: 1, justifyContent: "flex-end" }}>
+              <Button size="small" color="inherit" sx={{ fontSize: 12, textTransform: "none" }}
+                onClick={() => { setEditing(false); setEditForm({ title: milestone.title, target_date: milestone.target_date || "" }); }}>
+                Cancel
+              </Button>
+              <Button size="small" variant="contained" onClick={saveEdit} disabled={saving || !editForm.title.trim()}
+                sx={{ fontSize: 12, background: color, boxShadow: "none", textTransform: "none" }}>
+                Save
+              </Button>
+            </Box>
+          </Box>
+        ) : (
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, px: 1.75, py: 1.5 }}>
+            <IconButton onClick={toggleAchieved} disabled={toggling} size="small"
+              sx={{ p: 0.5, flexShrink: 0, color: isAchieved ? GREEN : color, transition: "transform 0.15s", "&:active": { transform: "scale(0.85)" } }}>
+              {isAchieved
+                ? <CheckCircle sx={{ fontSize: 22 }} />
+                : <RadioButtonUnchecked sx={{ fontSize: 22 }} />}
             </IconButton>
-          </Tooltip>
-          <Tooltip title="Archive Milestone">
-            <IconButton
-              size="small"
-              onClick={archive}
-              sx={{ p: 0.5, color: "text.disabled", "&:hover": { color: "#ED8C00", background: "#ED8C0010" } }}
-            >
-              <Insights sx={{ fontSize: 13 }} />
-            </IconButton>
-          </Tooltip>
-          <Tooltip title="Delete Milestone">
-            <IconButton
-              size="small"
-              onClick={() => setConfirmDelete(true)}
-              sx={{ p: 0.5, color: "text.disabled", "&:hover": { color: "#CF4E4E", background: "#CF4E4E10" } }}
-            >
-              <Delete sx={{ fontSize: 13 }} />
-            </IconButton>
-          </Tooltip>
-        </Box>
-      </Box>
-
-      {/* Progress bar + spawn button */}
-      <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, px: 1.5, pb: 1.25 }}>
-        <LinearProgress
-          variant="determinate"
-          value={Number(progress) || 0}
-          sx={{
-            flex: 1, height: 5, borderRadius: 3,
-            bgcolor: isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.06)",
-            "& .MuiLinearProgress-bar": {
-              background: isComplete
-                ? `linear-gradient(90deg, ${GREEN_COMPLETE}80 0%, ${GREEN_COMPLETE} 100%)`
-                : `linear-gradient(90deg, ${color}70 0%, ${color} 100%)`,
-              borderRadius: 3,
-            },
-          }}
-        />
-        <Typography sx={{ fontSize: 12, fontWeight: 700, color: isComplete ? GREEN_COMPLETE : color, minWidth: 30, textAlign: "right" }}>
-          {Number(progress) || 0}%
-        </Typography>
-        {!isComplete && (
-          <Tooltip title="Spawn a daily Ansh (micro-task)">
-            <Button
-              size="small"
-              onClick={() => setSpawningAnsh((p) => !p)}
-              sx={{
-                minWidth: 0, p: 0.5, px: 1.25, fontSize: 10,
-                color: spawningAnsh ? "white" : color,
-                background: spawningAnsh ? color : "transparent",
-                textTransform: "uppercase", letterSpacing: 0.5, fontWeight: 700,
-                borderRadius: 1.5, border: `1px solid ${color}40`,
-                "&:hover": { background: color, color: "white" },
-              }}
-            >
-              <FlashOn sx={{ fontSize: 12, mr: 0.25 }} /> Ansh
-            </Button>
-          </Tooltip>
+            <Typography sx={{
+              flex: 1, fontSize: 14,
+              fontWeight: isAchieved ? 400 : 600,
+              color: isAchieved ? "text.disabled" : "text.primary",
+              textDecoration: isAchieved ? "line-through" : "none",
+              lineHeight: 1.4,
+            }}>
+              {milestone.title}
+            </Typography>
+            {isAchieved ? (
+              <Chip label="Achieved" size="small"
+                sx={{ height: 20, fontSize: 10, fontWeight: 700, bgcolor: `${GREEN}15`, color: GREEN, border: `1px solid ${GREEN}30` }} />
+            ) : milestone.target_date ? (
+              <Chip label={`By ${dayjs(milestone.target_date).format("D MMM YY")}`} size="small"
+                sx={{ height: 20, fontSize: 10, fontWeight: overdue ? 700 : 400,
+                  bgcolor: overdue ? "#CF4E4E12" : "transparent",
+                  color: overdue ? "#CF4E4E" : "text.disabled",
+                  border: `1px solid ${overdue ? "#CF4E4E40" : "transparent"}` }} />
+            ) : null}
+            <Box sx={{ display: "flex", gap: 0, flexShrink: 0 }}>
+              <Tooltip title="Edit">
+                <IconButton size="small" onClick={() => setEditing(true)}
+                  sx={{ p: 0.5, color: "text.disabled", "&:hover": { color } }}>
+                  <Edit sx={{ fontSize: 13 }} />
+                </IconButton>
+              </Tooltip>
+              <Tooltip title="Delete">
+                <IconButton size="small" onClick={() => setConfirmDelete(true)}
+                  sx={{ p: 0.5, color: "text.disabled", "&:hover": { color: "#CF4E4E" } }}>
+                  <Delete sx={{ fontSize: 13 }} />
+                </IconButton>
+              </Tooltip>
+            </Box>
+          </Box>
         )}
       </Box>
 
-      {/* Edit progress */}
-      <Collapse in={editing}>
-        <Box
-          sx={{
-            display: "flex", alignItems: "center", gap: 1.5,
-            mx: 1.5, mb: 1.25, p: 1.25,
-            bgcolor: "background.paper", borderRadius: 2,
-            border: "1px solid", borderColor: "divider",
-          }}
-        >
-          <Typography sx={{ fontSize: 11, fontWeight: 700, color: "text.secondary", textTransform: "uppercase", letterSpacing: 0.5 }}>
-            Progress %
-          </Typography>
-          <TextField
-            type="number"
-            size="small"
-            value={progress}
-            onChange={(e) => setProgress(e.target.value)}
-            inputProps={{ min: 0, max: 100 }}
-            sx={{ width: 80, "& input": { py: "5px", fontSize: 13, textAlign: "center" } }}
-          />
-          <Box sx={{ flex: 1 }} />
-          <Button size="small" onClick={() => setEditing(false)} color="inherit" sx={{ py: 0.5, fontSize: 12, minWidth: 0 }}>
-            Cancel
-          </Button>
-          <Button
-            size="small" variant="contained" onClick={save}
-            sx={{ py: 0.5, fontSize: 12, minWidth: 0, px: 2, background: color, boxShadow: "none" }}
-          >
-            Save
-          </Button>
-        </Box>
-      </Collapse>
-
-      {/* Spawn Ansh */}
-      <Collapse in={spawningAnsh}>
-        <Box
-          sx={{
-            display: "flex", gap: 1.5, mx: 1.5, mb: 1.25, p: 1.25,
-            borderRadius: 2, background: `${color}08`, border: `1px solid ${color}25`,
-          }}
-        >
-          <TextField
-            fullWidth size="small"
-            placeholder="Define a micro-action for today..."
-            value={anshTitle}
-            onChange={(e) => setAnshTitle(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && spawnAnsh()}
-            sx={{ "& input": { fontSize: 13, py: "6px" }, bgcolor: "background.paper", borderRadius: 1 }}
-          />
-          <Button
-            variant="contained" size="small" onClick={spawnAnsh}
-            disabled={!anshTitle.trim()}
-            sx={{ background: color, minWidth: 0, px: 2, boxShadow: "none" }}
-          >
-            <Add sx={{ fontSize: 18 }} />
-          </Button>
-        </Box>
-      </Collapse>
-
-      {/* Delete confirmation */}
       <Dialog open={confirmDelete} onClose={() => setConfirmDelete(false)} maxWidth="xs" fullWidth>
-        <DialogTitle sx={{ fontFamily: '"Fraunces", serif', fontWeight: 400, fontSize: 20 }}>
-          Delete Milestone?
-        </DialogTitle>
+        <DialogTitle sx={{ fontFamily: '"Fraunces", serif', fontWeight: 400, fontSize: 20 }}>Delete Milestone?</DialogTitle>
         <DialogContent>
           <Typography sx={{ fontSize: 14, color: "text.secondary" }}>
-            Permanently delete <strong style={{ color: "text.primary" }}>"{siddhi.title}"</strong>? This cannot be undone.
-            <br /><br />
-            Consider <strong>Archiving</strong> instead to preserve your history.
+            Permanently delete <strong>"{milestone.title}"</strong>? This cannot be undone.
           </Typography>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2.5 }}>
           <Button onClick={() => setConfirmDelete(false)} color="inherit">Cancel</Button>
-          <Button
-            onClick={remove} variant="contained"
-            sx={{ bgcolor: "#CF4E4E", "&:hover": { bgcolor: "#b03535" }, boxShadow: "none" }}
-          >
-            Delete Permanently
+          <Button onClick={remove} variant="contained"
+            sx={{ bgcolor: "#CF4E4E", "&:hover": { bgcolor: "#b03535" }, boxShadow: "none" }}>
+            Delete
           </Button>
         </DialogActions>
       </Dialog>
-
-      {/* Snackbar */}
-      <Snackbar
-        open={snack.open}
-        autoHideDuration={3000}
-        onClose={() => setSnack((p) => ({ ...p, open: false }))}
-        anchorOrigin={{ vertical: "top", horizontal: "center" }}
-      >
-        <Alert
-          onClose={() => setSnack((p) => ({ ...p, open: false }))}
-          severity={snack.severity}
-          sx={{ width: "100%" }}
-        >
+      <Snackbar open={snack.open} autoHideDuration={3000} onClose={() => setSnack(p => ({ ...p, open: false }))}
+        anchorOrigin={{ vertical: "top", horizontal: "center" }}>
+        <Alert onClose={() => setSnack(p => ({ ...p, open: false }))} severity={snack.severity} sx={{ width: "100%" }}>
           {snack.msg}
         </Alert>
       </Snackbar>
-    </Box>
+    </>
   );
 }
 
 function LakshyaCard({ lakshya, color, onUpdate }) {
   const { user } = useAuth();
-  const [expanded, setExpanded] = useState(false);
-  const [addingSiddhi, setAddingSiddhi] = useState(false);
-  const [siddhiForm, setSiddhiForm] = useState({ title: "", target_date: "" });
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleVal, setTitleVal] = useState(lakshya.title);
+  const [addingMilestone, setAddingMilestone] = useState(false);
+  const [milestoneForm, setMilestoneForm] = useState({ title: "", target_date: "" });
   const [saving, setSaving] = useState(false);
-  const [snack, setSnack] = useState({ open: false, msg: "", severity: "success" });
   const [confirmArchive, setConfirmArchive] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const showSnack = (msg, severity = "success") => setSnack({ open: true, msg, severity });
+  const [snack, setSnack] = useState({ open: false, msg: "", severity: "success" });
+  const [outcomeEdit, setOutcomeEdit] = useState(false);
+  const [outcomeVal, setOutcomeVal] = useState(String(lakshya.outcome_current ?? 0));
 
-  const siddhis = lakshya.siddhis || [];
-  const activeSiddhis = siddhis.filter((s) => s.status !== "completed");
-  const doneSiddhis = siddhis.filter((s) => s.status === "completed");
-  const avgProgress =
-    siddhis.length > 0
-      ? Math.round(
-          siddhis.reduce((s, d) => s + (d.progress_percent || 0), 0) /
-            siddhis.length,
-        )
-      : 0;
+  const type = lakshya.type || "habit";
+  const milestones = lakshya.siddhis || [];
+  const activeMilestones = milestones.filter(m => m.status !== "completed");
+  const achievedMilestones = milestones.filter(m => m.status === "completed");
+  const completionPct = milestones.length > 0 ? Math.round((achievedMilestones.length / milestones.length) * 100) : 0;
 
   const saveTitle = async () => {
     if (!titleVal.trim()) return;
-    const { error } = await supabase
-      .from("lakshyas")
-      .update({ title: titleVal.trim() })
-      .eq("id", lakshya.id);
-    if (error) { showSnack("Failed to save title", "error"); return; }
+    const { error } = await supabase.from("lakshyas").update({ title: titleVal.trim() }).eq("id", lakshya.id);
+    if (error) { setSnack({ open: true, msg: "Failed to save title", severity: "error" }); return; }
     setEditingTitle(false);
-    showSnack("Vision updated");
+    if (onUpdate) onUpdate();
+  };
+
+  const addMilestone = async () => {
+    if (!milestoneForm.title.trim() || !user) return;
+    setSaving(true);
+    const { error } = await supabase.from("siddhis").insert({
+      user_id: user.id,
+      lakshya_id: lakshya.id,
+      title: milestoneForm.title.trim(),
+      target_date: milestoneForm.target_date || null,
+      status: "active",
+    });
+    if (error) { setSnack({ open: true, msg: error.message || "Failed to add milestone", severity: "error" }); setSaving(false); return; }
+    setMilestoneForm({ title: "", target_date: "" });
+    setAddingMilestone(false);
+    setSaving(false);
+    if (onUpdate) onUpdate();
+  };
+
+  const saveOutcomeCurrent = async () => {
+    const val = parseFloat(outcomeVal);
+    if (isNaN(val)) return;
+    const { error } = await supabase.from("lakshyas").update({ outcome_current: val }).eq("id", lakshya.id);
+    if (!error) { setOutcomeEdit(false); if (onUpdate) onUpdate(); }
+    else setSnack({ open: true, msg: "Failed to update", severity: "error" });
+  };
+
+  const saveMasteryLevel = async (level) => {
+    await supabase.from("lakshyas").update({ outcome_current: level }).eq("id", lakshya.id);
     if (onUpdate) onUpdate();
   };
 
   const archiveLakshya = async () => {
-    const { error } = await supabase
-      .from("lakshyas")
-      .update({ status: "archived" })
-      .eq("id", lakshya.id);
-    if (error) { showSnack("Failed to archive vision", "error"); return; }
+    await supabase.from("lakshyas").update({ status: "archived" }).eq("id", lakshya.id);
     setConfirmArchive(false);
     if (onUpdate) onUpdate();
   };
 
   const deleteLakshya = async () => {
-    const { error } = await supabase.from("lakshyas").delete().eq("id", lakshya.id);
-    if (error) { showSnack("Failed to delete vision", "error"); return; }
+    await supabase.from("lakshyas").delete().eq("id", lakshya.id);
     setConfirmDelete(false);
     if (onUpdate) onUpdate();
   };
 
-  const addSiddhi = async () => {
-    if (!siddhiForm.title.trim() || !user) return;
-    setSaving(true);
-    const { error } = await supabase.from("siddhis").insert({
-      user_id: user.id,
-      lakshya_id: lakshya.id,
-      title: siddhiForm.title.trim(),
-      target_date: siddhiForm.target_date || null,
-      status: "active",
-      progress_percent: 0,
-    });
-    if (error) {
-      showSnack(error.message || "Failed to add milestone. Check database permissions.", "error");
-      setSaving(false);
-      return;
+  // ── Type-specific hero section ──────────────────────────────────────────────
+  const renderTypeHero = () => {
+    if (type === "completion") {
+      return (
+        <Box sx={{ px: 2.5, pt: 0.5, pb: 0, mb: 2 }}>
+          <Box sx={{ p: 2, borderRadius: 2.5, background: `${color}06`, border: `1px solid ${color}15` }}>
+            <Box sx={{ display: "flex", alignItems: "baseline", gap: 1, mb: 1 }}>
+              <Typography sx={{ fontFamily: '"Fraunces", serif', fontSize: 34, fontWeight: 400, color, lineHeight: 1 }}>
+                {achievedMilestones.length}
+              </Typography>
+              <Typography sx={{ fontSize: 16, color: "text.disabled" }}>
+                / {milestones.length || "?"} complete
+              </Typography>
+            </Box>
+            <LinearProgress variant="determinate" value={completionPct}
+              sx={{ height: 7, borderRadius: 3, bgcolor: `${color}18`, "& .MuiLinearProgress-bar": { bgcolor: color, borderRadius: 3 } }} />
+            <Typography variant="caption" sx={{ fontSize: 11, color: "text.secondary", mt: 0.75, display: "block" }}>
+              {milestones.length === 0 ? "Add milestones below to track completion" : `${completionPct}% of milestones achieved`}
+            </Typography>
+          </Box>
+        </Box>
+      );
     }
-    setSiddhiForm({ title: "", target_date: "" });
-    setAddingSiddhi(false);
-    setSaving(false);
-    showSnack("Milestone established");
-    if (onUpdate) onUpdate();
+
+    if (type === "outcome") {
+      const current = lakshya.outcome_current ?? 0;
+      const target = lakshya.outcome_target ?? 0;
+      const pct = target > 0 ? Math.min(100, (current / target) * 100) : 0;
+      const unit = lakshya.outcome_unit || "";
+      return (
+        <Box sx={{ px: 2.5, pt: 0.5, pb: 0, mb: 2 }}>
+          <Box sx={{ p: 2, borderRadius: 2.5, background: `${color}06`, border: `1px solid ${color}15` }}>
+            {outcomeEdit ? (
+              <Box sx={{ display: "flex", gap: 1, alignItems: "center", mb: 1.5 }}>
+                <TextField size="small" type="number" autoFocus
+                  value={outcomeVal} onChange={e => setOutcomeVal(e.target.value)}
+                  onKeyDown={e => { if (e.key === "Enter") saveOutcomeCurrent(); if (e.key === "Escape") { setOutcomeEdit(false); setOutcomeVal(String(lakshya.outcome_current ?? 0)); } }}
+                  sx={{ width: 130, "& input": { fontSize: 14, py: "6px" } }}
+                  InputProps={{ endAdornment: unit ? <Typography variant="caption" sx={{ mr: 1, color: "text.secondary", whiteSpace: "nowrap" }}>{unit}</Typography> : null }} />
+                <Button size="small" variant="contained" onClick={saveOutcomeCurrent}
+                  sx={{ fontSize: 12, py: 0.5, background: color, boxShadow: "none", textTransform: "none" }}>Save</Button>
+                <Button size="small" color="inherit" sx={{ fontSize: 12, py: 0.5, minWidth: 0 }}
+                  onClick={() => { setOutcomeEdit(false); setOutcomeVal(String(lakshya.outcome_current ?? 0)); }}>✕</Button>
+              </Box>
+            ) : (
+              <Box sx={{ display: "flex", alignItems: "baseline", gap: 0.75, mb: 1.25 }}>
+                <Typography sx={{ fontFamily: '"Fraunces", serif', fontSize: 32, fontWeight: 400, color, lineHeight: 1 }}>
+                  {current}{unit ? ` ${unit}` : ""}
+                </Typography>
+                <Typography sx={{ fontSize: 14, color: "text.disabled" }}>
+                  → {target > 0 ? `${target}${unit ? ` ${unit}` : ""}` : "no target set"}
+                </Typography>
+                <IconButton size="small" onClick={() => setOutcomeEdit(true)}
+                  sx={{ p: 0.25, ml: 0.25, color: "text.disabled", "&:hover": { color } }}>
+                  <Edit sx={{ fontSize: 13 }} />
+                </IconButton>
+              </Box>
+            )}
+            {target > 0 && (
+              <>
+                <LinearProgress variant="determinate" value={pct}
+                  sx={{ height: 7, borderRadius: 3, bgcolor: `${color}18`, "& .MuiLinearProgress-bar": { bgcolor: color, borderRadius: 3 } }} />
+                <Typography variant="caption" sx={{ fontSize: 11, color: "text.secondary", mt: 0.75, display: "block" }}>
+                  {Math.round(pct)}% toward target
+                </Typography>
+              </>
+            )}
+          </Box>
+        </Box>
+      );
+    }
+
+    if (type === "mastery") {
+      const currentLevel = Math.max(0, Math.min(8, Math.round(lakshya.outcome_current ?? 0)));
+      const levelInfo = currentLevel > 0 ? ASHTA_SIDDHI_SCALE[currentLevel - 1] : null;
+      return (
+        <Box sx={{ px: 2.5, pt: 0.5, pb: 0, mb: 2 }}>
+          <Box sx={{ p: 2, borderRadius: 2.5, background: `${color}06`, border: `1px solid ${color}15` }}>
+            {levelInfo ? (
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 1.5 }}>
+                <Typography sx={{ fontSize: 30, lineHeight: 1 }}>{levelInfo.emoji}</Typography>
+                <Box>
+                  <Typography sx={{ fontSize: 14, fontWeight: 700, color, lineHeight: 1.3 }}>
+                    Level {currentLevel} — {levelInfo.name}
+                  </Typography>
+                  <Typography sx={{ fontSize: 12, color: "text.secondary", mt: 0.25 }}>{levelInfo.label}</Typography>
+                </Box>
+              </Box>
+            ) : (
+              <Typography sx={{ fontSize: 13, color: "text.secondary", mb: 1.5, fontStyle: "italic" }}>
+                Tap a level to record your current state
+              </Typography>
+            )}
+            {/* 8-segment bar */}
+            <Box sx={{ display: "flex", gap: "3px" }}>
+              {ASHTA_SIDDHI_SCALE.map(lvl => (
+                <Tooltip key={lvl.value} title={`${lvl.value}. ${lvl.name} — ${lvl.label}`}>
+                  <Box onClick={() => saveMasteryLevel(lvl.value)}
+                    sx={{
+                      flex: 1, height: 28, borderRadius: 1, cursor: "pointer",
+                      bgcolor: currentLevel >= lvl.value ? color : `${color}18`,
+                      border: currentLevel === lvl.value ? `2px solid ${color}` : "2px solid transparent",
+                      transition: "all 0.15s ease",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      fontSize: 11,
+                      "&:hover": { bgcolor: `${color}60`, transform: "scaleY(1.08)" },
+                    }}>
+                    {currentLevel >= lvl.value ? lvl.emoji : ""}
+                  </Box>
+                </Tooltip>
+              ))}
+            </Box>
+            <Box sx={{ display: "flex", justifyContent: "space-between", mt: 0.5 }}>
+              <Typography variant="caption" sx={{ fontSize: 9, color: "text.disabled" }}>Aṇimā</Typography>
+              <Typography variant="caption" sx={{ fontSize: 9, color: "text.disabled" }}>Vaśitva ✨</Typography>
+            </Box>
+          </Box>
+        </Box>
+      );
+    }
+
+    // habit — streak + consistency from linked trackers
+    return <HabitHero lakshyaId={lakshya.id} color={color} />;
   };
 
   return (
-    <Box
-      sx={{
-        mb: 3,
-        border: "1px solid",
-        borderColor: `${color}30`,
-        borderRadius: 4,
-        overflow: "hidden",
-        bgcolor: "background.paper",
-        boxShadow: "0 4px 20px rgba(0,0,0,0.02)",
-        transition: "all 0.3s ease",
-      }}
-    >
-      <Box
-        sx={{
-          px: 2.5,
-          py: 2,
-          background: `linear-gradient(to right, ${color}08, transparent)`,
-          display: "flex",
-          alignItems: "center",
-          gap: 1.5,
-        }}
-      >
-        <Box
-          sx={{
-            p: 1,
-            borderRadius: 2,
-            background: `${color}15`,
-            display: "flex",
-          }}
-        >
-          <Flag sx={{ fontSize: 20, color }} />
+    <Box sx={{
+      mb: 2.5, border: "1px solid", borderColor: `${color}28`,
+      borderRadius: 3, overflow: "hidden", bgcolor: "background.paper",
+      boxShadow: "0 2px 12px rgba(0,0,0,0.03)",
+    }}>
+      {/* ── Header ── */}
+      <Box sx={{ px: 2.5, pt: 2.25, pb: 2, background: `linear-gradient(to right, ${color}08, transparent)`, display: "flex", alignItems: "flex-start", gap: 1.5 }}>
+        <Box sx={{ p: 0.75, borderRadius: 1.5, background: `${color}14`, display: "flex", mt: 0.25, flexShrink: 0 }}>
+          <Flag sx={{ fontSize: 18, color }} />
         </Box>
         <Box sx={{ flex: 1, minWidth: 0 }}>
           {editingTitle ? (
             <Box sx={{ display: "flex", gap: 1, alignItems: "center" }}>
-              <TextField
-                size="small"
-                value={titleVal}
-                onChange={(e) => setTitleVal(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") saveTitle();
-                  if (e.key === "Escape") setEditingTitle(false);
-                }}
-                autoFocus
-                sx={{
-                  flex: 1,
-                  "& input": {
-                    fontSize: 15,
-                    py: "6px",
-                    fontFamily: '"Fraunces", serif',
-                  },
-                }}
-              />
-              <Button
-                size="small"
-                variant="contained"
-                onClick={saveTitle}
-                sx={{
-                  py: 0.5,
-                  fontSize: 12,
-                  background: color,
-                  minWidth: 0,
-                  px: 1.5,
-                  boxShadow: "none",
-                }}
-              >
+              <TextField size="small" value={titleVal} autoFocus
+                onChange={e => setTitleVal(e.target.value)}
+                onKeyDown={e => { if (e.key === "Enter") saveTitle(); if (e.key === "Escape") { setEditingTitle(false); setTitleVal(lakshya.title); } }}
+                sx={{ flex: 1, "& input": { fontSize: 15, py: "6px", fontFamily: '"Fraunces", serif' } }} />
+              <Button size="small" variant="contained" onClick={saveTitle}
+                sx={{ py: 0.5, fontSize: 12, background: color, minWidth: 0, px: 1.5, boxShadow: "none", textTransform: "none" }}>
                 Save
               </Button>
-              <Button
-                size="small"
-                onClick={() => {
-                  setEditingTitle(false);
-                  setTitleVal(lakshya.title);
-                }}
-                color="inherit"
-                sx={{ py: 0.5, fontSize: 12, minWidth: 0 }}
-              >
-                ✕
-              </Button>
+              <Button size="small" color="inherit" sx={{ py: 0.5, fontSize: 12, minWidth: 0 }}
+                onClick={() => { setEditingTitle(false); setTitleVal(lakshya.title); }}>✕</Button>
             </Box>
           ) : (
-            <Typography
-              sx={{
-                fontFamily: '"Fraunces", serif',
-                fontSize: 18,
-                fontWeight: 500,
-                color: "text.primary",
-                lineHeight: 1.3,
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-              }}
-            >
+            <Typography sx={{ fontFamily: '"Fraunces", serif', fontSize: 17, fontWeight: 500, color: "text.primary", lineHeight: 1.3 }}>
               {lakshya.title}
             </Typography>
           )}
-          <Box
-            sx={{
-              display: "flex",
-              alignItems: "center",
-              gap: 1.5,
-              mt: 0.75,
-              flexWrap: "wrap",
-            }}
-          >
-            <Chip
-              icon={<Timeline sx={{ fontSize: 12 }} />}
-              label={`${lakshya.timeline_years}yr Horizon`}
-              size="small"
-              sx={{
-                height: 20,
-                fontSize: 10,
-                fontWeight: 700,
-                textTransform: "uppercase",
-                background: `${color}15`,
-                color,
-                border: `1px solid ${color}30`,
-              }}
-            />
-            {siddhis.length > 0 && (
-              <Typography
-                variant="caption"
-                sx={{ fontSize: 12, color: "text.secondary", fontWeight: 500 }}
-              >
-                {doneSiddhis.length}/{siddhis.length} Siddhis Mastered
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1, mt: 0.75, flexWrap: "wrap" }}>
+            <Chip icon={<Timeline sx={{ fontSize: 11 }} />} label={`${lakshya.timeline_years}yr`}
+              size="small" sx={{ height: 19, fontSize: 10, fontWeight: 700, textTransform: "uppercase", background: `${color}15`, color, border: `1px solid ${color}30` }} />
+            <GoalTypeChip type={type} small />
+            {type === "habit" && milestones.length > 0 && (
+              <Typography variant="caption" sx={{ fontSize: 11, color: "text.secondary" }}>
+                {achievedMilestones.length}/{milestones.length} milestones achieved
               </Typography>
             )}
           </Box>
         </Box>
-        <Box sx={{ textAlign: "right", flexShrink: 0, minWidth: 48 }}>
-          <Typography
-            sx={{
-              fontSize: 22,
-              fontFamily: '"Fraunces", serif',
-              fontWeight: 400,
-              color,
-              lineHeight: 1,
-            }}
-          >
-            {avgProgress}%
-          </Typography>
-        </Box>
-        <Tooltip title="Edit Vision">
-          <IconButton
-            size="small"
-            onClick={() => setEditingTitle(true)}
-            sx={{
-              p: 0.5,
-              color: "text.disabled",
-              "&:hover": {
-                color: "text.primary",
-                background: "rgba(0,0,0,0.04)",
-              },
-            }}
-          >
-            <Edit sx={{ fontSize: 16 }} />
-          </IconButton>
-        </Tooltip>
-        <Tooltip
-          title={
-            expanded ? "Collapse Stepping Stones" : "Expand Stepping Stones"
-          }
-        >
-          <IconButton
-            size="small"
-            onClick={() => setExpanded((p) => !p)}
-            sx={{
-              p: 0.5,
-              background: expanded ? `${color}10` : "transparent",
-              color: expanded ? color : "text.disabled",
-            }}
-          >
-            {expanded ? (
-              <ExpandLess sx={{ fontSize: 20 }} />
-            ) : (
-              <ExpandMore sx={{ fontSize: 20 }} />
-            )}
+        <Tooltip title="Edit title">
+          <IconButton size="small" onClick={() => setEditingTitle(true)} sx={{ p: 0.5, color: "text.disabled", mt: 0.25, "&:hover": { color: "text.primary" } }}>
+            <Edit sx={{ fontSize: 15 }} />
           </IconButton>
         </Tooltip>
       </Box>
 
-      <LinearProgress
-        variant="determinate"
-        value={avgProgress}
-        sx={{
-          height: 4,
-          borderRadius: 0,
-          bgcolor: `${color}10`,
-          "& .MuiLinearProgress-bar": {
-            background: `linear-gradient(90deg, ${color}80 0%, ${color} 100%)`,
-          },
-        }}
-      />
+      {/* ── Type-specific hero ── */}
+      {renderTypeHero()}
 
-      <Collapse in={expanded}>
-        <Box sx={{ px: 3, py: 3, background: "rgba(0,0,0,0.01)" }}>
-          <Typography
-            variant="caption"
-            sx={{
-              display: "flex",
-              alignItems: "center",
-              gap: 1,
-              mb: 2.5,
-              textTransform: "uppercase",
-              letterSpacing: 2,
-              fontSize: 10,
-              fontWeight: 700,
-              color: "text.secondary",
-            }}
-          >
-            <Spa sx={{ fontSize: 12 }} /> Siddhis · The Stepping Stones
+      {/* ── Milestones — always visible ── */}
+      <Box sx={{ px: 2.5, pb: 2.5, pt: 0.5 }}>
+        {milestones.length > 0 && (
+          <Typography variant="caption" sx={{
+            display: "block", mb: 1.5, fontSize: 10, fontWeight: 700,
+            color: "text.disabled", textTransform: "uppercase", letterSpacing: 2,
+          }}>
+            {type === "completion" ? "Items to Complete" : type === "mastery" ? "Practice Checkpoints" : "Milestones"}
           </Typography>
+        )}
 
-          {activeSiddhis.length === 0 && doneSiddhis.length === 0 && (
-            <Box
-              sx={{
-                textAlign: "center",
-                py: 3,
-                background: `${color}04`,
-                borderRadius: 2,
-                border: `1px dashed ${color}30`,
-                mb: 3,
-              }}
-            >
-              <Typography
-                sx={{
-                  fontSize: 13,
-                  color: "text.secondary",
-                  fontStyle: "italic",
-                }}
-              >
-                No Siddhis charted yet. Break this grand vision into actionable
-                30–90 day milestones.
+        {activeMilestones.map(m => (
+          <MilestoneCard key={m.id} milestone={m} color={color} onUpdate={onUpdate} />
+        ))}
+
+        {achievedMilestones.length > 0 && (
+          <Box sx={{ mt: activeMilestones.length > 0 ? 2 : 0 }}>
+            {activeMilestones.length > 0 && (
+              <Typography variant="caption" sx={{
+                display: "block", mb: 1, fontSize: 10, fontWeight: 700,
+                color: "text.disabled", textTransform: "uppercase", letterSpacing: 1.5,
+              }}>
+                Achieved
               </Typography>
-            </Box>
-          )}
-
-          {activeSiddhis.map((s) => (
-            <SiddhiRow
-              key={s.id}
-              siddhi={s}
-              lakshyaId={lakshya.id}
-              color={color}
-              onUpdate={onUpdate}
-            />
-          ))}
-
-          {doneSiddhis.length > 0 && (
-            <Box
-              sx={{
-                mt: 3,
-                pt: 2,
-                borderTop: "1px solid",
-                borderColor: "divider",
-              }}
-            >
-              <Typography
-                variant="caption"
-                sx={{
-                  fontSize: 10,
-                  color: "text.disabled",
-                  textTransform: "uppercase",
-                  letterSpacing: 1.5,
-                  display: "block",
-                  mb: 1.5,
-                  fontWeight: 600,
-                }}
-              >
-                Realized Siddhis
-              </Typography>
-              {doneSiddhis.map((s) => (
-                <SiddhiRow
-                  key={s.id}
-                  siddhi={s}
-                  lakshyaId={lakshya.id}
-                  color={color}
-                  onUpdate={onUpdate}
-                />
-              ))}
-            </Box>
-          )}
-
-          {addingSiddhi ? (
-            <Fade in>
-              <Box
-                sx={{
-                  mt: 2,
-                  p: 2,
-                  borderRadius: 3,
-                  bgcolor: "background.paper",
-                  border: `1px solid ${color}30`,
-                  boxShadow: `0 4px 20px ${color}10`,
-                }}
-              >
-                <Typography
-                  sx={{
-                    fontSize: 11,
-                    fontWeight: 700,
-                    color,
-                    textTransform: "uppercase",
-                    letterSpacing: 1.5,
-                    mb: 2,
-                  }}
-                >
-                  Forge New Siddhi
-                </Typography>
-                <TextField
-                  fullWidth
-                  size="small"
-                  autoFocus
-                  label="Milestone title (e.g. Master the basics)"
-                  value={siddhiForm.title}
-                  onChange={(e) =>
-                    setSiddhiForm((p) => ({ ...p, title: e.target.value }))
-                  }
-                  onKeyDown={(e) => e.key === "Enter" && addSiddhi()}
-                  sx={{ mb: 2, "& input": { fontSize: 14 } }}
-                />
-                <TextField
-                  fullWidth
-                  size="small"
-                  type="date"
-                  label="Target convergence date (optional)"
-                  value={siddhiForm.target_date}
-                  onChange={(e) =>
-                    setSiddhiForm((p) => ({
-                      ...p,
-                      target_date: e.target.value,
-                    }))
-                  }
-                  InputLabelProps={{ shrink: true }}
-                  sx={{ mb: 2 }}
-                />
-                <Box sx={{ display: "flex", gap: 1 }}>
-                  <Button
-                    size="small"
-                    variant="contained"
-                    onClick={addSiddhi}
-                    disabled={saving || !siddhiForm.title.trim()}
-                    sx={{
-                      fontSize: 13,
-                      background: color,
-                      "&:hover": { background: color, opacity: 0.9 },
-                      flex: 1,
-                      boxShadow: "none",
-                      py: 1,
-                    }}
-                  >
-                    Establish Siddhi
-                  </Button>
-                  <Button
-                    size="small"
-                    onClick={() => setAddingSiddhi(false)}
-                    color="inherit"
-                    sx={{ fontSize: 13, px: 3 }}
-                  >
-                    Cancel
-                  </Button>
-                </Box>
-              </Box>
-            </Fade>
-          ) : (
-            <Button
-              size="small"
-              startIcon={<Add sx={{ fontSize: 16 }} />}
-              onClick={() => setAddingSiddhi(true)}
-              sx={{
-                mt: 1,
-                fontSize: 13,
-                color,
-                textTransform: "none",
-                borderColor: `${color}40`,
-                border: "1px dashed",
-                borderRadius: 2,
-                px: 2,
-                py: 1,
-                "&:hover": { background: `${color}05` },
-              }}
-            >
-              Define Next Siddhi
-            </Button>
-          )}
-          <Box
-            sx={{
-              display: "flex",
-              justifyContent: "flex-end",
-              gap: 0.5,
-              mt: 2,
-              pt: 2,
-              borderTop: "1px solid",
-              borderColor: "divider",
-            }}
-          >
-            <Button
-              size="small"
-              onClick={() => setConfirmArchive(true)}
-              sx={{
-                fontSize: 11, color: "text.disabled", textTransform: "uppercase",
-                letterSpacing: 0.5, px: 1.5,
-                "&:hover": { color: "#ED8C00", background: "#ED8C0008" },
-              }}
-            >
-              Archive Vision
-            </Button>
-            <Button
-              size="small"
-              onClick={() => setConfirmDelete(true)}
-              sx={{
-                fontSize: 11, color: "text.disabled", textTransform: "uppercase",
-                letterSpacing: 0.5, px: 1.5,
-                "&:hover": { color: "#CF4E4E", background: "#CF4E4E08" },
-              }}
-            >
-              Delete Vision
-            </Button>
+            )}
+            {achievedMilestones.map(m => (
+              <MilestoneCard key={m.id} milestone={m} color={color} onUpdate={onUpdate} />
+            ))}
           </Box>
-        </Box>
-      </Collapse>
+        )}
 
-      {/* Archive confirmation */}
+        {milestones.length === 0 && !addingMilestone && (
+          <Box sx={{ py: 2.5, textAlign: "center", background: `${color}04`, borderRadius: 2, border: `1px dashed ${color}22`, mb: 1.5 }}>
+            <Typography sx={{ fontSize: 13, color: "text.disabled", fontStyle: "italic" }}>
+              {type === "completion"
+                ? "Add the things you need to complete — books, projects, courses…"
+                : type === "mastery"
+                ? "Add checkpoints that mark your progress toward mastery."
+                : type === "outcome"
+                ? "Add milestones — waypoints on your journey to the target."
+                : "No milestones yet. Break this vision into concrete checkpoints."}
+            </Typography>
+          </Box>
+        )}
+
+        {/* Add milestone form */}
+        {addingMilestone ? (
+          <Fade in>
+            <Box sx={{ mt: 1.5, p: 2, borderRadius: 2.5, bgcolor: "background.paper", border: `1px solid ${color}25`, boxShadow: `0 4px 16px ${color}10` }}>
+              <TextField fullWidth size="small" autoFocus label="Milestone title"
+                placeholder="e.g. First 30-day unbroken streak"
+                value={milestoneForm.title} onChange={e => setMilestoneForm(p => ({ ...p, title: e.target.value }))}
+                onKeyDown={e => e.key === "Enter" && addMilestone()}
+                sx={{ mb: 1.5 }} />
+              <TextField fullWidth size="small" type="date" label="Target date (optional)"
+                value={milestoneForm.target_date} onChange={e => setMilestoneForm(p => ({ ...p, target_date: e.target.value }))}
+                InputLabelProps={{ shrink: true }} sx={{ mb: 1.5 }} />
+              <Box sx={{ display: "flex", gap: 1 }}>
+                <Button size="small" variant="contained" onClick={addMilestone} disabled={saving || !milestoneForm.title.trim()}
+                  sx={{ flex: 1, fontSize: 13, background: color, "&:hover": { background: color, opacity: 0.9 }, boxShadow: "none", py: 0.9, textTransform: "none" }}>
+                  {type === "completion" ? "Add Item" : type === "mastery" ? "Add Checkpoint" : "Add Milestone"}
+                </Button>
+                <Button size="small" color="inherit" sx={{ fontSize: 13, px: 2, textTransform: "none" }}
+                  onClick={() => { setAddingMilestone(false); setMilestoneForm({ title: "", target_date: "" }); }}>
+                  Cancel
+                </Button>
+              </Box>
+            </Box>
+          </Fade>
+        ) : (
+          <Button size="small" startIcon={<Add sx={{ fontSize: 15 }} />} onClick={() => setAddingMilestone(true)}
+            sx={{
+              mt: milestones.length > 0 ? 1.5 : 0, fontSize: 12.5, color, textTransform: "none",
+              border: `1px dashed ${color}35`, borderRadius: 2, px: 2, py: 0.75,
+              "&:hover": { background: `${color}06`, borderStyle: "solid" },
+            }}>
+            {type === "completion" ? "Add Item" : type === "mastery" ? "Add Checkpoint" : "Add Milestone"}
+          </Button>
+        )}
+
+        {/* Archive / Delete */}
+        <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 0.5, mt: 2, pt: 1.5, borderTop: "1px solid", borderColor: "divider" }}>
+          <Button size="small" onClick={() => setConfirmArchive(true)}
+            sx={{ fontSize: 11, color: "text.disabled", textTransform: "none", px: 1.5, "&:hover": { color: "#ED8C00" } }}>
+            Archive
+          </Button>
+          <Button size="small" onClick={() => setConfirmDelete(true)}
+            sx={{ fontSize: 11, color: "text.disabled", textTransform: "none", px: 1.5, "&:hover": { color: "#CF4E4E" } }}>
+            Delete
+          </Button>
+        </Box>
+      </Box>
+
       <Dialog open={confirmArchive} onClose={() => setConfirmArchive(false)} maxWidth="xs" fullWidth>
-        <DialogTitle sx={{ fontFamily: '"Fraunces", serif', fontWeight: 400, fontSize: 20 }}>
-          Archive this Vision?
-        </DialogTitle>
+        <DialogTitle sx={{ fontFamily: '"Fraunces", serif', fontWeight: 400, fontSize: 20 }}>Archive this Vision?</DialogTitle>
         <DialogContent>
           <Typography sx={{ fontSize: 14, color: "text.secondary" }}>
-            Archive <strong>"{lakshya.title}"</strong>? It will be hidden from active views but preserved in your history.
+            Archive <strong>"{lakshya.title}"</strong>? Hidden from active views but preserved in history.
           </Typography>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2.5 }}>
           <Button onClick={() => setConfirmArchive(false)} color="inherit">Cancel</Button>
-          <Button
-            onClick={archiveLakshya} variant="contained"
-            sx={{ bgcolor: "#ED8C00", "&:hover": { bgcolor: "#c97700" }, boxShadow: "none" }}
-          >
-            Archive
-          </Button>
+          <Button onClick={archiveLakshya} variant="contained" sx={{ bgcolor: "#ED8C00", "&:hover": { bgcolor: "#c97700" }, boxShadow: "none" }}>Archive</Button>
         </DialogActions>
       </Dialog>
 
-      {/* Delete confirmation */}
       <Dialog open={confirmDelete} onClose={() => setConfirmDelete(false)} maxWidth="xs" fullWidth>
-        <DialogTitle sx={{ fontFamily: '"Fraunces", serif', fontWeight: 400, fontSize: 20 }}>
-          Delete this Vision?
-        </DialogTitle>
+        <DialogTitle sx={{ fontFamily: '"Fraunces", serif', fontWeight: 400, fontSize: 20 }}>Delete this Vision?</DialogTitle>
         <DialogContent>
           <Typography sx={{ fontSize: 14, color: "text.secondary" }}>
-            Permanently delete <strong>"{lakshya.title}"</strong> and all its milestones? This cannot be undone.
+            Permanently delete <strong>"{lakshya.title}"</strong> and all its milestones? Cannot be undone.
           </Typography>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2.5 }}>
           <Button onClick={() => setConfirmDelete(false)} color="inherit">Cancel</Button>
-          <Button
-            onClick={deleteLakshya} variant="contained"
-            sx={{ bgcolor: "#CF4E4E", "&:hover": { bgcolor: "#b03535" }, boxShadow: "none" }}
-          >
-            Delete Permanently
-          </Button>
+          <Button onClick={deleteLakshya} variant="contained" sx={{ bgcolor: "#CF4E4E", "&:hover": { bgcolor: "#b03535" }, boxShadow: "none" }}>Delete Permanently</Button>
         </DialogActions>
       </Dialog>
 
-      {/* Snackbar */}
-      <Snackbar
-        open={snack.open}
-        autoHideDuration={3000}
-        onClose={() => setSnack((p) => ({ ...p, open: false }))}
-        anchorOrigin={{ vertical: "top", horizontal: "center" }}
-      >
-        <Alert
-          onClose={() => setSnack((p) => ({ ...p, open: false }))}
-          severity={snack.severity}
-          sx={{ width: "100%" }}
-        >
-          {snack.msg}
-        </Alert>
+      <Snackbar open={snack.open} autoHideDuration={3000} onClose={() => setSnack(p => ({ ...p, open: false }))} anchorOrigin={{ vertical: "top", horizontal: "center" }}>
+        <Alert onClose={() => setSnack(p => ({ ...p, open: false }))} severity={snack.severity} sx={{ width: "100%" }}>{snack.msg}</Alert>
       </Snackbar>
     </Box>
   );
 }
 
+// Language config per area — habit areas talk about "practice", project/finance areas
+// talk about "activity" or "work logged"
+const TRACKER_LINK_LANG = {
+  finance: {
+    header:    "Tracking Toward",
+    today:     "Activity logged today ✓",
+    last:      (d) => `Last activity: ${relDate(d)}`,
+    empty:     "Link a financial goal above to connect this tracker to a vision.",
+    unlinked:  "Not linked to any goal yet. Tap “Link Lakshya” to connect your finance activity to a long-term vision.",
+  },
+  career: {
+    header:    "Fuelling",
+    today:     "Work logged today ✓",
+    last:      (d) => `Last logged: ${relDate(d)}`,
+    empty:     "Link a career vision above to connect your work logs to a long-term goal.",
+    unlinked:  "Not linked to any vision yet. Tap “Link Lakshya” to connect your daily work to a career goal.",
+  },
+  _default: {
+    header:    "Serving Lakshyas",
+    today:     "Practiced today ✓",
+    last:      (d) => `Last practiced ${relDate(d)}`,
+    empty:     "Create a Lakshya above to link this tracker to a vision.",
+    unlinked:  "Not linked to any vision yet. Tap “Link Lakshya” to connect this practice to a long-term goal.",
+  },
+};
+
+// ── TRACKER → LAKSHYA LINK ─────────────────────────────────────────────────────
+export function TrackerLakshyaLink({ area, color, lakshyas = [] }) {
+  const { user } = useAuth();
+  const [links, setLinks] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [picking, setPicking] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [lastDate, setLastDate] = useState(null);
+
+  // Lakshyas available for this area (active only, not already linked)
+  const activeLakshyas = lakshyas.filter(l => l.status === "active");
+
+  const loadLinks = useCallback(async () => {
+    if (!user) return;
+    const [{ data: linkData }] = await Promise.all([
+      supabase.from("tracker_lakshya_links")
+        .select("id, lakshya_id, lakshyas(id, title, type)")
+        .eq("user_id", user.id).eq("tracker_type", area).is("tracker_item_id", null),
+    ]);
+    setLinks(linkData || []);
+
+    // Fetch last-practiced date for this tracker
+    const dates = await fetchActivityDates(user, [area]);
+    setLastDate(dates[0] || null);
+    setLoading(false);
+  }, [user, area]);
+
+  useEffect(() => { loadLinks(); }, [loadLinks]);
+
+  const linkedIds = new Set(links.map(l => l.lakshya_id));
+  const available = activeLakshyas.filter(l => !linkedIds.has(l.id));
+
+  const addLink = async (lakshyaId) => {
+    if (!user) return;
+    setSaving(true);
+    await supabase.from("tracker_lakshya_links").insert({
+      user_id: user.id,
+      tracker_type: area,
+      tracker_item_id: null,
+      lakshya_id: lakshyaId,
+    });
+    await loadLinks();
+    setSaving(false);
+    if (available.length <= 1) setPicking(false);
+  };
+
+  const removeLink = async (linkId) => {
+    await supabase.from("tracker_lakshya_links").delete().eq("id", linkId);
+    await loadLinks();
+  };
+
+  if (loading) return null;
+
+  const lang = TRACKER_LINK_LANG[area] || TRACKER_LINK_LANG._default;
+
+  return (
+    <Box sx={{ mb: 3, p: 2, borderRadius: 3, border: "1px solid", borderColor: `${color}22`, background: `${color}04` }}>
+      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: links.length > 0 ? 1.5 : 0.75 }}>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
+          <LinkIcon sx={{ fontSize: 15, color }} />
+          <Typography variant="caption" sx={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: 2, color }}>
+            {lang.header}
+          </Typography>
+          {lastDate && (() => {
+            const isToday = lastDate === dayjs().format("YYYY-MM-DD");
+            const GREEN = "#2D9E6B";
+            return (
+              <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                <Box sx={{ width: 6, height: 6, borderRadius: "50%", bgcolor: isToday ? GREEN : "text.disabled",
+                  boxShadow: isToday ? `0 0 5px ${GREEN}90` : "none" }} />
+                <Typography variant="caption" sx={{ fontSize: 10, color: isToday ? GREEN : "text.disabled", fontWeight: isToday ? 700 : 400 }}>
+                  {isToday ? lang.today : lang.last(lastDate)}
+                </Typography>
+              </Box>
+            );
+          })()}
+        </Box>
+        {available.length > 0 && (
+          <Button size="small" startIcon={<Add sx={{ fontSize: 13 }} />}
+            onClick={() => setPicking(true)}
+            sx={{ fontSize: 11, color, textTransform: "none", py: 0.4, px: 1.25,
+              border: `1px dashed ${color}40`, borderRadius: 2,
+              "&:hover": { background: `${color}10`, borderStyle: "solid" } }}>
+            Link Lakshya
+          </Button>
+        )}
+      </Box>
+
+      {links.length === 0 ? (
+        <Typography sx={{ fontSize: 13, color: "text.disabled", fontStyle: "italic", lineHeight: 1.6 }}>
+          {available.length === 0 ? lang.empty : lang.unlinked}
+        </Typography>
+      ) : (
+        <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
+          {links.map(link => {
+            const gt = GOAL_TYPES.find(g => g.id === (link.lakshyas?.type || "habit"));
+            return (
+              <Chip
+                key={link.id}
+                icon={gt ? <gt.Icon sx={{ fontSize: 13, color: `${gt.color} !important` }} /> : <Flag sx={{ fontSize: 13 }} />}
+                label={link.lakshyas?.title || "Unknown"}
+                onDelete={() => removeLink(link.id)}
+                deleteIcon={<Close sx={{ fontSize: 13 }} />}
+                size="small"
+                sx={{
+                  height: 26, fontSize: 12, fontWeight: 600,
+                  bgcolor: `${color}10`, color: "text.primary",
+                  border: `1px solid ${color}25`,
+                  "& .MuiChip-deleteIcon": { color: "text.disabled", "&:hover": { color: "#CF4E4E" } },
+                }}
+              />
+            );
+          })}
+        </Box>
+      )}
+
+      {/* Picker dialog */}
+      <Dialog open={picking} onClose={() => setPicking(false)} maxWidth="xs" fullWidth
+        PaperProps={{ sx: { borderRadius: 3 } }}>
+        <DialogTitle sx={{ fontFamily: '"Fraunces", serif', fontWeight: 400, fontSize: 20, pb: 1 }}>
+          Link to a Lakshya
+          <Typography variant="body2" color="text.secondary" sx={{ fontSize: 13, mt: 0.5 }}>
+            This tracker will feed the selected vision.
+          </Typography>
+        </DialogTitle>
+        <DialogContent sx={{ pt: 0 }}>
+          {available.length === 0 ? (
+            <Typography sx={{ fontSize: 14, color: "text.secondary", py: 2, fontStyle: "italic" }}>
+              All Lakshyas are already linked.
+            </Typography>
+          ) : (
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 1, mt: 1 }}>
+              {available.map(l => {
+                const gt = GOAL_TYPES.find(g => g.id === (l.type || "habit"));
+                return (
+                  <Box key={l.id} onClick={() => !saving && addLink(l.id)}
+                    sx={{
+                      p: 1.75, borderRadius: 2, border: "1px solid", borderColor: "divider",
+                      cursor: saving ? "default" : "pointer", display: "flex",
+                      alignItems: "center", gap: 1.5,
+                      transition: "all 0.15s",
+                      "&:hover": { borderColor: `${color}50`, background: `${color}06` },
+                    }}>
+                    <Box sx={{ p: 0.6, borderRadius: 1.5, background: `${color}14`, display: "flex", flexShrink: 0 }}>
+                      <Flag sx={{ fontSize: 16, color }} />
+                    </Box>
+                    <Box sx={{ flex: 1, minWidth: 0 }}>
+                      <Typography sx={{ fontSize: 14, fontWeight: 600, lineHeight: 1.3,
+                        fontFamily: '"Fraunces", serif', overflow: "hidden",
+                        textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {l.title}
+                      </Typography>
+                      <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, mt: 0.35 }}>
+                        {gt && <gt.Icon sx={{ fontSize: 11, color: gt.color }} />}
+                        <Typography variant="caption" sx={{ fontSize: 11, color: "text.secondary" }}>
+                          {gt?.label || "Habit"} · {l.timeline_years}yr horizon
+                        </Typography>
+                      </Box>
+                    </Box>
+                    <ArrowForward sx={{ fontSize: 16, color: "text.disabled", flexShrink: 0 }} />
+                  </Box>
+                );
+              })}
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ px: 2.5, pb: 2 }}>
+          <Button onClick={() => setPicking(false)} color="inherit" sx={{ textTransform: "none" }}>Close</Button>
+        </DialogActions>
+      </Dialog>
+    </Box>
+  );
+}
+
+// Which goal type to pre-select when opening "New Vision" on each area page
+const AREA_DEFAULT_TYPE = {
+  spirit:  "habit",
+  music:   "habit",
+  health:  "habit",
+  reading: "habit",
+  finance: "outcome",
+  career:  "completion",
+};
+
 export function LakshyaSection({ area, color, lakshyas, onUpdate }) {
   const { user } = useAuth();
   const [open, setOpen] = useState(false);
+  const defaultType = AREA_DEFAULT_TYPE[area] || "habit";
   const [form, setForm] = useState({
     title: "",
     description: "",
     timeline_years: 1,
     reward_note: "",
+    type: defaultType,
+    outcome_target: "",
+    outcome_unit: "",
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -1177,13 +1251,17 @@ export function LakshyaSection({ area, color, lakshyas, onUpdate }) {
       timeline_years: form.timeline_years,
       reward_note: form.reward_note.trim() || null,
       status: "active",
+      type: form.type,
+      outcome_target: form.type === "outcome" && form.outcome_target ? Number(form.outcome_target) : null,
+      outcome_current: form.type === "outcome" ? 0 : null,
+      outcome_unit: form.type === "outcome" && form.outcome_unit ? form.outcome_unit.trim() : null,
     });
     if (err) {
       setError(err.message);
       setSaving(false);
       return;
     }
-    setForm({ title: "", description: "", timeline_years: 1, reward_note: "" });
+    setForm({ title: "", description: "", timeline_years: 1, reward_note: "", type: defaultType, outcome_target: "", outcome_unit: "" });
     setOpen(false);
     setSaving(false);
     if (onUpdate) onUpdate();
@@ -1307,30 +1385,54 @@ export function LakshyaSection({ area, color, lakshyas, onUpdate }) {
           </DialogTitle>
           <DialogContent>
             {error && (
-              <Alert
-                severity="error"
-                sx={{ mb: 2, fontSize: 13, borderRadius: 2 }}
-              >
-                {error}
-              </Alert>
+              <Alert severity="error" sx={{ mb: 2, fontSize: 13, borderRadius: 2 }}>{error}</Alert>
             )}
-            <TextField
-              fullWidth
-              autoFocus
-              label="Vision Title"
+
+            {/* Goal type picker */}
+            <Typography variant="caption" sx={{ fontSize: 11, fontWeight: 700, color: "text.secondary", textTransform: "uppercase", letterSpacing: 1.5, display: "block", mb: 1, mt: 1 }}>
+              Goal Type
+            </Typography>
+            <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 1, mb: 3 }}>
+              {GOAL_TYPES.map(({ id, label, desc, Icon, color: gtColor }) => {
+                const selected = form.type === id;
+                return (
+                  <Box key={id} onClick={() => setForm(p => ({ ...p, type: id }))}
+                    sx={{
+                      p: 1.5, borderRadius: 2, cursor: "pointer", border: "1.5px solid",
+                      borderColor: selected ? `${gtColor}70` : "divider",
+                      bgcolor: selected ? `${gtColor}10` : "transparent",
+                      transition: "all 0.15s ease",
+                      "&:hover": { borderColor: `${gtColor}50`, bgcolor: `${gtColor}07` },
+                    }}>
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, mb: 0.5 }}>
+                      <Icon sx={{ fontSize: 15, color: gtColor }} />
+                      <Typography sx={{ fontSize: 13, fontWeight: 700, color: selected ? gtColor : "text.primary" }}>{label}</Typography>
+                    </Box>
+                    <Typography sx={{ fontSize: 11, color: "text.secondary", lineHeight: 1.4 }}>{desc}</Typography>
+                  </Box>
+                );
+              })}
+            </Box>
+
+            <TextField fullWidth autoFocus label="Vision Title"
               placeholder="e.g. Sangeeta Visharada, Financial Independence"
-              value={form.title}
-              onChange={(e) =>
-                setForm((p) => ({ ...p, title: e.target.value }))
-              }
-              sx={{ mb: 3, mt: 1 }}
-              size="medium"
-            />
-            <TextField
-              fullWidth
-              size="medium"
-              type="number"
-              label="Horizon (Years)"
+              value={form.title} onChange={(e) => setForm((p) => ({ ...p, title: e.target.value }))}
+              sx={{ mb: 3 }} size="medium" />
+
+            {/* Outcome-specific fields */}
+            {form.type === "outcome" && (
+              <Box sx={{ display: "flex", gap: 1.5, mb: 3 }}>
+                <TextField fullWidth size="medium" type="number" label="Target Number"
+                  placeholder="e.g. 70, 1000000, 52"
+                  value={form.outcome_target} onChange={(e) => setForm(p => ({ ...p, outcome_target: e.target.value }))}
+                  inputProps={{ min: 0 }} />
+                <TextField size="medium" label="Unit" placeholder="kg, ₹, books"
+                  value={form.outcome_unit} onChange={(e) => setForm(p => ({ ...p, outcome_unit: e.target.value }))}
+                  sx={{ width: 120 }} />
+              </Box>
+            )}
+
+            <TextField fullWidth size="medium" type="number" label="Horizon (Years)"
               value={form.timeline_years}
               onChange={(e) => {
                 const val = parseInt(e.target.value, 10);
@@ -1338,21 +1440,12 @@ export function LakshyaSection({ area, color, lakshyas, onUpdate }) {
               }}
               inputProps={{ min: 1, step: 1 }}
               helperText="Enter any number of years (minimum 1)"
-              sx={{ mb: 3 }}
-            />
-            <TextField
-              fullWidth
-              multiline
-              rows={4}
-              label="The Deeper Why (Optional)"
+              sx={{ mb: 3 }} />
+
+            <TextField fullWidth multiline rows={3} label="The Deeper Why (Optional)"
               placeholder="What fundamentally shifts within you when this is achieved?"
-              value={form.description}
-              onChange={(e) =>
-                setForm((p) => ({ ...p, description: e.target.value }))
-              }
-              sx={{ mb: 1 }}
-              size="medium"
-            />
+              value={form.description} onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))}
+              sx={{ mb: 1 }} size="medium" />
           </DialogContent>
           <DialogActions sx={{ px: 3, pb: 3, pt: 0 }}>
             <Button

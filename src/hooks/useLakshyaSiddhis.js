@@ -29,7 +29,7 @@ export function useLakshyaSiddhis() {
       setLoading(true);
       const { data, error } = await supabase
         .from("lakshyas")
-        .select("id, title, pillar, siddhis(id, title, status, progress_percent)")
+        .select("id, title, pillar, type, siddhis(id, title, status, achieved_at)")
         .eq("user_id", user.id)
         .eq("status", "active")
         .order("created_at");
