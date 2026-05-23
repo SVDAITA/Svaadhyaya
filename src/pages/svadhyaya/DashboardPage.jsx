@@ -1280,6 +1280,10 @@ function JapaCard({ japaLogs, japaGoals, isDark, days = 14 }) {
     : null;
   const dailyPace =
     deadlineDays > 0 ? Math.round(remaining / deadlineDays) : null;
+  const dailyTarget = activeGoal?.deadline_years > 0
+    ? Math.max(1, Math.round(activeGoal.target_count / (activeGoal.deadline_years * 365)))
+    : 0;
+  const todayTargetPct = dailyTarget > 0 ? Math.min(100, Math.round((todayCount / dailyTarget) * 100)) : 0;
 
   const chartData = Array.from({ length: days }, (_, i) => {
     const d = dayjs()
@@ -1329,30 +1333,10 @@ function JapaCard({ japaLogs, japaGoals, isDark, days = 14 }) {
           </Typography>
         ) : (
           <>
-            {japaGoals.length > 1 && (
-              <Box
-                sx={{ display: "flex", gap: 0.5, flexWrap: "wrap", mb: 1.5 }}
-              >
-                {japaGoals.map((g) => (
-                  <Box
-                    key={g.id}
-                    onClick={() => setActiveGoal(g)}
-                    sx={{
-                      px: 1,
-                      py: 0.25,
-                      borderRadius: 10,
-                      cursor: "pointer",
-                      fontSize: 10,
-                      fontWeight: 600,
-                      background: activeGoal?.id === g.id ? jc : "transparent",
-                      color: activeGoal?.id === g.id ? "#fff" : textS,
-                      border: `1px solid ${activeGoal?.id === g.id ? jc : alpha(jc, 0.3)}`,
-                    }}
-                  >
-                    {g.japa_name}
-                  </Box>
-                ))}
-              </Box>
+            {activeGoal && (
+              <Typography sx={{ fontSize: 11, fontWeight: 600, color: jc, mb: 1.5, letterSpacing: 0.3 }}>
+                📿 {activeGoal.japa_name}
+              </Typography>
             )}
             <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2 }}>
               <Box
@@ -1413,15 +1397,24 @@ function JapaCard({ japaLogs, japaGoals, isDark, days = 14 }) {
                 <Typography sx={{ fontSize: 10, color: textS }}>
                   of {(activeGoal?.target_count || 0).toLocaleString()}
                 </Typography>
-                {todayCount > 0 && (
-                  <Typography
-                    sx={{ fontSize: 10, color: jc, fontWeight: 700, mt: 0.25 }}
-                  >
-                    Today: {todayCount.toLocaleString()}
+                {dailyTarget > 0 && (
+                  <Typography sx={{ fontSize: 10, color: todayTargetPct >= 100 ? jc : textS, fontWeight: 600, mt: 0.25 }}>
+                    Today: {todayTargetPct >= 100 ? "✓ target met" : `${todayCount.toLocaleString()} / ${dailyTarget.toLocaleString()}`}
                   </Typography>
                 )}
               </Box>
             </Box>
+            {dailyTarget > 0 && (
+              <Box sx={{ mb: 2 }}>
+                <Box sx={{ display: "flex", justifyContent: "space-between", mb: 0.5 }}>
+                  <Typography sx={{ fontSize: 9, color: textS, fontWeight: 700, letterSpacing: 1, textTransform: "uppercase" }}>Today's target</Typography>
+                  <Typography sx={{ fontSize: 9, color: todayTargetPct >= 100 ? jc : textS, fontWeight: 700 }}>{todayTargetPct}%</Typography>
+                </Box>
+                <Box sx={{ height: 5, borderRadius: 3, background: alpha(jc, 0.12), overflow: "hidden" }}>
+                  <Box sx={{ height: "100%", width: `${todayTargetPct}%`, borderRadius: 3, background: `linear-gradient(90deg, ${jc}, ${alpha(jc, 0.7)})`, transition: "width 0.5s ease" }} />
+                </Box>
+              </Box>
+            )}
           </>
         )}
         <Typography
@@ -2119,7 +2112,7 @@ const HEATMAP_AREAS = [
   },
 ];
 
-function LifeRhythmHeatmap({ dayMap, isDark, onDayClick }) {
+function LifeRhythmHeatmap({ dayMap, isDark, onDayClick, japaLogs = [] }) {
   const textS = isDark ? "#7A7874" : "#9C9A94";
   const DAYS = 35;
   const todayStr = dayjs().format("YYYY-MM-DD");
@@ -2252,6 +2245,44 @@ function LifeRhythmHeatmap({ dayMap, isDark, onDayClick }) {
             </Box>
           );
         })}
+
+        {/* Japam row — presence-based, intensity by count */}
+        {japaLogs.length > 0 && (() => {
+          const jc = isDark ? "#D4A830" : "#C07830";
+          return (
+            <Box sx={{ display: "flex", alignItems: "center", mb: 0.5 }}>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, width: 90, flexShrink: 0 }}>
+                <Typography sx={{ fontSize: 14 }}>📿</Typography>
+                <Typography sx={{ fontSize: 9.5, color: textS, fontWeight: 600 }}>Japam</Typography>
+              </Box>
+              <Box sx={{ display: "flex", gap: "3px", flex: 1 }}>
+                {dates.map((date) => {
+                  const count = japaLogs
+                    .filter((l) => l.day_date === date)
+                    .reduce((s, l) => s + l.count, 0);
+                  const isToday = date === todayStr;
+                  const intensity = count > 0 ? Math.min(1, 0.25 + (count / 500) * 0.75) : 0;
+                  const bg = count > 0
+                    ? alpha(jc, intensity)
+                    : isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)";
+                  return (
+                    <Box
+                      key={date}
+                      onClick={() => onDayClick(date)}
+                      title={`${dayjs(date).format("D MMM")} · Japam: ${count > 0 ? count.toLocaleString() : "—"}`}
+                      sx={{
+                        flex: 1, aspectRatio: "1", borderRadius: "3px", background: bg,
+                        border: isToday ? `2px solid ${jc}` : "1px solid transparent",
+                        cursor: "pointer", transition: "transform 0.1s",
+                        "&:hover": { transform: "scale(1.5)", zIndex: 2 },
+                      }}
+                    />
+                  );
+                })}
+              </Box>
+            </Box>
+          );
+        })()}
       </CardContent>
     </Card>
   );
@@ -2478,12 +2509,25 @@ function VitalsHero({
     ? `linear-gradient(135deg, rgba(18,16,12,0.98) 0%, rgba(26,22,14,0.96) 100%)`
     : `linear-gradient(135deg, #fffef9 0%, #fff8ee 100%)`;
 
+  const japaDailyTarget = japaGoal && japaGoal.deadline_years > 0
+    ? Math.max(1, Math.round(japaGoal.target_count / (japaGoal.deadline_years * 365)))
+    : 0;
+  const japaTargetMet = japaDailyTarget > 0 && todayJapa >= japaDailyTarget;
+
   const stats = [
     {
       emoji: "🕉️",
       label: "Japa",
-      value: todayJapa > 0 ? todayJapa.toLocaleString() : "—",
-      sub: japaGoal?.japa_name || null,
+      value: japaTargetMet ? "✓" : todayJapa > 0 ? todayJapa.toLocaleString() : "—",
+      sub: japaGoal
+        ? japaTargetMet
+          ? `${japaGoal.japa_name} · target met`
+          : todayJapa > 0 && japaDailyTarget > 0
+            ? `of ${japaDailyTarget.toLocaleString()} daily`
+            : japaDailyTarget > 0
+              ? `${japaDailyTarget.toLocaleString()} daily · ${japaGoal.japa_name}`
+              : japaGoal.japa_name
+        : null,
     },
     {
       emoji: "🏃",
@@ -2741,6 +2785,142 @@ function VitalsHero({
   );
 }
 
+// ── ACTIVE MILESTONES CARD ───────────────────────────────────────────────────
+function parseMilestoneTarget(title) {
+  if (!title) return null;
+  const kw = title.match(/(?:reach|level|save|hit|complete|finish|achieve|days?|sessions?|books?|hours?|months?|weeks?|courses?|times?)\s+[₹$£€]?([\d.]+)/i);
+  if (kw) return parseFloat(kw[1]);
+  const all = [...title.matchAll(/[\d.]+/g)];
+  return all.length ? parseFloat(all[all.length - 1][0]) : null;
+}
+
+const PILLAR_META = {
+  spirit:  { color: "#C07830", colorDark: "#D4A830", emoji: "🪔", label: "Anushthanam" },
+  music:   { color: "#7C4DAB", colorDark: "#9B6CC4", emoji: "🎵", label: "Nādam" },
+  health:  { color: "#2D7A4F", colorDark: "#5EC98A", emoji: "💪", label: "Sharīram" },
+  career:  { color: "#1A5FB0", colorDark: "#6AAEE8", emoji: "🚀", label: "Vṛtti" },
+  finance: { color: "#1A7A6E", colorDark: "#4DC4B5", emoji: "💰", label: "Artha" },
+  reading: { color: "#A0522D", colorDark: "#D4845A", emoji: "📖", label: "Vidyā" },
+};
+
+const TYPE_META = {
+  habit:   { icon: "🔥", label: "Habit" },
+  outcome: { icon: "🎯", label: "Outcome" },
+  mastery: { icon: "⚡", label: "Mastery" },
+};
+
+function ActiveMilestonesCard({ lakshyas, isDark }) {
+  const textP = isDark ? "#F0EDE8" : "#2C2C2C";
+  const textS = isDark ? "#7A7874" : "#9C9A94";
+  const bg = isDark ? "rgba(26,25,22,0.7)" : "#fff";
+
+  const lakshyaRows = useMemo(() =>
+    lakshyas.map((l) => {
+      const all = l.siddhis || [];
+      const active = all.filter((s) => s.status !== "achieved");
+      const achieved = all.filter((s) => s.status === "achieved").length;
+      // Pick the milestone with the most progress to show as the "hero" bar
+      const withProgress = active
+        .map((s) => {
+          const target = s.target_value > 0 ? s.target_value : parseMilestoneTarget(s.title);
+          const current = s.current_value ?? 0;
+          const pct = target > 0 ? Math.min(100, Math.round((current / target) * 100)) : null;
+          return { ...s, _target: target, _current: current, _pct: pct };
+        })
+        .filter((s) => s._pct !== null)
+        .sort((a, b) => b._pct - a._pct);
+      const hero = withProgress[0] || null;
+      return { ...l, _active: active, _achieved: achieved, _hero: hero };
+    }),
+    [lakshyas]
+  );
+
+  if (lakshyaRows.length === 0) return null;
+
+  const totalActive = lakshyaRows.reduce((s, l) => s + l._active.length, 0);
+
+  return (
+    <Card sx={{ border: `1px solid ${isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)"}`, borderRadius: 2.5, background: bg, boxShadow: "none", mb: 3, animation: `${fadeUp} 0.5s ease 0.08s both` }}>
+      <CardContent sx={{ p: { xs: 2.5, sm: 3 } }}>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 2.5 }}>
+          <Box sx={{ p: 0.75, borderRadius: 1.5, background: "rgba(192,120,48,0.12)", color: "#C07830" }}>
+            <AutoGraph sx={{ fontSize: 18 }} />
+          </Box>
+          <Box sx={{ flex: 1 }}>
+            <Typography sx={{ fontFamily: '"Fraunces",serif', fontSize: 18, fontWeight: 600, color: textP, lineHeight: 1.2 }}>
+              Vision Pipeline
+            </Typography>
+            <Typography sx={{ fontSize: 11, color: textS, mt: 0.1 }}>
+              {lakshyaRows.length} active visions · {totalActive} milestones in progress
+            </Typography>
+          </Box>
+        </Box>
+
+        <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr", md: "1fr 1fr 1fr" }, gap: 1.5 }}>
+          {lakshyaRows.map((l) => {
+            const pillar = PILLAR_META[l.pillar] || { color: "#5C5A52", colorDark: "#9C9A94", emoji: "✦", label: l.pillar || "—" };
+            const color = isDark ? pillar.colorDark : pillar.color;
+            const hero = l._hero;
+
+            return (
+              <Box key={l.id} sx={{
+                p: 1.75, borderRadius: 2,
+                border: `1px solid ${alpha(color, 0.22)}`,
+                background: alpha(color, isDark ? 0.05 : 0.03),
+                position: "relative", overflow: "hidden",
+              }}>
+                {/* Colour accent left bar */}
+                <Box sx={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 3, background: color, borderRadius: "2px 0 0 2px" }} />
+
+                {/* Pillar label */}
+                <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, mb: 0.75, pl: 0.5 }}>
+                  <Typography sx={{ fontSize: 12 }}>{pillar.emoji}</Typography>
+                  <Typography sx={{ fontSize: 8.5, color, fontWeight: 700, letterSpacing: 1, textTransform: "uppercase", flex: 1 }}>
+                    {pillar.label}
+                  </Typography>
+                  {l._achieved > 0 && (
+                    <Typography sx={{ fontSize: 9, color: textS }}>✓{l._achieved}</Typography>
+                  )}
+                </Box>
+
+                {/* Lakshya title */}
+                <Typography sx={{ fontSize: 12.5, fontWeight: 600, color: textP, lineHeight: 1.35, mb: 0.75, pl: 0.5 }} noWrap>
+                  {l.title}
+                </Typography>
+
+                {/* Active milestone count */}
+                <Typography sx={{ fontSize: 10, color: textS, mb: hero ? 1 : 0, pl: 0.5 }}>
+                  {l._active.length > 0
+                    ? `${l._active.length} milestone${l._active.length > 1 ? "s" : ""} active`
+                    : "No milestones set"}
+                </Typography>
+
+                {/* Hero milestone progress */}
+                {hero && (
+                  <>
+                    <Typography sx={{ fontSize: 10.5, color: textP, fontWeight: 500, mb: 0.5, pl: 0.5 }} noWrap>
+                      {hero.title}
+                    </Typography>
+                    <Box sx={{ display: "flex", justifyContent: "space-between", mb: 0.4, pl: 0.5 }}>
+                      <Typography sx={{ fontSize: 9, color: textS }}>
+                        {hero._current > 0 ? `${hero._current.toLocaleString()} / ${hero._target.toLocaleString()}` : `Target: ${hero._target.toLocaleString()}`}
+                      </Typography>
+                      <Typography sx={{ fontSize: 9, color, fontWeight: 700 }}>{hero._pct}%</Typography>
+                    </Box>
+                    <Box sx={{ height: 3, borderRadius: 2, background: alpha(color, 0.15), overflow: "hidden" }}>
+                      <Box sx={{ height: "100%", width: `${hero._pct}%`, borderRadius: 2, background: color, transition: "width 0.5s ease" }} />
+                    </Box>
+                  </>
+                )}
+              </Box>
+            );
+          })}
+        </Box>
+      </CardContent>
+    </Card>
+  );
+}
+
 // ── MAIN DASHBOARD ─────────────────────────────────────────────────────────────
 
 let _dashCache = null;
@@ -2773,7 +2953,7 @@ export default function DashboardPage() {
   const [activityLogs, setActivityLogs] = useState(
     _dashCache?.activityLogs || [],
   );
-  const [latestWeightKg, setLatestWeightKg] = useState(null);
+  const [latestWeightKg, setLatestWeightKg] = useState(_dashCache?.latestWeightKg ?? null);
   const [analyticsRange, setAnalyticsRange] = useState("month");
 
   const textP = isDark ? "#F0EDE8" : "#2C2C2C";
@@ -2909,6 +3089,8 @@ export default function DashboardPage() {
         financeLogs: finLogsData || [],
         financeBudgets: budgetsData || [],
         activityLogs: activityData || [],
+        latestWeightKg: weightData?.[0]?.value ?? null,
+        dynamicStreaks: [], // filled below after vacation set is built
       };
 
       const vacationDateSet = new Set();
@@ -3324,6 +3506,7 @@ export default function DashboardPage() {
               dayMap={dayMap}
               isDark={isDark}
               onDayClick={setSelectedDate}
+              japaLogs={japaLogs}
             />
           </Grid>
           <Grid item xs={12} lg={4}>
@@ -3349,6 +3532,9 @@ export default function DashboardPage() {
             </Grid>
           ))}
         </Grid>
+
+        {/* ACTIVE MILESTONES */}
+        <ActiveMilestonesCard lakshyas={lakshyas} isDark={isDark} />
 
         {/* THIS WEEK'S FOCUS */}
         {weeklyGoals.length > 0 &&
