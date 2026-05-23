@@ -11,8 +11,7 @@ import {
 import { useAuth } from "../../hooks/useAuth";
 import { useThemeMode } from "../../hooks/useTheme";
 import { supabase } from "../../lib/supabase";
-import { useLakshyaSiddhis } from "../../hooks/useLakshyaSiddhis";
-import SiddhiPicker from "../../components/shared/SiddhiPicker";
+import LakshyaPicker, { fetchItemLakshyaLink, saveItemLakshyaLink } from "../../components/shared/LakshyaPicker";
 import dayjs from "dayjs";
 
 // ── CONSTANTS ─────────────────────────────────────────────────────────────────
@@ -124,8 +123,6 @@ export default function VidyaTracker({ embedded = false }) {
   const weekAgo     = dayjs().subtract(7,  "day").format("YYYY-MM-DD");
   const monthAgo    = dayjs().subtract(30, "day").format("YYYY-MM-DD");
 
-  const { siddhis: allSiddhis } = useLakshyaSiddhis();
-
   const gold   = VIDYA_AMBER;
   const textP  = isDark ? "#F0EDE8" : "#1A0800";
   const textS  = isDark ? "#9C8A74" : "#7A5A3A";
@@ -143,19 +140,21 @@ export default function VidyaTracker({ embedded = false }) {
   const confirmDel = (title, fn) => { haptic(15); setDelDlg({ open: true, title, fn }); };
 
   // ── BOOKS STATE ───────────────────────────────────────────────────────────
-  const emptyBook = { title: "", author: "", genre: "", language: "English", status: "reading", total_pages: "", pages_read: "", notes: "", one_line: "", started_date: today, finished_date: "", siddhi_id: "" };
-  const [books,      setBooks]      = useState(_vidyaCache?.books || []);
-  const [bookForm,   setBookForm]   = useState(emptyBook);
-  const [editBook,   setEditBook]   = useState(null);
+  const emptyBook = { title: "", author: "", genre: "", language: "English", status: "reading", total_pages: "", pages_read: "", notes: "", one_line: "", started_date: today, finished_date: "" };
+  const [books,       setBooks]      = useState(_vidyaCache?.books || []);
+  const [bookForm,    setBookForm]   = useState(emptyBook);
+  const [bookLakshyaId, setBookLakshyaId] = useState("");
+  const [editBook,    setEditBook]   = useState(null);
   const [bookDlg,    setBookDlg]    = useState(false);
   const [bookFilter, setBookFilter] = useState("reading");
   const [bookPage,   setBookPage]   = useState(1);
 
   // ── COURSES STATE ─────────────────────────────────────────────────────────
-  const emptyCourse = { title: "", platform: "", instructor: "", url: "", status: "in_progress", progress_pct: 0, rating: 3, start_date: today, completed_date: "", notes: "", siddhi_id: "" };
-  const [courses,       setCourses]       = useState(_vidyaCache?.courses || []);
-  const [courseForm,    setCourseForm]    = useState(emptyCourse);
-  const [editCourse,    setEditCourse]    = useState(null);
+  const emptyCourse = { title: "", platform: "", instructor: "", url: "", status: "in_progress", progress_pct: 0, rating: 3, start_date: today, completed_date: "", notes: "" };
+  const [courses,         setCourses]       = useState(_vidyaCache?.courses || []);
+  const [courseForm,      setCourseForm]    = useState(emptyCourse);
+  const [courseLakshyaId, setCourseLakshyaId] = useState("");
+  const [editCourse,      setEditCourse]    = useState(null);
   const [courseDlg,     setCourseDlg]     = useState(false);
   const [courseFilter,  setCourseFilter]  = useState("all");
   const [coursePage,    setCoursePage]    = useState(1);
@@ -264,18 +263,19 @@ export default function VidyaTracker({ embedded = false }) {
       one_line:     bookForm.one_line    || null,
       started_date: bookForm.started_date  || null,
       finished_date:bookForm.finished_date || null,
-      siddhi_id:    bookForm.siddhi_id     || null,
     };
     if (editBook) {
       const { error } = await supabase.from("books").update(payload).eq("id", editBook);
       if (error) { err("Save failed"); return; }
+      await saveItemLakshyaLink(user.id, "reading", editBook, bookLakshyaId);
       ok("Book updated");
     } else {
-      const { error } = await supabase.from("books").insert(payload);
+      const { data, error } = await supabase.from("books").insert(payload).select("id").single();
       if (error) { err("Save failed"); return; }
+      await saveItemLakshyaLink(user.id, "reading", data.id, bookLakshyaId);
       ok("Book added");
     }
-    setBookDlg(false); setBookForm(emptyBook); setEditBook(null); bust();
+    setBookDlg(false); setBookForm(emptyBook); setBookLakshyaId(""); setEditBook(null); bust();
   };
 
   const deleteBook = async (id, title) => {
@@ -338,18 +338,19 @@ export default function VidyaTracker({ embedded = false }) {
       start_date:     courseForm.start_date     || null,
       completed_date: courseForm.completed_date || null,
       notes:          courseForm.notes       || null,
-      siddhi_id:      courseForm.siddhi_id   || null,
     };
     if (editCourse) {
       const { error } = await supabase.from("vidya_courses").update(payload).eq("id", editCourse);
       if (error) { err("Save failed"); return; }
+      await saveItemLakshyaLink(user.id, "reading", editCourse, courseLakshyaId);
       ok("Course updated");
     } else {
-      const { error } = await supabase.from("vidya_courses").insert(payload);
+      const { data, error } = await supabase.from("vidya_courses").insert(payload).select("id").single();
       if (error) { err("Save failed"); return; }
+      await saveItemLakshyaLink(user.id, "reading", data.id, courseLakshyaId);
       ok("Course added");
     }
-    setCourseDlg(false); setCourseForm(emptyCourse); setEditCourse(null); bust();
+    setCourseDlg(false); setCourseForm(emptyCourse); setCourseLakshyaId(""); setEditCourse(null); bust();
   };
 
   const deleteCourse = async (id, title) => {
@@ -558,7 +559,7 @@ export default function VidyaTracker({ embedded = false }) {
                   <input type="file" accept=".json" hidden onChange={handleJsonImport} />
                 </Button>
                 <Button size="small" startIcon={<Add sx={{ fontSize: 14 }} />}
-                  onClick={() => { haptic(); setBookForm(emptyBook); setEditBook(null); setBookDlg(true); }}
+                  onClick={() => { haptic(); setBookForm(emptyBook); setBookLakshyaId(""); setEditBook(null); setBookDlg(true); }}
                   sx={{ textTransform: "none", fontSize: 12, fontWeight: 600, color: "#fff", bgcolor: gold, px: 1.5, py: 0.5, borderRadius: 2, "&:hover": { bgcolor: gold, opacity: 0.88 } }}>
                   Add Book
                 </Button>
@@ -603,7 +604,7 @@ export default function VidyaTracker({ embedded = false }) {
                                 <Stack direction="row" spacing={1.5} sx={{ mt: 0.6, flexWrap: "wrap" }}>
                                   {b.genre && <Typography sx={{ fontSize: 11, color: textS }}>📂 {b.genre}</Typography>}
                                   {b.language && b.language !== "English" && <Typography sx={{ fontSize: 11, color: textS }}>🌐 {b.language}</Typography>}
-                                  {b.siddhi_id && (() => { const s = allSiddhis.find((x) => x.id === b.siddhi_id); return s ? <Chip label={`🎯 ${s.title}`} size="small" sx={{ height: 16, fontSize: 10, bgcolor: `${gold}14`, color: gold, border: `1px solid ${gold}35`, fontWeight: 600 }} /> : null; })()}
+                                  {b._lakshyaTitle && <Chip label={`🎯 ${b._lakshyaTitle}`} size="small" sx={{ height: 16, fontSize: 10, bgcolor: `${gold}14`, color: gold, border: `1px solid ${gold}35`, fontWeight: 600 }} />}
                                 </Stack>
                                 {b.one_line && <Typography sx={{ fontSize: 11, color: textS, fontStyle: "italic", mt: 0.3 }}>{b.one_line}</Typography>}
                                 {b.total_pages > 0 && (
@@ -619,7 +620,7 @@ export default function VidyaTracker({ embedded = false }) {
                                 {b.notes && <Typography sx={{ fontSize: 11, color: textS, mt: 0.6, fontStyle: "italic" }}>{b.notes}</Typography>}
                               </Box>
                               <Stack direction="row" spacing={0.5}>
-                                <IconButton size="small" onClick={() => { haptic(); setBookForm({ title: b.title || "", author: b.author || "", genre: b.genre || "", language: b.language || "English", status: b.status || "reading", total_pages: b.total_pages || "", pages_read: b.pages_read || "", notes: b.notes || "", one_line: b.one_line || "", started_date: b.started_date || today, finished_date: b.finished_date || "", siddhi_id: b.siddhi_id || "" }); setEditBook(b.id); setBookDlg(true); }}
+                                <IconButton size="small" onClick={() => { haptic(); setBookForm({ title: b.title || "", author: b.author || "", genre: b.genre || "", language: b.language || "English", status: b.status || "reading", total_pages: b.total_pages || "", pages_read: b.pages_read || "", notes: b.notes || "", one_line: b.one_line || "", started_date: b.started_date || today, finished_date: b.finished_date || "" }); fetchItemLakshyaLink(user.id, "reading", b.id).then((id) => setBookLakshyaId(id || "")); setEditBook(b.id); setBookDlg(true); }}
                                   sx={{ color: textS, "&:hover": { color: gold } }}><Edit sx={{ fontSize: 14 }} /></IconButton>
                                 <IconButton size="small" onClick={() => deleteBook(b.id, b.title)}
                                   sx={{ color: textS, "&:hover": { color: "#CF4E4E" } }}><Delete sx={{ fontSize: 14 }} /></IconButton>
@@ -649,7 +650,7 @@ export default function VidyaTracker({ embedded = false }) {
       {tab === 1 && (
         <Grid container spacing={3}>
           <Grid item xs={12}>
-            <SectionHead title="Courses & Certifications" onAdd={() => { setCourseForm(emptyCourse); setEditCourse(null); setCourseDlg(true); }} color={VIDYA_TEAL} isDark={isDark} addLabel="Add Course" />
+            <SectionHead title="Courses & Certifications" onAdd={() => { setCourseForm(emptyCourse); setCourseLakshyaId(""); setEditCourse(null); setCourseDlg(true); }} color={VIDYA_TEAL} isDark={isDark} addLabel="Add Course" />
 
             <Stack direction="row" spacing={1} sx={{ mb: 2, flexWrap: "wrap", gap: 0.5 }}>
               {["all", ...COURSE_STATUS.map((s) => s.value)].map((f) => (
@@ -686,7 +687,7 @@ export default function VidyaTracker({ embedded = false }) {
                                 <Stack direction="row" spacing={1.5} sx={{ mt: 0.4, flexWrap: "wrap" }}>
                                   {c.platform && <Typography sx={{ fontSize: 11, color: textS }}>🏫 {c.platform}</Typography>}
                                   {c.instructor && <Typography sx={{ fontSize: 11, color: textS }}>👤 {c.instructor}</Typography>}
-                                  {c.siddhi_id && (() => { const s = allSiddhis.find((x) => x.id === c.siddhi_id); return s ? <Chip label={`🎯 ${s.title}`} size="small" sx={{ height: 16, fontSize: 10, bgcolor: `${VIDYA_TEAL}14`, color: VIDYA_TEAL, border: `1px solid ${VIDYA_TEAL}35`, fontWeight: 600 }} /> : null; })()}
+                                  {c._lakshyaTitle && <Chip label={`🎯 ${c._lakshyaTitle}`} size="small" sx={{ height: 16, fontSize: 10, bgcolor: `${VIDYA_TEAL}14`, color: VIDYA_TEAL, border: `1px solid ${VIDYA_TEAL}35`, fontWeight: 600 }} />}
                                 </Stack>
                                 {c.progress_pct > 0 && (
                                   <Box sx={{ mt: 0.8 }}>
@@ -701,7 +702,7 @@ export default function VidyaTracker({ embedded = false }) {
                                 {c.notes && <Typography sx={{ fontSize: 11, color: textS, mt: 0.6, fontStyle: "italic" }}>{c.notes}</Typography>}
                               </Box>
                               <Stack direction="row" spacing={0.5}>
-                                <IconButton size="small" onClick={() => { haptic(); setCourseForm({ ...c, siddhi_id: c.siddhi_id || "" }); setEditCourse(c.id); setCourseDlg(true); }}
+                                <IconButton size="small" onClick={() => { haptic(); setCourseForm({ ...c }); fetchItemLakshyaLink(user.id, "reading", c.id).then((id) => setCourseLakshyaId(id || "")); setEditCourse(c.id); setCourseDlg(true); }}
                                   sx={{ color: textS, "&:hover": { color: VIDYA_TEAL } }}><Edit sx={{ fontSize: 14 }} /></IconButton>
                                 <IconButton size="small" onClick={() => deleteCourse(c.id, c.title)}
                                   sx={{ color: textS, "&:hover": { color: "#CF4E4E" } }}><Delete sx={{ fontSize: 14 }} /></IconButton>
@@ -1051,7 +1052,7 @@ export default function VidyaTracker({ embedded = false }) {
               <TextField label="Finished date" type="date" size="small" sx={{ flex: 1 }} InputLabelProps={{ shrink: true }} value={bookForm.finished_date || ""} onChange={(e) => setBookForm((f) => ({ ...f, finished_date: e.target.value }))} />
             </Box>
             <TextField label="Notes" fullWidth size="small" multiline minRows={2} value={bookForm.notes || ""} onChange={(e) => setBookForm((f) => ({ ...f, notes: e.target.value }))} />
-            <SiddhiPicker value={bookForm.siddhi_id} onChange={(v) => setBookForm((f) => ({ ...f, siddhi_id: v }))} isDark={isDark} label="Link to Milestone (Siddhi)" />
+            <LakshyaPicker value={bookLakshyaId} onChange={setBookLakshyaId} isDark={isDark} pillar="reading" label="Serves Vision" />
           </Stack>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2.5 }}>
@@ -1090,7 +1091,7 @@ export default function VidyaTracker({ embedded = false }) {
               <Stars value={courseForm.rating || 3} onChange={(v) => setCourseForm((f) => ({ ...f, rating: v }))} size={22} />
             </Box>
             <TextField label="Notes" fullWidth size="small" multiline minRows={2} value={courseForm.notes || ""} onChange={(e) => setCourseForm((f) => ({ ...f, notes: e.target.value }))} />
-            <SiddhiPicker value={courseForm.siddhi_id} onChange={(v) => setCourseForm((f) => ({ ...f, siddhi_id: v }))} isDark={isDark} label="Link to Milestone (Siddhi)" />
+            <LakshyaPicker value={courseLakshyaId} onChange={setCourseLakshyaId} isDark={isDark} pillar="reading" label="Serves Vision" />
           </Stack>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2.5 }}>

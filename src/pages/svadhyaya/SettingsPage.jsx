@@ -1164,7 +1164,8 @@ export default function SettingsPage() {
                 {[
                   { label: "Lakshya (लक्ष्य) — the Vision", desc: "A long-range destination in any life area. Not a task — a direction. Add one from any area page by tapping ‘New Vision’. Choose a goal type, set a target date, write your why, and optionally add a Sanskrit mantra." },
                   { label: "Goal types", desc: "Each Lakshya has a type that shapes how progress is shown. Habit — build consistency over time (streak + 30-day %). Completion — finish X of Y discrete things. Outcome — hit a measurable number (current → target). Mastery — reach a quality level on the 8-point Ashtasiddhi scale." },
-                  { label: "Milestone — the Waypoint", desc: "Binary checkpoints under a Lakshya. Add them from inside any Lakshya card. Mark one complete when you reach it — the card’s progress bar updates automatically. Keep them meaningful: e.g. ‘Finish Part I’ or ‘Complete 50 sessions’." },
+                  { label: "Milestone — the Waypoint", desc: "Binary checkpoints under a Lakshya. Add them from inside any Lakshya card. Mark one complete when you reach it — the card’s progress bar updates automatically." },
+                  { label: "Milestone progress hints", desc: "Under each active milestone, Svaadhyaya shows a live hint telling you how far you are from reaching it — automatically computed from your current progress. For this to work, include the target number somewhere in the milestone title. The app reads it intelligently: ‘Complete 90 days’ → tracks days done vs 90. ‘Reach Level 5’ → tracks your Ashtasiddhi level vs 5. ‘Save 10L’ → tracks your outcome value vs 10. ‘Finish 50 sessions’ → tracks streak vs 50. Use plain language — the app looks for numbers after words like reach, level, save, hit, complete, finish, achieve, days, sessions, books, hours, and more. If no number is found, no hint is shown (which is fine for qualitative milestones like ‘Land my first freelance client’)." },
                 ].map(({ label, desc }) => (
                   <Box key={label} sx={{ mb: 2, pl: 2, borderLeft: `2px solid ${heroColor}40` }}>
                     <Typography sx={{ fontSize: 13, fontWeight: 600, color: textP, mb: 0.25 }}>{label}</Typography>
@@ -1176,12 +1177,12 @@ export default function SettingsPage() {
               {/* Section: Today’s connection */}
               <SectionLabel>Today’s connection to your Lakshyas</SectionLabel>
               <Typography sx={{ fontSize: 13, color: textS, mb: 2, lineHeight: 1.85 }}>
-                The Today page shows a <strong style={{ color: textP }}>"Today you’re working toward"</strong> banner above your habit sections — chips for every active Lakshya whose tracker is linked to your daily practice. When you check off a habit, its linked Lakshya chips light up green so you feel the connection between today’s action and your long-range vision.
+                The Today page shows a <strong style={{ color: textP }}>"Today you’re working toward"</strong> banner above your habit sections — chips for every active Lakshya that has at least one tracker item linked to it. When you check off a habit, any Lakshya linked to that area’s tracker glows green — real-time feedback that practice and vision are aligned.
               </Typography>
               <Box sx={{ mb: 3 }}>
                 {[
-                  { label: "Setting it up", desc: "On any area’s Sankalpa tab, look for the ‘Serving Lakshyas’ (or ‘Tracking Toward’ / ‘Fuelling’) section just above your Lakshya cards. Tap it to declare which Lakshyas this area’s tracker is feeding." },
-                  { label: "How it lights up", desc: "When you mark today’s Anushthanam, Nāda, exercise, office work, or study done, every Lakshya linked to that tracker glows green in the banner — real-time feedback that practice and vision are aligned." },
+                  { label: "How it lights up", desc: "When you mark today’s Anushthanam, Nāda, exercise, office work, or study done, every Lakshya linked to those tracker items glows green in the banner. No manual setup needed — linking happens inside the tracker dialogs." },
+                  { label: "Multiple areas, one vision", desc: "If you have a Lakshya that spans areas (e.g. a health vision linked to both a workout routine and a dietary goal), all linked trackers contribute. The chip glows green as soon as any one of them is checked today." },
                 ].map(({ label, desc }) => (
                   <Box key={label} sx={{ mb: 1.5, pl: 2, borderLeft: `2px solid ${heroColor}40` }}>
                     <Typography sx={{ fontSize: 13, fontWeight: 600, color: textP, mb: 0.25 }}>{label}</Typography>
@@ -1208,15 +1209,17 @@ export default function SettingsPage() {
               </Box>
 
               {/* Section: Tracker → Lakshya links */}
-              <SectionLabel>Linking trackers to Lakshyas</SectionLabel>
+              <SectionLabel>Linking tracker items to Lakshyas</SectionLabel>
               <Typography sx={{ fontSize: 13, color: textS, mb: 2, lineHeight: 1.85 }}>
-                Each area’s tracker can be connected to one or more Lakshyas — so that logging a practice session or finance entry is understood as moving you toward your vision, not just ticking a box.
+                When you create or edit an item in any tracker — a daily sequence, a japa goal, a project, a music course, a book, or a study course — you’ll see a <strong style={{ color: textP }}>"Serves Vision"</strong> dropdown at the bottom of the form. Pick the Lakshya this item is working toward. That’s all it takes.
               </Typography>
               <Box sx={{ mb: 3 }}>
                 {[
-                  { label: "Where to link", desc: "On any area’s Sankalpa tab, the ‘Serving Lakshyas’ panel (labelled ‘Tracking Toward’ for Artha, ‘Fuelling’ for Vṛtti) shows which Lakshyas this area feeds. Tap the panel to add or remove Lakshyas." },
-                  { label: "Last practiced signal", desc: "The panel also shows when you last logged activity in this area — ‘Practiced today’, ‘yesterday’, or ‘Xd ago’ — so you can see at a glance whether your practice is keeping pace with your vision." },
-                  { label: "Habit card streak", desc: "Habit-type Lakshyas show a live streak and 30-day consistency % pulled directly from the linked tracker’s activity table — no manual entry needed." },
+                  { label: "Anushthanam (Spirit)", desc: "Link any sequence item or japa goal to a Lakshya. E.g. your ‘Morning puja’ sequence item can serve a ‘90-day Nitya Anushthanam’ Lakshya." },
+                  { label: "Vṛtti (Career)", desc: "Link any project to a Lakshya. E.g. a ‘Build portfolio site’ project can serve a ‘Land a senior role’ Lakshya." },
+                  { label: "Nādam (Music)", desc: "Link any music course or examination to a Lakshya. E.g. a ‘Sangeeta Visharada’ course can serve a ‘Complete formal training’ Lakshya." },
+                  { label: "Vidyā (Reading)", desc: "Link any book or online course to a Lakshya. E.g. ‘Atomic Habits’ can serve a ‘Build reading discipline’ Lakshya." },
+                  { label: "Streak & consistency", desc: "For habit-type Lakshyas, the streak and 30-day consistency % on the Lakshya card are computed directly from your linked tracker’s activity table — no manual entry needed." },
                 ].map(({ label, desc }) => (
                   <Box key={label} sx={{ mb: 1.5, pl: 2, borderLeft: `2px solid ${heroColor}40` }}>
                     <Typography sx={{ fontSize: 13, fontWeight: 600, color: textP, mb: 0.25 }}>{label}</Typography>

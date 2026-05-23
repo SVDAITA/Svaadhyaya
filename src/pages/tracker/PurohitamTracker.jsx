@@ -53,6 +53,7 @@ import {
 import { useAuth } from "../../hooks/useAuth";
 import { useThemeMode } from "../../hooks/useTheme";
 import { supabase } from "../../lib/supabase";
+import LakshyaPicker, { fetchItemLakshyaLink, saveItemLakshyaLink } from "../../components/shared/LakshyaPicker";
 import dayjs from "dayjs";
 import isBetween from "dayjs/plugin/isBetween";
 dayjs.extend(isBetween);
@@ -1632,8 +1633,10 @@ function AnushtanamTab({ user, isDark }) {
   const emptyJapa = { japa_name: "", count: "", notes: "" };
 
   const [sForm, setSForm] = useState(emptySeq);
+  const [seqLakshyaId, setSeqLakshyaId] = useState("");
   const [japaForm, setJapaForm] = useState(emptyJapa);
   const [goalForm, setGoalForm] = useState(emptyGoal);
+  const [goalLakshyaId, setGoalLakshyaId] = useState("");
   const [saving, setSaving] = useState(false);
   const [japaLogPage, setJapaLogPage] = useState(1);
   const JAPA_LOG_PER_PAGE = 20;
@@ -1697,15 +1700,19 @@ function AnushtanamTab({ user, isDark }) {
           .update({ ...sForm })
           .eq("id", editSeq.id);
         if (error) throw error;
+        await saveItemLakshyaLink(user.id, "spirit", editSeq.id, seqLakshyaId);
       } else {
-        const { error } = await supabase
+        const { data: inserted, error } = await supabase
           .from("daily_items")
-          .insert({ ...sForm, user_id: user.id, order_index: maxIdx + 1 });
+          .insert({ ...sForm, user_id: user.id, order_index: maxIdx + 1 })
+          .select("id").single();
         if (error) throw error;
+        await saveItemLakshyaLink(user.id, "spirit", inserted.id, seqLakshyaId);
       }
       setSeqOpen(false);
       setEditSeq(null);
       setSForm(emptySeq);
+      setSeqLakshyaId("");
       setSnack(editSeq ? "Step updated" : "Step added");
       load();
     } catch {
@@ -1822,8 +1829,9 @@ function AnushtanamTab({ user, isDark }) {
           })
           .eq("id", editGoal.id);
         if (error) throw error;
+        await saveItemLakshyaLink(user.id, "spirit", editGoal.id, goalLakshyaId);
       } else {
-        const { error } = await supabase.from("japa_goals").upsert({
+        const { data: inserted, error } = await supabase.from("japa_goals").upsert({
           user_id: user.id,
           japa_name: goalForm.japa_name.trim(),
           target_count: targetCount,
@@ -1831,12 +1839,14 @@ function AnushtanamTab({ user, isDark }) {
           start_date: today,
           notes: goalForm.notes || null,
           is_active: true,
-        }, { onConflict: "user_id,japa_name" });
+        }, { onConflict: "user_id,japa_name" }).select("id").single();
         if (error) throw error;
+        if (inserted?.id) await saveItemLakshyaLink(user.id, "spirit", inserted.id, goalLakshyaId);
       }
       setGoalOpen(false);
       setEditGoal(null);
       setGoalForm(emptyGoal);
+      setGoalLakshyaId("");
       setSnack(editGoal ? "Sankalpam updated" : "Mahasankalpam set");
       load();
     } catch (err) {
@@ -1855,6 +1865,7 @@ function AnushtanamTab({ user, isDark }) {
       notes: g.notes || "",
     });
     setEditGoal(g);
+    fetchItemLakshyaLink(user.id, "spirit", g.id).then(id => setGoalLakshyaId(id || ""));
     setGoalOpen(true);
   };
 
@@ -2155,7 +2166,7 @@ function AnushtanamTab({ user, isDark }) {
                               sx={{ fontSize: 9, height: 15, background: `${INDIGO}10`, color: INDIGO }}
                             />
                             <Box sx={{ display: "flex", gap: 0.1 }}>
-                              <IconButton size="small" onClick={() => { setSForm({ label: item.label, category: item.category || "anushtanam", emoji: item.emoji || "", frequency: item.frequency || "daily", frequency_day: item.frequency_day || 0 }); setEditSeq(item); setSeqOpen(true); }} sx={{ p: 0.2 }}>
+                              <IconButton size="small" onClick={() => { setSForm({ label: item.label, category: item.category || "anushtanam", emoji: item.emoji || "", frequency: item.frequency || "daily", frequency_day: item.frequency_day || 0 }); setEditSeq(item); fetchItemLakshyaLink(user.id, "spirit", item.id).then(id => setSeqLakshyaId(id || "")); setSeqOpen(true); }} sx={{ p: 0.2 }}>
                                 <Edit sx={{ fontSize: 12 }} />
                               </IconButton>
                               <IconButton size="small" onClick={() => deleteSeqItem(item.id)} sx={{ p: 0.2 }}>
@@ -2632,6 +2643,13 @@ function AnushtanamTab({ user, isDark }) {
                 inputProps={{ min: 1, max: 31 }}
               />
             )}
+            <LakshyaPicker
+              value={seqLakshyaId}
+              onChange={setSeqLakshyaId}
+              isDark={isDark}
+              pillar="spirit"
+              label="Serves Vision"
+            />
           </Box>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2.5 }}>
@@ -2782,10 +2800,17 @@ function AnushtanamTab({ user, isDark }) {
               onChange={(e) => setGoalForm((p) => ({ ...p, notes: e.target.value }))}
               placeholder="e.g. Dedicated to Sri Rama charana seva"
             />
+            <LakshyaPicker
+              value={goalLakshyaId}
+              onChange={setGoalLakshyaId}
+              isDark={isDark}
+              pillar="spirit"
+              label="Serves Vision"
+            />
           </Box>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2.5 }}>
-          <Button onClick={() => { setGoalOpen(false); setEditGoal(null); setGoalForm(emptyGoal); }} color="inherit" sx={{ textTransform: "none" }}>
+          <Button onClick={() => { setGoalOpen(false); setEditGoal(null); setGoalForm(emptyGoal); setGoalLakshyaId(""); }} color="inherit" sx={{ textTransform: "none" }}>
             Cancel
           </Button>
           <Button variant="contained" onClick={saveGoal} disabled={saving || !goalForm.target_count || !goalForm.japa_name}

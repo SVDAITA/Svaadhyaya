@@ -14,8 +14,7 @@ import {
 import { useAuth } from "../../hooks/useAuth";
 import { useThemeMode } from "../../hooks/useTheme";
 import { supabase } from "../../lib/supabase";
-import { useLakshyaSiddhis } from "../../hooks/useLakshyaSiddhis";
-import SiddhiPicker from "../../components/shared/SiddhiPicker";
+import LakshyaPicker, { fetchItemLakshyaLink, saveItemLakshyaLink } from "../../components/shared/LakshyaPicker";
 import dayjs from "dayjs";
 
 // ── CONSTANTS ─────────────────────────────────────────────────────────────────
@@ -115,8 +114,6 @@ export default function VrittiTracker({ embedded = false }) {
   const isDark      = mode === "dark";
   const today       = dayjs().format("YYYY-MM-DD");
 
-  const { siddhis: allSiddhis } = useLakshyaSiddhis();
-
   const blue   = VRITTI_BLUE;
   const textP  = isDark ? "#F0EDE8" : "#0A1628";
   const textS  = isDark ? "#8A9AB8" : "#5A7090";
@@ -134,9 +131,10 @@ export default function VrittiTracker({ embedded = false }) {
   const confirmDel = (title, fn) => { haptic(15); setDelDlg({ open: true, title, fn }); };
 
   // ── PROJECTS STATE ────────────────────────────────────────────────────────
-  const emptyProj = { title: "", description: "", client_id: "", status: "active", tech_stack: "", start_date: today, target_date: "", priority: 2, notes: "", siddhi_id: "" };
+  const emptyProj = { title: "", description: "", client_id: "", status: "active", tech_stack: "", start_date: today, target_date: "", priority: 2, notes: "" };
   const [projects,    setProjects]    = useState(_vrittiCache?.projects || []);
   const [projForm,    setProjForm]    = useState(emptyProj);
+  const [projLakshyaId, setProjLakshyaId] = useState("");
   const [editProj,    setEditProj]    = useState(null);
   const [projDlg,     setProjDlg]     = useState(false);
   const [projFilter,  setProjFilter]  = useState("active");
@@ -224,18 +222,19 @@ export default function VrittiTracker({ embedded = false }) {
       target_date: projForm.target_date || null,   // empty string → null (date)
       priority:    projForm.priority != null ? Number(projForm.priority) : 2,
       notes:       projForm.notes       || null,
-      siddhi_id:   projForm.siddhi_id   || null,
     };
     if (editProj) {
       const { error } = await supabase.from("vritti_projects").update(payload).eq("id", editProj);
       if (error) { err("Save failed"); return; }
+      await saveItemLakshyaLink(user.id, "career", editProj, projLakshyaId);
       ok("Project updated");
     } else {
-      const { error } = await supabase.from("vritti_projects").insert(payload);
+      const { data, error } = await supabase.from("vritti_projects").insert(payload).select("id").single();
       if (error) { err("Save failed"); return; }
+      await saveItemLakshyaLink(user.id, "career", data.id, projLakshyaId);
       ok("Project added");
     }
-    setProjDlg(false); setProjForm(emptyProj); setEditProj(null); bust();
+    setProjDlg(false); setProjForm(emptyProj); setProjLakshyaId(""); setEditProj(null); bust();
   };
 
   const deleteProject = async (id, title) => {
@@ -427,7 +426,7 @@ export default function VrittiTracker({ embedded = false }) {
 
           {/* Projects list */}
           <Grid item xs={12}>
-            <SectionHead title="Projects" onAdd={() => { setProjForm(emptyProj); setEditProj(null); setProjDlg(true); }} color={blue} isDark={isDark} addLabel="New Project" />
+            <SectionHead title="Projects" onAdd={() => { setProjForm(emptyProj); setProjLakshyaId(""); setEditProj(null); setProjDlg(true); }} color={blue} isDark={isDark} addLabel="New Project" />
 
             {/* Filter chips */}
             <Stack direction="row" spacing={1} sx={{ mb: 2, flexWrap: "wrap", gap: 0.5 }}>
@@ -471,11 +470,11 @@ export default function VrittiTracker({ embedded = false }) {
                                   {client && <Typography sx={{ fontSize: 11, color: VRITTI_TEAL }}>🤝 {client.name}{client.company ? ` · ${client.company}` : ""}</Typography>}
                                   {p.tech_stack && <Typography sx={{ fontSize: 11, color: textS }}>🔧 {p.tech_stack}</Typography>}
                                   {p.target_date && <Typography sx={{ fontSize: 11, color: "#DDA74F" }}>📅 {dayjs(p.target_date).format("D MMM YY")}</Typography>}
-                                  {p.siddhi_id && (() => { const s = allSiddhis.find((x) => x.id === p.siddhi_id); return s ? <Chip label={`🎯 ${s.title}`} size="small" sx={{ height: 18, fontSize: 10, bgcolor: `${blue}14`, color: blue, border: `1px solid ${blue}35`, fontWeight: 600 }} /> : null; })()}
+                                  {p._lakshyaTitle && <Chip label={`🎯 ${p._lakshyaTitle}`} size="small" sx={{ height: 18, fontSize: 10, bgcolor: `${blue}14`, color: blue, border: `1px solid ${blue}35`, fontWeight: 600 }} />}
                                 </Stack>
                               </Box>
                               <Stack direction="row" spacing={0.5}>
-                                <IconButton size="small" onClick={() => { haptic(); setProjForm({ ...p, client_id: p.client_id || "", siddhi_id: p.siddhi_id || "" }); setEditProj(p.id); setProjDlg(true); }}
+                                <IconButton size="small" onClick={() => { haptic(); setProjForm({ ...p, client_id: p.client_id || "" }); setEditProj(p.id); fetchItemLakshyaLink(user.id, "career", p.id).then((id) => setProjLakshyaId(id || "")); setProjDlg(true); }}
                                   sx={{ color: textS, "&:hover": { color: blue } }}><Edit sx={{ fontSize: 15 }} /></IconButton>
                                 <IconButton size="small" onClick={() => deleteProject(p.id, p.title)}
                                   sx={{ color: textS, "&:hover": { color: "#CF4E4E" } }}><Delete sx={{ fontSize: 15 }} /></IconButton>
@@ -756,7 +755,7 @@ export default function VrittiTracker({ embedded = false }) {
               <TextField label="Target date" type="date" size="small" sx={{ flex: 1 }} InputLabelProps={{ shrink: true }} value={projForm.target_date} onChange={(e) => setProjForm((f) => ({ ...f, target_date: e.target.value }))} />
             </Box>
             <TextField label="Notes" fullWidth size="small" multiline minRows={2} value={projForm.notes} onChange={(e) => setProjForm((f) => ({ ...f, notes: e.target.value }))} />
-            <SiddhiPicker value={projForm.siddhi_id} onChange={(v) => setProjForm((f) => ({ ...f, siddhi_id: v }))} isDark={isDark} label="Link to Milestone (Siddhi)" />
+            <LakshyaPicker value={projLakshyaId} onChange={setProjLakshyaId} isDark={isDark} pillar="career" label="Serves Vision" />
           </Stack>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2.5 }}>

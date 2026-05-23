@@ -370,10 +370,108 @@ function GoalTypeChip({ type, small = false }) {
   );
 }
 
+// ── PROGRESS HINT HELPERS ──────────────────────────────────────────────────────
+
+/**
+ * Extract a target number from a milestone title.
+ * First tries to find a number after a meaningful keyword (reach, level, save, hit,
+ * complete, finish, achieve, days, sessions, books, hours, etc.).
+ * Falls back to the last number in the title.
+ * Supports decimals (e.g. 4.5, 10.5L).
+ */
+function parseMilestoneTarget(title) {
+  if (!title) return null;
+  const keyword = title.match(
+    /(?:reach|level|save|hit|complete|finish|achieve|days?|sessions?|books?|hours?|months?|weeks?|courses?|times?)\s+[₹$£€]?([\d.]+)/i
+  );
+  if (keyword) return parseFloat(keyword[1]);
+  // Fall back: last number in the title
+  const all = [...title.matchAll(/[\d.]+/g)];
+  return all.length ? parseFloat(all[all.length - 1][0]) : null;
+}
+
+/**
+ * Returns a short progress sentence for a single milestone, or null if we
+ * can't say anything useful. Driven by the parent Lakshya's type + live data.
+ *
+ * progress = { type, streak, outcomeCurrent, outcomeTarget, outcomeUnit }
+ */
+export function milestoneProgressHint(milestone, progress = {}) {
+  if (!milestone || milestone.status === "completed") return null;
+  const { type, streak, outcomeCurrent, outcomeUnit } = progress;
+
+  if (type === "habit" && streak != null) {
+    const target = parseMilestoneTarget(milestone.title);
+    if (target == null) return null;
+    const remaining = Math.ceil(target - streak);
+    if (remaining <= 0)  return "You've reached this — mark it done ✓";
+    if (remaining === 1) return "Just 1 more day — you're almost there!";
+    if (remaining <= 7)  return `Only ${remaining} more days — so close!`;
+    if (remaining <= 30) return `${remaining} more days to go`;
+    return `${streak} of ${target} days done`;
+  }
+
+  if (type === "outcome" && outcomeCurrent != null) {
+    const target = parseMilestoneTarget(milestone.title);
+    if (target == null) return null;
+    const unit = outcomeUnit ? ` ${outcomeUnit}` : "";
+    const remaining = parseFloat((target - outcomeCurrent).toFixed(2));
+    if (remaining <= 0) return `You've hit ${target}${unit} — mark it done ✓`;
+    return `At ${outcomeCurrent}${unit} now — ${remaining}${unit} to go`;
+  }
+
+  if (type === "mastery" && outcomeCurrent != null) {
+    const target = parseMilestoneTarget(milestone.title);
+    if (target == null) return null;
+    const current = Math.round(outcomeCurrent);
+    const remaining = Math.ceil(target) - current;
+    if (remaining <= 0) return `Level reached — mark it done ✓`;
+    return `At level ${current} — ${remaining} level${remaining !== 1 ? "s" : ""} to go`;
+  }
+
+  return null;
+}
+
+/**
+ * Returns a one-line progress sentence for the Lakshya card header, or null.
+ * For Habit type, streak/consistency come from HabitHero via the onStreakLoaded
+ * callback — so they might be null on first render until the fetch completes.
+ */
+function lakshyaProgressSentence({ type, streak, consistency, outcomeCurrent, outcomeTarget, outcomeUnit, achievedCount, totalCount }) {
+  if (type === "habit") {
+    if (streak == null) return null;
+    const s = streak > 0 ? `${streak}-day streak` : "No streak yet";
+    const c = consistency != null ? `${consistency}% this month` : "";
+    return [s, c].filter(Boolean).join(" · ");
+  }
+  if (type === "completion") {
+    if (totalCount === 0) return null;
+    const remaining = totalCount - achievedCount;
+    if (remaining === 0) return "All milestones achieved 🎉";
+    return `${achievedCount} of ${totalCount} done — ${remaining} to go`;
+  }
+  if (type === "outcome") {
+    const unit = outcomeUnit ? ` ${outcomeUnit}` : "";
+    const cur  = outcomeCurrent ?? 0;
+    const tgt  = outcomeTarget  ?? 0;
+    if (tgt === 0) return cur > 0 ? `Currently at ${cur}${unit}` : null;
+    const pct = Math.round((cur / tgt) * 100);
+    return `${cur}${unit} of ${tgt}${unit} — ${pct}% of the way there`;
+  }
+  if (type === "mastery") {
+    const level = Math.round(outcomeCurrent ?? 0);
+    if (level === 0) return "Tap a level segment to record where you are";
+    const info = ASHTA_SIDDHI_SCALE[level - 1];
+    const rem  = 8 - level;
+    return `Level ${level} — ${info?.name ?? ""} · ${rem} level${rem !== 1 ? "s" : ""} to the peak`;
+  }
+  return null;
+}
+
 // ── HABIT HERO ─────────────────────────────────────────────────────────────────
 // Shows streak + 30-day consistency + today's signal for Habit-type Lakshyas.
 // Fetches its own data: linked trackers -> activity dates.
-function HabitHero({ lakshyaId, color }) {
+function HabitHero({ lakshyaId, color, onStreakLoaded }) {
   const { user } = useAuth();
   const [data, setData] = useState(null); // null = loading
 
@@ -385,8 +483,7 @@ function HabitHero({ lakshyaId, color }) {
         .from("tracker_lakshya_links")
         .select("tracker_type")
         .eq("lakshya_id", lakshyaId)
-        .eq("user_id", user.id)
-        .is("tracker_item_id", null);
+        .eq("user_id", user.id);
 
       const trackerTypes = (links || []).map(l => l.tracker_type);
 
@@ -410,6 +507,7 @@ function HabitHero({ lakshyaId, color }) {
       const lastDate = datesDesc[0] || null;
 
       setData({ linked: true, streak, consistency, lastDate, trackerTypes });
+      if (onStreakLoaded) onStreakLoaded(streak, consistency);
     };
     load();
   }, [user, lakshyaId]);
@@ -491,7 +589,7 @@ function HabitHero({ lakshyaId, color }) {
 }
 
 // ── LAKSHYA HIERARCHY (Lakshya -> Milestone) ───────────────────────────────────
-function MilestoneCard({ milestone, color, onUpdate }) {
+function MilestoneCard({ milestone, color, onUpdate, progress }) {
   const { mode } = useThemeMode();
   const isDark = mode === "dark";
   const GREEN = isDark ? "#5EC98A" : "#2D7A4F";
@@ -571,15 +669,34 @@ function MilestoneCard({ milestone, color, onUpdate }) {
                 ? <CheckCircle sx={{ fontSize: 22 }} />
                 : <RadioButtonUnchecked sx={{ fontSize: 22 }} />}
             </IconButton>
-            <Typography sx={{
-              flex: 1, fontSize: 14,
-              fontWeight: isAchieved ? 400 : 600,
-              color: isAchieved ? "text.disabled" : "text.primary",
-              textDecoration: isAchieved ? "line-through" : "none",
-              lineHeight: 1.4,
-            }}>
-              {milestone.title}
-            </Typography>
+            <Box sx={{ flex: 1, minWidth: 0 }}>
+              <Typography sx={{
+                fontSize: 14,
+                fontWeight: isAchieved ? 400 : 600,
+                color: isAchieved ? "text.disabled" : "text.primary",
+                textDecoration: isAchieved ? "line-through" : "none",
+                lineHeight: 1.4,
+              }}>
+                {milestone.title}
+              </Typography>
+              {(() => {
+                const hint = milestoneProgressHint(milestone, progress);
+                if (!hint) return null;
+                const isReady = hint.includes("mark it done");
+                return (
+                  <Typography sx={{
+                    fontSize: 11,
+                    mt: 0.3,
+                    color: isReady ? "#2D9E6B" : "text.secondary",
+                    fontWeight: isReady ? 600 : 400,
+                    fontStyle: isReady ? "normal" : "italic",
+                    lineHeight: 1.3,
+                  }}>
+                    {hint}
+                  </Typography>
+                );
+              })()}
+            </Box>
             {isAchieved ? (
               <Chip label="Achieved" size="small"
                 sx={{ height: 20, fontSize: 10, fontWeight: 700, bgcolor: `${GREEN}15`, color: GREEN, border: `1px solid ${GREEN}30` }} />
@@ -645,6 +762,8 @@ function LakshyaCard({ lakshya, color, onUpdate }) {
   const [snack, setSnack] = useState({ open: false, msg: "", severity: "success" });
   const [outcomeEdit, setOutcomeEdit] = useState(false);
   const [outcomeVal, setOutcomeVal] = useState(String(lakshya.outcome_current ?? 0));
+  const [habitStreak, setHabitStreak] = useState(null);
+  const [habitConsistency, setHabitConsistency] = useState(null);
 
   const type = lakshya.type || "habit";
   const milestones = lakshya.siddhis || [];
@@ -824,7 +943,13 @@ function LakshyaCard({ lakshya, color, onUpdate }) {
     }
 
     // habit — streak + consistency from linked trackers
-    return <HabitHero lakshyaId={lakshya.id} color={color} />;
+    return (
+      <HabitHero
+        lakshyaId={lakshya.id}
+        color={color}
+        onStreakLoaded={(s, c) => { setHabitStreak(s); setHabitConsistency(c); }}
+      />
+    );
   };
 
   return (
@@ -867,6 +992,27 @@ function LakshyaCard({ lakshya, color, onUpdate }) {
               </Typography>
             )}
           </Box>
+          {(() => {
+            const sentence = lakshyaProgressSentence({
+              type,
+              streak: habitStreak,
+              consistency: habitConsistency,
+              outcomeCurrent: lakshya.outcome_current ?? 0,
+              outcomeTarget:  lakshya.outcome_target  ?? 0,
+              outcomeUnit:    lakshya.outcome_unit    || "",
+              achievedCount:  achievedMilestones.length,
+              totalCount:     milestones.length,
+            });
+            if (!sentence) return null;
+            return (
+              <Typography sx={{
+                fontSize: 12, mt: 0.75, color: "text.secondary",
+                fontStyle: "italic", lineHeight: 1.4,
+              }}>
+                {sentence}
+              </Typography>
+            );
+          })()}
         </Box>
         <Tooltip title="Edit title">
           <IconButton size="small" onClick={() => setEditingTitle(true)} sx={{ p: 0.5, color: "text.disabled", mt: 0.25, "&:hover": { color: "text.primary" } }}>
@@ -890,7 +1036,15 @@ function LakshyaCard({ lakshya, color, onUpdate }) {
         )}
 
         {activeMilestones.map(m => (
-          <MilestoneCard key={m.id} milestone={m} color={color} onUpdate={onUpdate} />
+          <MilestoneCard key={m.id} milestone={m} color={color} onUpdate={onUpdate}
+            progress={{
+              type,
+              streak: habitStreak,
+              outcomeCurrent: lakshya.outcome_current ?? 0,
+              outcomeTarget:  lakshya.outcome_target  ?? 0,
+              outcomeUnit:    lakshya.outcome_unit    || "",
+            }}
+          />
         ))}
 
         {achievedMilestones.length > 0 && (
@@ -904,7 +1058,7 @@ function LakshyaCard({ lakshya, color, onUpdate }) {
               </Typography>
             )}
             {achievedMilestones.map(m => (
-              <MilestoneCard key={m.id} milestone={m} color={color} onUpdate={onUpdate} />
+              <MilestoneCard key={m.id} milestone={m} color={color} onUpdate={onUpdate} progress={{}} />
             ))}
           </Box>
         )}
