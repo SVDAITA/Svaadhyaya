@@ -2340,6 +2340,161 @@ function TodayLakshyaBanner({ habits, heroColor, isDark, textP }) {
 // after the first load. Keyed to today's date — auto-invalidates at midnight.
 let _todayCache = null;
 
+// ── JAPAM LOG DIALOG ──────────────────────────────────────────────────────────
+function JapamLogDialog({ userId, goal, todayCount, allCount, open, onClose, onLog, onOpenTracker, isDark }) {
+  const [custom, setCustom] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [linkData, setLinkData] = useState(null);
+
+  const dailyTarget = goal ? Math.max(1, Math.round(goal.target_count / (goal.deadline_years * 365))) : 1;
+  const totalTarget = goal?.target_count || 1;
+  const progress = Math.min(1, todayCount / dailyTarget);
+  const cumulativeProgress = Math.min(1, allCount / totalTarget);
+
+  useEffect(() => {
+    if (!open || !goal) { setLinkData(null); return; }
+    setLinkData(null);
+    (async () => {
+      const { data: linkRow } = await supabase
+        .from("tracker_lakshya_links")
+        .select("lakshya_id")
+        .eq("tracker_item_id", goal.id)
+        .maybeSingle();
+      if (!linkRow?.lakshya_id) return;
+      const { data: lakshya } = await supabase
+        .from("lakshyas")
+        .select("id, title, siddhis(id, title, status)")
+        .eq("id", linkRow.lakshya_id)
+        .maybeSingle();
+      if (lakshya) setLinkData(lakshya);
+    })();
+  }, [open, goal?.id]);
+
+  const handleAdd = async (amount) => {
+    if (!goal || saving || amount <= 0) return;
+    setSaving(true);
+    const dateStr = dayjs().format("YYYY-MM-DD");
+    const newTotal = todayCount + amount;
+    try {
+      const { data: existing } = await supabase
+        .from("japa_logs").select("id").eq("user_id", userId)
+        .eq("japa_name", goal.japa_name).eq("day_date", dateStr).maybeSingle();
+      let error;
+      if (existing?.id) {
+        ({ error } = await supabase.from("japa_logs").update({ count: newTotal }).eq("id", existing.id));
+      } else {
+        ({ error } = await supabase.from("japa_logs").insert({ user_id: userId, japa_name: goal.japa_name, day_date: dateStr, count: newTotal }));
+      }
+      if (!error) { onLog(amount); setCustom(""); }
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const accent = "#C07830";
+  const bg = isDark ? "#1A1916" : "#FDFCFA";
+  const textP = isDark ? "#F0EDE8" : "#2C2C2C";
+  const textS = isDark ? "#9C9A94" : "#6C6A64";
+
+  if (!goal) return null;
+  return (
+    <Dialog open={open} onClose={onClose} fullWidth maxWidth="xs"
+      PaperProps={{ sx: { borderRadius: 3, background: bg, border: `1px solid ${isDark ? "rgba(255,255,255,0.08)" : "#E2DDD6"}`, overflow: "hidden" } }}>
+      <Box sx={{ px: 2.5, pt: 2, pb: 1.5, display: "flex", alignItems: "center", gap: 1.5, borderBottom: `1px solid ${isDark ? "rgba(255,255,255,0.06)" : "#EAE6E0"}` }}>
+        <Typography sx={{ fontSize: 22 }}>📿</Typography>
+        <Box sx={{ flex: 1 }}>
+          <Typography sx={{ fontFamily: '"Fraunces","Lora",serif', fontWeight: 600, fontSize: 16, color: textP, lineHeight: 1.2 }}>{goal.japa_name}</Typography>
+          <Typography sx={{ fontSize: 11, color: accent, fontWeight: 500, mt: 0.2 }}>{dailyTarget.toLocaleString()} counts · daily target</Typography>
+        </Box>
+        <IconButton size="small" onClick={onClose} sx={{ color: textS }}><Close sx={{ fontSize: 17 }} /></IconButton>
+      </Box>
+      <DialogContent sx={{ px: 2.5, py: 2 }}>
+        {/* Today's progress */}
+        <Box sx={{ mb: 2.5 }}>
+          <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", mb: 0.75 }}>
+            <Typography sx={{ fontSize: 12, color: textS, fontWeight: 500 }}>Today</Typography>
+            <Typography sx={{ fontSize: 13, color: accent, fontWeight: 700 }}>
+              {todayCount.toLocaleString()}{" "}
+              <Typography component="span" sx={{ fontSize: 11, color: textS, fontWeight: 400 }}>/ {dailyTarget.toLocaleString()}</Typography>
+            </Typography>
+          </Box>
+          <Box sx={{ height: 7, borderRadius: 4, background: isDark ? "#2A2926" : "#F0EDE8", overflow: "hidden" }}>
+            <Box sx={{ height: "100%", width: `${progress * 100}%`, borderRadius: 4, background: `linear-gradient(90deg, ${accent}, #E8A84C)`, transition: "width 0.4s ease" }} />
+          </Box>
+          {todayCount >= dailyTarget && (
+            <Typography sx={{ fontSize: 11, color: accent, fontWeight: 600, mt: 0.5, textAlign: "right" }}>✓ Daily target reached!</Typography>
+          )}
+        </Box>
+
+        {/* Quick add buttons */}
+        <Box sx={{ display: "flex", gap: 1, mb: 1.25 }}>
+          {[108, 216, 1008].map(n => (
+            <Button key={n} onClick={() => handleAdd(n)} disabled={saving} size="small" variant="outlined"
+              sx={{ flex: 1, py: 0.9, borderColor: isDark ? "#3C3A34" : "#D1D0CF", color: textP, fontWeight: 700, fontSize: 13, borderRadius: 2,
+                "&:hover": { borderColor: accent, color: accent, background: `${accent}12` } }}>
+              +{n.toLocaleString()}
+            </Button>
+          ))}
+        </Box>
+        <Box sx={{ display: "flex", gap: 1, mb: 2 }}>
+          <TextField size="small" placeholder="Custom count" type="number" value={custom}
+            onChange={e => setCustom(e.target.value)}
+            onKeyDown={e => { if (e.key === "Enter") { const n = parseInt(custom); if (n > 0) handleAdd(n); } }}
+            sx={{ flex: 1, "& .MuiOutlinedInput-root": { borderRadius: 2, fontSize: 13 } }}
+            inputProps={{ min: 1 }} />
+          <Button onClick={() => { const n = parseInt(custom); if (n > 0) handleAdd(n); }}
+            disabled={!custom || parseInt(custom) < 1 || saving} variant="contained"
+            sx={{ background: accent, color: "#fff", borderRadius: 2, fontSize: 13, fontWeight: 600, minWidth: 64,
+              "&:hover": { background: "#A0621A" }, "&:disabled": { opacity: 0.4 } }}>
+            Add
+          </Button>
+        </Box>
+
+        {/* Cumulative progress */}
+        <Box sx={{ mb: linkData ? 2 : 0.5 }}>
+          <Box sx={{ display: "flex", justifyContent: "space-between", mb: 0.5 }}>
+            <Typography sx={{ fontSize: 11.5, color: textS }}>Overall progress</Typography>
+            <Typography sx={{ fontSize: 11, color: isDark ? "#6C6A64" : "#9C9A94" }}>
+              {allCount.toLocaleString()} / {totalTarget.toLocaleString()}
+            </Typography>
+          </Box>
+          <Box sx={{ height: 4, borderRadius: 2, background: isDark ? "#2A2926" : "#F0EDE8", overflow: "hidden" }}>
+            <Box sx={{ height: "100%", width: `${cumulativeProgress * 100}%`, borderRadius: 2, background: isDark ? "#5C5A54" : "#C8C6C0", transition: "width 0.4s ease" }} />
+          </Box>
+          <Typography sx={{ fontSize: 10.5, color: isDark ? "#5C5A54" : "#B0AEA8", mt: 0.5, textAlign: "right" }}>
+            {Math.round(cumulativeProgress * 100)}% of {(goal.deadline_years * 365).toLocaleString()}-day journey
+          </Typography>
+        </Box>
+
+        {/* Linked Lakshya */}
+        {linkData && (
+          <Box sx={{ p: 1.5, borderRadius: 2, background: isDark ? "#1F1E1B" : "#F8F5F0", border: `1px solid ${isDark ? "rgba(255,255,255,0.06)" : "#E8E4DC"}` }}>
+            <Typography sx={{ fontSize: 10, color: accent, fontWeight: 700, letterSpacing: 1.5, textTransform: "uppercase", mb: 0.75 }}>Serves Vision</Typography>
+            <Typography sx={{ fontSize: 13, fontWeight: 500, color: textP, mb: 0.75 }}>🎯 {linkData.title}</Typography>
+            {linkData.siddhis?.filter(s => s.status !== "achieved").slice(0, 3).map(s => (
+              <Box key={s.id} sx={{ display: "flex", alignItems: "center", gap: 1, mb: 0.4 }}>
+                <Box sx={{ width: 3, height: 3, borderRadius: "50%", background: accent, flexShrink: 0, mt: "1px" }} />
+                <Typography sx={{ fontSize: 11.5, color: textS }} noWrap>{s.title}</Typography>
+              </Box>
+            ))}
+          </Box>
+        )}
+      </DialogContent>
+      <DialogActions sx={{ px: 2.5, pb: 2, pt: 0, justifyContent: "space-between" }}>
+        <Button size="small" onClick={onOpenTracker}
+          sx={{ color: isDark ? "#7C7A74" : "#9C9A94", textTransform: "none", fontSize: 12, p: 0 }}>
+          Open in tracker →
+        </Button>
+        <Button size="small" onClick={onClose} variant="contained"
+          sx={{ background: accent, color: "#fff", borderRadius: 2, fontSize: 12, fontWeight: 600, textTransform: "none",
+            "&:hover": { background: "#A0621A" } }}>
+          Done
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+}
+
 // ── MAIN PAGE ──────────────────────────────────────────────────────────────────
 export default function TodayPage() {
   const { user } = useAuth();
@@ -2384,6 +2539,12 @@ export default function TodayPage() {
   const [walkSavingMov, setWalkSavingMov] = useState(false);
   const [walkActivityLogs, setWalkActivityLogs] = useState(_todayCache?.walkActivityLogs ?? []);
   const WALK_TARGETS = { steps: 10000, km: 6, calories: 500 };
+
+  // Japam
+  const [japaGoals, setJapaGoals] = useState(_todayCache?.japaGoals ?? []);
+  const [todayJapaLogs, setTodayJapaLogs] = useState(_todayCache?.todayJapaLogs ?? []);
+  const [allJapaLogs, setAllJapaLogs] = useState(_todayCache?.allJapaLogs ?? []);
+  const [japamLogGoal, setJapamLogGoal] = useState(null);
   const isDark = mode === "dark";
   const { data: panchangam, loading: panchLoading } = usePanchang();
   const today = dayjs().format("YYYY-MM-DD");
@@ -2470,7 +2631,7 @@ export default function TodayPage() {
     try {
       const yesterday = dayjs().subtract(1, "day").format("YYYY-MM-DD");
       const sevenAgo = dayjs().subtract(7, "day").format("YYYY-MM-DD");
-      const [{ data: dayData }, { data: yData }, { data: seqItems }, { data: seqComps }, { data: actData }, { data: naadaItems }, { data: naadaComps }, { data: vProjects }, { data: rBooks }, { data: vPracItems }, { data: vPracComps }, { data: vidyaLogs }, { data: vidyaCoursesData }] = await Promise.all([
+      const [{ data: dayData }, { data: yData }, { data: seqItems }, { data: seqComps }, { data: actData }, { data: naadaItems }, { data: naadaComps }, { data: vProjects }, { data: rBooks }, { data: vPracItems }, { data: vPracComps }, { data: vidyaLogs }, { data: vidyaCoursesData }, { data: japaGoalsData }, { data: todayJapaData }, { data: allJapaData }] = await Promise.all([
         supabase.from("days").select("*").eq("user_id", user.id).eq("day_date", today).maybeSingle(),
         supabase.from("days").select("tomorrow_tasks").eq("user_id", user.id).eq("day_date", yesterday).maybeSingle(),
         supabase.from("daily_items").select("*").eq("user_id", user.id).order("order_index"),
@@ -2484,6 +2645,9 @@ export default function TodayPage() {
         supabase.from("vidya_practice_completions").select("vidya_item_id,is_completed").eq("user_id", user.id).eq("completion_date", today),
         supabase.from("vidya_study_log").select("*").eq("user_id", user.id).eq("date", today).order("created_at", { ascending: false }),
         supabase.from("vidya_courses").select("id,title,status").eq("user_id", user.id).neq("status", "archived").order("title"),
+        supabase.from("japa_goals").select("*").eq("user_id", user.id).eq("is_active", true).order("created_at"),
+        supabase.from("japa_logs").select("*").eq("user_id", user.id).eq("day_date", today),
+        supabase.from("japa_logs").select("japa_name,count").eq("user_id", user.id),
       ]);
       // Load walk popup data
       if (actData) {
@@ -2531,6 +2695,10 @@ export default function TodayPage() {
       // Vidya study log
       if (vidyaLogs) setVidyaTodayLogs(vidyaLogs);
       if (vidyaCoursesData) setVidyaCourses(vidyaCoursesData);
+      // Japam
+      if (japaGoalsData) setJapaGoals(japaGoalsData);
+      if (todayJapaData) setTodayJapaLogs(todayJapaData);
+      if (allJapaData) setAllJapaLogs(allJapaData);
       // Reading / Vidya
       if (rBooks) setCurrentBooks(rBooks);
       if (vPracItems) {
@@ -2659,6 +2827,7 @@ export default function TodayPage() {
         customSacred: dayData?.custom_sacred||[], customCore: dayData?.custom_core||[], customEvening: dayData?.custom_evening||[],
         lakshyas: allLakshyas||[], anshs: anshData||[],
         taskLakshyaLinks: settingsRow?.task_lakshya_links||{},
+        japaGoals: japaGoalsData||[], todayJapaLogs: todayJapaData||[], allJapaLogs: allJapaData||[],
       };
     } catch (err) {
       console.error("TodayPage load error:", err.message);
@@ -4554,7 +4723,7 @@ export default function TodayPage() {
               if (s.frequency === "monthly") return todayDay.date() === (s.frequency_day ?? 1);
               return true;
             });
-            if (visibleSeq.length === 0) {
+            if (visibleSeq.length === 0 && japaGoals.length === 0) {
               return (
                 <Box sx={{ py: 4, textAlign: "center" }}>
                   <Typography sx={{ fontSize: 13, color: isDark ? "#7C7A74" : "#9C9A94" }}>
@@ -4566,67 +4735,112 @@ export default function TodayPage() {
                 </Box>
               );
             }
-            return visibleSeq.map((item) => {
-              const done = !!seqCompletions[item.id];
-              return (
-                <Box
-                  key={item.id}
-                  onClick={() => { haptic(8); handleSeqToggle(item.id); }}
-                  sx={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 1.5,
-                    py: 1.25,
-                    px: 1,
-                    borderRadius: 2,
-                    cursor: "pointer",
-                    borderBottom: `1px solid ${isDark ? "rgba(255,255,255,0.04)" : "#F0EDE8"}`,
-                    "&:last-child": { borderBottom: "none" },
-                    "&:hover": { background: isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.02)" },
-                    transition: "background 0.12s",
-                    opacity: done ? 0.6 : 1,
-                  }}
-                >
-                  <Box
-                    sx={{
-                      width: 26,
-                      height: 26,
-                      borderRadius: "50%",
-                      flexShrink: 0,
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      background: done ? "#C07830" : isDark ? "#1F1E1B" : "#F0EDE8",
-                      border: `1.5px solid ${done ? "#C07830" : isDark ? "#3C3C3C" : "#D1D0CF"}`,
-                      transition: "all 0.15s",
-                    }}
-                  >
-                    {done
-                      ? <CheckCircle sx={{ fontSize: 14, color: "#fff" }} />
-                      : <RadioButtonUnchecked sx={{ fontSize: 14, color: isDark ? "#5C5A54" : "#C8C6C0" }} />
-                    }
-                  </Box>
-                  <Box sx={{ flex: 1, minWidth: 0 }}>
-                    <Typography
-                      noWrap
+            return (
+              <>
+                {visibleSeq.map((item) => {
+                  const done = !!seqCompletions[item.id];
+                  return (
+                    <Box
+                      key={item.id}
+                      onClick={() => { haptic(8); handleSeqToggle(item.id); }}
                       sx={{
-                        fontSize: 13,
-                        fontWeight: 500,
-                        color: done ? (isDark ? "#5C5A54" : "#9C9A94") : (isDark ? "#F0EDE8" : "#2C2C2C"),
-                        textDecoration: done ? "line-through" : "none",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 1.5,
+                        py: 1.25,
+                        px: 1,
+                        borderRadius: 2,
+                        cursor: "pointer",
+                        borderBottom: `1px solid ${isDark ? "rgba(255,255,255,0.04)" : "#F0EDE8"}`,
+                        "&:hover": { background: isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.02)" },
+                        transition: "background 0.12s",
+                        opacity: done ? 0.6 : 1,
                       }}
                     >
-                      {item.emoji ? `${item.emoji} ` : ""}{item.label}
-                    </Typography>
-                    {item.duration_minutes && (
-                      <Typography sx={{ fontSize: 10, color: isDark ? "#6C6A64" : "#B0AEA8", mt: 0.1 }}>
-                        {item.duration_minutes} min
-                      </Typography>
+                      <Box sx={{ width: 26, height: 26, borderRadius: "50%", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", background: done ? "#C07830" : isDark ? "#1F1E1B" : "#F0EDE8", border: `1.5px solid ${done ? "#C07830" : isDark ? "#3C3C3C" : "#D1D0CF"}`, transition: "all 0.15s" }}>
+                        {done
+                          ? <CheckCircle sx={{ fontSize: 14, color: "#fff" }} />
+                          : <RadioButtonUnchecked sx={{ fontSize: 14, color: isDark ? "#5C5A54" : "#C8C6C0" }} />
+                        }
+                      </Box>
+                      <Box sx={{ flex: 1, minWidth: 0 }}>
+                        <Typography noWrap sx={{ fontSize: 13, fontWeight: 500, color: done ? (isDark ? "#5C5A54" : "#9C9A94") : (isDark ? "#F0EDE8" : "#2C2C2C"), textDecoration: done ? "line-through" : "none" }}>
+                          {item.emoji ? `${item.emoji} ` : ""}{item.label}
+                        </Typography>
+                        {item.duration_minutes && (
+                          <Typography sx={{ fontSize: 10, color: isDark ? "#6C6A64" : "#B0AEA8", mt: 0.1 }}>
+                            {item.duration_minutes} min
+                          </Typography>
+                        )}
+                      </Box>
+                    </Box>
+                  );
+                })}
+
+                {/* ── Japam section ── */}
+                {japaGoals.length > 0 && (
+                  <>
+                    {visibleSeq.length > 0 && (
+                      <Box sx={{ mx: -1, my: 0.75, height: "1px", background: isDark ? "rgba(255,255,255,0.07)" : "#EAE6E0" }} />
                     )}
-                  </Box>
-                </Box>
-              );
-            });
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, py: 0.75, px: 1 }}>
+                      <Typography sx={{ fontSize: 11 }}>📿</Typography>
+                      <Typography sx={{ fontSize: 10, color: "#C07830", fontWeight: 700, letterSpacing: 1.5, textTransform: "uppercase" }}>Japam</Typography>
+                    </Box>
+                    {japaGoals.map(goal => {
+                      const todayCount = todayJapaLogs
+                        .filter(l => l.japa_name === goal.japa_name)
+                        .reduce((acc, l) => acc + (l.count || 0), 0);
+                      const dailyTarget = Math.max(1, Math.round(goal.target_count / (goal.deadline_years * 365)));
+                      const pct = Math.min(100, Math.round(todayCount / dailyTarget * 100));
+                      const done = pct >= 100;
+                      return (
+                        <Box
+                          key={goal.id}
+                          onClick={() => setJapamLogGoal(goal)}
+                          sx={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 1.5,
+                            py: 1.1,
+                            px: 1,
+                            borderRadius: 2,
+                            cursor: "pointer",
+                            borderBottom: `1px solid ${isDark ? "rgba(255,255,255,0.04)" : "#F0EDE8"}`,
+                            "&:last-child": { borderBottom: "none" },
+                            "&:hover": { background: isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.02)" },
+                            transition: "background 0.12s",
+                            opacity: done ? 0.7 : 1,
+                          }}
+                        >
+                          <Box sx={{ width: 26, height: 26, borderRadius: "50%", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", background: done ? "#C07830" : isDark ? "#1F1E1B" : "#F0EDE8", border: `1.5px solid ${done ? "#C07830" : isDark ? "#3C3C3C" : "#D1D0CF"}`, transition: "all 0.15s" }}>
+                            {done
+                              ? <CheckCircle sx={{ fontSize: 14, color: "#fff" }} />
+                              : <Typography sx={{ fontSize: 11, lineHeight: 1 }}>📿</Typography>
+                            }
+                          </Box>
+                          <Box sx={{ flex: 1, minWidth: 0 }}>
+                            <Typography noWrap sx={{ fontSize: 13, fontWeight: 500, color: isDark ? "#F0EDE8" : "#2C2C2C" }}>
+                              {goal.japa_name}
+                            </Typography>
+                            <Typography sx={{ fontSize: 10, color: isDark ? "#6C6A64" : "#B0AEA8", mt: 0.1 }}>
+                              {todayCount > 0
+                                ? `${todayCount.toLocaleString()} done · target ${dailyTarget.toLocaleString()}`
+                                : `${dailyTarget.toLocaleString()} counts today`}
+                            </Typography>
+                          </Box>
+                          {pct > 0 && (
+                            <Box sx={{ px: 0.875, py: 0.2, borderRadius: 1, background: done ? "#C07830" : isDark ? "#2A2926" : "#F0EDE8", flexShrink: 0 }}>
+                              <Typography sx={{ fontSize: 10, fontWeight: 700, color: done ? "#fff" : isDark ? "#9C9A94" : "#6C6A64" }}>{pct}%</Typography>
+                            </Box>
+                          )}
+                        </Box>
+                      );
+                    })}
+                  </>
+                )}
+              </>
+            );
           })()}
         </DialogContent>
 
@@ -4656,6 +4870,39 @@ export default function TodayPage() {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* ── JAPAM LOG DIALOG ── */}
+      {japamLogGoal && (
+        <JapamLogDialog
+          userId={user?.id}
+          goal={japamLogGoal}
+          todayCount={todayJapaLogs
+            .filter(l => l.japa_name === japamLogGoal?.japa_name)
+            .reduce((acc, l) => acc + (l.count || 0), 0)}
+          allCount={allJapaLogs
+            .filter(l => l.japa_name === japamLogGoal?.japa_name)
+            .reduce((acc, l) => acc + (l.count || 0), 0)}
+          open={!!japamLogGoal}
+          onClose={() => setJapamLogGoal(null)}
+          onLog={(amount) => {
+            const japaName = japamLogGoal.japa_name;
+            // Update todayJapaLogs
+            setTodayJapaLogs(prev => {
+              const existing = prev.find(l => l.japa_name === japaName);
+              if (existing) return prev.map(l => l.japa_name === japaName ? { ...l, count: l.count + amount } : l);
+              return [...prev, { japa_name: japaName, count: amount, day_date: today }];
+            });
+            // Update allJapaLogs (today's entry)
+            setAllJapaLogs(prev => {
+              const existing = prev.find(l => l.japa_name === japaName && l.day_date === today);
+              if (existing) return prev.map(l => (l.japa_name === japaName && l.day_date === today) ? { ...l, count: l.count + amount } : l);
+              return [...prev, { japa_name: japaName, count: amount, day_date: today }];
+            });
+          }}
+          onOpenTracker={() => { setJapamLogGoal(null); navigate("/svadhyaya/anushthanam", { state: { tab: 1 } }); }}
+          isDark={isDark}
+        />
+      )}
 
     </Box>
   );
