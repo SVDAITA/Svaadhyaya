@@ -255,7 +255,7 @@ export default function TrackerPage() {
               lineHeight: 1.6,
             }}
           >
-            Precise records for each dimension of your Svaadhyaya. Update
+            Precise records for each dimension of your Svādhyāya. Update
             at your own rhythm — numbers that serve your growth.
           </Typography>
         </Box>
@@ -368,7 +368,7 @@ export default function TrackerPage() {
                         <Typography
                           sx={{
                             fontFamily: '"Fraunces", "Lora", serif',
-                            fontWeight: 600,
+                            fontWeight: 500,
                             fontSize: 18,
                             color: textP,
                           }}

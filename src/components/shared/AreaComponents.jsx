@@ -302,13 +302,14 @@ function relDate(dateStr) {
 }
 
 // Maps tracker_type → the table that actually records daily activity
+// `filter` = extra eq() conditions applied to the query (e.g. exclude un-ticked rows)
 const TRACKER_ACTIVITY = {
-  spirit:  { table: "days",                       col: "day_date" },
-  music:   { table: "naada_sequence_completions", col: "completion_date" },
-  health:  { table: "health_logs",                col: "date" },
-  finance: { table: "finance_logs",               col: "date" },
-  career:  { table: "vritti_daily_log",           col: "date" },
-  reading: { table: "vidya_study_log",            col: "date" },
+  spirit:  { table: "daily_item_completions",      col: "completion_date", filter: { is_completed: true } },
+  music:   { table: "naada_sequence_completions", col: "completion_date", filter: { is_completed: true } },
+  health:  { table: "health_logs",                col: "date",            filter: null },
+  finance: { table: "finance_logs",               col: "date",            filter: null },
+  career:  { table: "vritti_daily_log",           col: "date",            filter: null },
+  reading: { table: "vidya_study_log",            col: "date",            filter: null },
 };
 
 async function fetchActivityDates(user, trackerTypes) {
@@ -318,8 +319,10 @@ async function fetchActivityDates(user, trackerTypes) {
     trackerTypes.map(async (type) => {
       const m = TRACKER_ACTIVITY[type];
       if (!m) return;
-      const { data } = await supabase.from(m.table).select(m.col)
+      let q = supabase.from(m.table).select(m.col)
         .eq("user_id", user.id).gte(m.col, since);
+      if (m.filter) Object.entries(m.filter).forEach(([k, v]) => { q = q.eq(k, v); });
+      const { data } = await q;
       (data || []).forEach(d => all.add(d[m.col]));
     })
   );
@@ -710,7 +713,7 @@ function MilestoneCard({ milestone, color, onUpdate, progress }) {
                 fontSize: 10, fontWeight: overdue ? 700 : 400,
                 color: overdue ? "#CF4E4E" : "text.disabled",
               }}>
-                {overdue ? "⚠ " : ""}{dayjs(milestone.target_date).format("D MMM")}
+                {overdue ? "⚠ " : ""}{dayjs(milestone.target_date).format("D MMM YYYY")}
               </Typography>
             )}
             <Box className="ms-actions" sx={{ display: "flex", gap: 0 }}>
@@ -2133,7 +2136,7 @@ export function AreaLog({ area, color, logTypes }) {
               return (
                 <Tooltip
                   key={i}
-                  title={`${log.value} on ${dayjs(log.created_at).format("MMM D")}`}
+                  title={`${log.value} on ${dayjs(log.created_at).format("D MMM YYYY")}`}
                 >
                   <Box
                     sx={{
@@ -2228,7 +2231,7 @@ export function AreaLog({ area, color, logTypes }) {
                 color="text.disabled"
                 sx={{ fontSize: 11, fontWeight: 500, flexShrink: 0, pt: 0.5 }}
               >
-                {dayjs(log.created_at).format("MMM D")}
+                {dayjs(log.created_at).format("D MMM YYYY")}
               </Typography>
             </Box>
           ))}
