@@ -43,6 +43,7 @@ import {
   TrendingUp,
   Stars,
   Close,
+  ExpandMore,
 } from "@mui/icons-material";
 import { keyframes } from "@mui/system";
 import dayjs from "dayjs";
@@ -631,17 +632,9 @@ function MilestoneCard({ milestone, color, onUpdate, progress }) {
 
   return (
     <>
-      <Box sx={{
-        mb: 1.25, borderRadius: 2.5, border: "1px solid",
-        borderColor: isAchieved ? `${GREEN}35` : `${color}22`,
-        background: isAchieved
-          ? isDark ? "rgba(94,201,138,0.06)" : "rgba(45,122,79,0.04)"
-          : isDark ? "rgba(255,255,255,0.025)" : `${color}04`,
-        overflow: "hidden", transition: "all 0.2s ease",
-        "&:hover": { borderColor: isAchieved ? `${GREEN}55` : `${color}40` },
-      }}>
-        {editing ? (
-          <Box sx={{ p: 2, display: "flex", flexDirection: "column", gap: 1.25 }}>
+      {editing ? (
+        <Box sx={{ p: 2, background: `${color}07`, borderBottom: "1px solid", borderColor: `${color}15` }}>
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 1.25 }}>
             <TextField size="small" fullWidth label="Milestone title" autoFocus
               value={editForm.title} onChange={(e) => setEditForm(f => ({ ...f, title: e.target.value }))}
               onKeyDown={(e) => e.key === "Enter" && saveEdit()} />
@@ -659,69 +652,80 @@ function MilestoneCard({ milestone, color, onUpdate, progress }) {
               </Button>
             </Box>
           </Box>
-        ) : (
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, px: 1.75, py: 1.5 }}>
-            <IconButton onClick={toggleAchieved} disabled={toggling} size="small"
-              sx={{ p: 0.5, flexShrink: 0, color: isAchieved ? GREEN : color, transition: "transform 0.15s", "&:active": { transform: "scale(0.85)" } }}>
-              {isAchieved
-                ? <CheckCircle sx={{ fontSize: 22 }} />
-                : <RadioButtonUnchecked sx={{ fontSize: 22 }} />}
-            </IconButton>
-            <Box sx={{ flex: 1, minWidth: 0 }}>
+        </Box>
+      ) : (
+        <Box sx={{
+          display: "flex", alignItems: "flex-start", gap: 1.25,
+          px: 1.75, py: 1.1,
+          borderBottom: "1px solid", borderColor: `${color}10`,
+          transition: "background 0.12s",
+          bgcolor: isAchieved
+            ? isDark ? "rgba(45,158,107,0.03)" : "rgba(45,158,107,0.025)"
+            : "transparent",
+          "&:hover": { bgcolor: isAchieved ? "rgba(45,158,107,0.06)" : `${color}07` },
+          "& .ms-actions": { opacity: 0, transition: "opacity 0.15s" },
+          "&:hover .ms-actions": { opacity: 1 },
+        }}>
+          <IconButton onClick={toggleAchieved} disabled={toggling} size="small"
+            sx={{ p: 0.25, mt: 0.2, flexShrink: 0,
+              color: isAchieved ? GREEN : `${color}70`,
+              "&:hover": { color: isAchieved ? "#CF4E4E" : color },
+              transition: "color 0.15s, transform 0.15s",
+              "&:active": { transform: "scale(0.82)" } }}>
+            {isAchieved
+              ? <CheckCircle sx={{ fontSize: 17 }} />
+              : <RadioButtonUnchecked sx={{ fontSize: 17 }} />}
+          </IconButton>
+
+          <Box sx={{ flex: 1, minWidth: 0, py: 0.1 }}>
+            <Typography sx={{
+              fontSize: 13, fontWeight: isAchieved ? 400 : 500,
+              color: isAchieved ? "text.disabled" : "text.primary",
+              textDecoration: isAchieved ? "line-through" : "none",
+              lineHeight: 1.45,
+            }}>
+              {milestone.title}
+            </Typography>
+            {!isAchieved && (() => {
+              const hint = milestoneProgressHint(milestone, progress);
+              if (!hint) return null;
+              const isReady = hint.includes("mark it done");
+              return (
+                <Typography sx={{
+                  fontSize: 10.5, mt: 0.2,
+                  color: isReady ? GREEN : "text.secondary",
+                  fontWeight: isReady ? 600 : 400,
+                  fontStyle: isReady ? "normal" : "italic",
+                  lineHeight: 1.3,
+                }}>
+                  {isReady ? "✓ " : ""}{hint}
+                </Typography>
+              );
+            })()}
+          </Box>
+
+          <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, flexShrink: 0, mt: 0.2 }}>
+            {!isAchieved && milestone.target_date && (
               <Typography sx={{
-                fontSize: 14,
-                fontWeight: isAchieved ? 400 : 600,
-                color: isAchieved ? "text.disabled" : "text.primary",
-                textDecoration: isAchieved ? "line-through" : "none",
-                lineHeight: 1.4,
+                fontSize: 10, fontWeight: overdue ? 700 : 400,
+                color: overdue ? "#CF4E4E" : "text.disabled",
               }}>
-                {milestone.title}
+                {overdue ? "⚠ " : ""}{dayjs(milestone.target_date).format("D MMM")}
               </Typography>
-              {(() => {
-                const hint = milestoneProgressHint(milestone, progress);
-                if (!hint) return null;
-                const isReady = hint.includes("mark it done");
-                return (
-                  <Typography sx={{
-                    fontSize: 11,
-                    mt: 0.3,
-                    color: isReady ? "#2D9E6B" : "text.secondary",
-                    fontWeight: isReady ? 600 : 400,
-                    fontStyle: isReady ? "normal" : "italic",
-                    lineHeight: 1.3,
-                  }}>
-                    {hint}
-                  </Typography>
-                );
-              })()}
-            </Box>
-            {isAchieved ? (
-              <Chip label="Achieved" size="small"
-                sx={{ height: 20, fontSize: 10, fontWeight: 700, bgcolor: `${GREEN}15`, color: GREEN, border: `1px solid ${GREEN}30` }} />
-            ) : milestone.target_date ? (
-              <Chip label={`By ${dayjs(milestone.target_date).format("D MMM YY")}`} size="small"
-                sx={{ height: 20, fontSize: 10, fontWeight: overdue ? 700 : 400,
-                  bgcolor: overdue ? "#CF4E4E12" : "transparent",
-                  color: overdue ? "#CF4E4E" : "text.disabled",
-                  border: `1px solid ${overdue ? "#CF4E4E40" : "transparent"}` }} />
-            ) : null}
-            <Box sx={{ display: "flex", gap: 0, flexShrink: 0 }}>
-              <Tooltip title="Edit">
-                <IconButton size="small" onClick={() => setEditing(true)}
-                  sx={{ p: 0.5, color: "text.disabled", "&:hover": { color } }}>
-                  <Edit sx={{ fontSize: 13 }} />
-                </IconButton>
-              </Tooltip>
-              <Tooltip title="Delete">
-                <IconButton size="small" onClick={() => setConfirmDelete(true)}
-                  sx={{ p: 0.5, color: "text.disabled", "&:hover": { color: "#CF4E4E" } }}>
-                  <Delete sx={{ fontSize: 13 }} />
-                </IconButton>
-              </Tooltip>
+            )}
+            <Box className="ms-actions" sx={{ display: "flex", gap: 0 }}>
+              <IconButton size="small" onClick={() => setEditing(true)}
+                sx={{ p: 0.4, color: "text.disabled", "&:hover": { color } }}>
+                <Edit sx={{ fontSize: 12 }} />
+              </IconButton>
+              <IconButton size="small" onClick={() => setConfirmDelete(true)}
+                sx={{ p: 0.4, color: "text.disabled", "&:hover": { color: "#CF4E4E" } }}>
+                <Delete sx={{ fontSize: 12 }} />
+              </IconButton>
             </Box>
           </Box>
-        )}
-      </Box>
+        </Box>
+      )}
 
       <Dialog open={confirmDelete} onClose={() => setConfirmDelete(false)} maxWidth="xs" fullWidth>
         <DialogTitle sx={{ fontFamily: '"Fraunces", serif', fontWeight: 400, fontSize: 20 }}>Delete Milestone?</DialogTitle>
@@ -762,11 +766,18 @@ function LakshyaCard({ lakshya, color, onUpdate }) {
   const [outcomeVal, setOutcomeVal] = useState(String(lakshya.outcome_current ?? 0));
   const [habitStreak, setHabitStreak] = useState(null);
   const [habitConsistency, setHabitConsistency] = useState(null);
+  const [achievedOpen, setAchievedOpen] = useState(false);
+  const [showAllActive, setShowAllActive] = useState(false);
+  const { mode } = useThemeMode();
+  const isDark = mode === "dark";
 
   const type = lakshya.type || "habit";
   const milestones = lakshya.siddhis || [];
   const activeMilestones = milestones.filter(m => m.status !== "completed");
   const achievedMilestones = milestones.filter(m => m.status === "completed");
+  const ACTIVE_CAP = 4;
+  const visibleActive = showAllActive ? activeMilestones : activeMilestones.slice(0, ACTIVE_CAP);
+  const hiddenActiveCount = activeMilestones.length - ACTIVE_CAP;
   const completionPct = milestones.length > 0 ? Math.round((achievedMilestones.length / milestones.length) * 100) : 0;
 
   const saveTitle = async () => {
@@ -952,9 +963,12 @@ function LakshyaCard({ lakshya, color, onUpdate }) {
 
   return (
     <Box sx={{
-      mb: 2.5, border: "1px solid", borderColor: `${color}28`,
+      border: "1px solid", borderColor: `${color}22`,
+      borderTop: `3px solid ${color}`,
       borderRadius: 3, overflow: "hidden", bgcolor: "background.paper",
-      boxShadow: "0 2px 12px rgba(0,0,0,0.03)",
+      boxShadow: `0 2px 16px ${color}12`,
+      transition: "box-shadow 0.2s",
+      "&:hover": { boxShadow: `0 6px 28px ${color}20` },
     }}>
       {/* ── Header ── */}
       <Box sx={{ px: 2.5, pt: 2.25, pb: 2, background: `linear-gradient(to right, ${color}08, transparent)`, display: "flex", alignItems: "flex-start", gap: 1.5 }}>
@@ -1022,42 +1036,94 @@ function LakshyaCard({ lakshya, color, onUpdate }) {
       {/* ── Type-specific hero ── */}
       {renderTypeHero()}
 
-      {/* ── Milestones — always visible ── */}
+      {/* ── Milestones ── */}
       <Box sx={{ px: 2.5, pb: 2.5, pt: 0.5 }}>
+
         {milestones.length > 0 && (
-          <Typography variant="caption" sx={{
-            display: "block", mb: 1.5, fontSize: 10, fontWeight: 700,
-            color: "text.disabled", textTransform: "uppercase", letterSpacing: 2,
+          <Box sx={{
+            borderRadius: 2, border: `1px solid ${color}18`,
+            overflow: "hidden", mb: 1.75,
+            boxShadow: `0 1px 6px ${color}08`,
           }}>
-            {type === "completion" ? "Items to Complete" : type === "mastery" ? "Practice Checkpoints" : "Milestones"}
-          </Typography>
-        )}
-
-        {activeMilestones.map(m => (
-          <MilestoneCard key={m.id} milestone={m} color={color} onUpdate={onUpdate}
-            progress={{
-              type,
-              streak: habitStreak,
-              outcomeCurrent: lakshya.outcome_current ?? 0,
-              outcomeTarget:  lakshya.outcome_target  ?? 0,
-              outcomeUnit:    lakshya.outcome_unit    || "",
-            }}
-          />
-        ))}
-
-        {achievedMilestones.length > 0 && (
-          <Box sx={{ mt: activeMilestones.length > 0 ? 2 : 0 }}>
-            {activeMilestones.length > 0 && (
+            {/* List header */}
+            <Box sx={{
+              px: 1.75, py: 0.9,
+              display: "flex", alignItems: "center", justifyContent: "space-between",
+              background: isDark
+                ? `linear-gradient(to right, ${color}14, ${color}08)`
+                : `linear-gradient(to right, ${color}10, ${color}05)`,
+              borderBottom: `1px solid ${color}15`,
+            }}>
               <Typography variant="caption" sx={{
-                display: "block", mb: 1, fontSize: 10, fontWeight: 700,
-                color: "text.disabled", textTransform: "uppercase", letterSpacing: 1.5,
+                fontSize: 10, fontWeight: 700, color,
+                textTransform: "uppercase", letterSpacing: 1.5,
               }}>
-                Achieved
+                {type === "completion" ? "Items" : type === "mastery" ? "Checkpoints" : "Milestones"}
+                {" · "}{achievedMilestones.length}/{milestones.length}
               </Typography>
-            )}
-            {achievedMilestones.map(m => (
-              <MilestoneCard key={m.id} milestone={m} color={color} onUpdate={onUpdate} progress={{}} />
+              {completionPct > 0 && (
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                  <Box sx={{ width: 48, height: 4, borderRadius: 2, bgcolor: `${color}18`, overflow: "hidden" }}>
+                    <Box sx={{ width: `${completionPct}%`, height: "100%", bgcolor: completionPct === 100 ? "#2D9E6B" : color, borderRadius: 2, transition: "width 0.4s ease" }} />
+                  </Box>
+                  <Typography variant="caption" sx={{ fontSize: 10, fontWeight: 700, color: completionPct === 100 ? "#2D9E6B" : color }}>
+                    {completionPct}%
+                  </Typography>
+                </Box>
+              )}
+            </Box>
+
+            {/* Active milestones */}
+            {visibleActive.map(m => (
+              <MilestoneCard key={m.id} milestone={m} color={color} onUpdate={onUpdate}
+                progress={{ type, streak: habitStreak, outcomeCurrent: lakshya.outcome_current ?? 0, outcomeTarget: lakshya.outcome_target ?? 0, outcomeUnit: lakshya.outcome_unit || "" }}
+              />
             ))}
+
+            {/* Show more active */}
+            {!showAllActive && hiddenActiveCount > 0 && (
+              <Box onClick={() => setShowAllActive(true)} sx={{
+                px: 1.75, py: 0.85, cursor: "pointer",
+                borderBottom: achievedMilestones.length > 0 ? `1px solid ${color}10` : "none",
+                display: "flex", alignItems: "center", gap: 0.75,
+                "&:hover": { bgcolor: `${color}07` }, transition: "background 0.12s",
+              }}>
+                <Typography sx={{ fontSize: 11, color: "text.secondary", fontStyle: "italic" }}>
+                  + {hiddenActiveCount} more {type === "completion" ? "item" : "milestone"}{hiddenActiveCount !== 1 ? "s" : ""}
+                </Typography>
+              </Box>
+            )}
+
+            {/* Achieved collapse toggle */}
+            {achievedMilestones.length > 0 && (
+              <>
+                <Box onClick={() => setAchievedOpen(p => !p)} sx={{
+                  px: 1.75, py: 0.85, cursor: "pointer",
+                  background: isDark ? "rgba(45,158,107,0.07)" : "rgba(45,158,107,0.045)",
+                  borderTop: activeMilestones.length > 0 || (!showAllActive && hiddenActiveCount > 0) ? `1px solid ${color}10` : "none",
+                  display: "flex", alignItems: "center", gap: 1,
+                  "&:hover": { background: isDark ? "rgba(45,158,107,0.12)" : "rgba(45,158,107,0.08)" },
+                  transition: "background 0.12s",
+                }}>
+                  <CheckCircle sx={{ fontSize: 13, color: "#2D9E6B" }} />
+                  <Typography sx={{ fontSize: 11, color: "#2D9E6B", fontWeight: 600 }}>
+                    {achievedMilestones.length} achieved
+                  </Typography>
+                  <ExpandMore sx={{
+                    fontSize: 15, color: "#2D9E6B", ml: "auto",
+                    transform: achievedOpen ? "rotate(180deg)" : "rotate(0deg)",
+                    transition: "transform 0.2s",
+                  }} />
+                </Box>
+                <Collapse in={achievedOpen}>
+                  <Box sx={{ borderTop: `1px solid ${color}10` }}>
+                    {achievedMilestones.map(m => (
+                      <MilestoneCard key={m.id} milestone={m} color={color} onUpdate={onUpdate} progress={{}} />
+                    ))}
+                  </Box>
+                </Collapse>
+              </>
+            )}
           </Box>
         )}
 
@@ -1300,14 +1366,16 @@ export function LakshyaSection({ area, color, lakshyas, onUpdate }) {
             </Typography>
           </Box>
         ) : (
-          lakshyas.map((l) => (
-            <LakshyaCard
-              key={l.id}
-              lakshya={l}
-              color={color}
-              onUpdate={onUpdate}
-            />
-          ))
+          <Box sx={{
+            display: "grid",
+            gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" },
+            gap: 2.5,
+            alignItems: "start",
+          }}>
+            {lakshyas.map((l) => (
+              <LakshyaCard key={l.id} lakshya={l} color={color} onUpdate={onUpdate} />
+            ))}
+          </Box>
         )}
 
         <Dialog
