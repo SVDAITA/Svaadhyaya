@@ -7,7 +7,6 @@ import {
   LakshyaSection,
   AreaJournal,
   WeeklyGoals,
-  TrackerLakshyaLink,
 } from "../../components/shared/AreaComponents";
 import SankalpaPurpose from "../../components/shared/SankalpaPurpose";
 import NaadaTracker from "../tracker/NaadaTracker";
@@ -88,7 +87,6 @@ export default function NadamPage() {
               <Grid item xs={6}><StatCard value={activeLakshyas} label="Active Visions" color={safeColor} sub="Lakshyas" /></Grid>
               <Grid item xs={6}><StatCard value={totalMilestones} label="Milestones Set" color={safeColor} sub="Milestones" /></Grid>
             </Grid>
-            <TrackerLakshyaLink area={AREA} color={safeColor} lakshyas={lakshyas} />
             <LakshyaSection area={AREA} color={safeColor} lakshyas={lakshyas} onUpdate={reload} />
             <AreaJournal area={AREA} color={safeColor} />
             <WeeklyGoals area={AREA} color={safeColor} />

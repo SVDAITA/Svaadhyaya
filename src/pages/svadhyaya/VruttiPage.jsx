@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useLocation } from "react-router-dom";
 import { Box, Grid, CircularProgress, Tabs, Tab } from "@mui/material";
 import {
-  AreaBanner, StatCard, LakshyaSection, AreaJournal, WeeklyGoals, TrackerLakshyaLink,
+  AreaBanner, StatCard, LakshyaSection, AreaJournal, WeeklyGoals,
 } from "../../components/shared/AreaComponents";
 import SankalpaPurpose from "../../components/shared/SankalpaPurpose";
 import VrittiTracker from "../tracker/VrittiTracker";
@@ -77,7 +77,6 @@ export default function VruttiPage() {
               <Grid item xs={6}><StatCard value={activeLakshyas} label="Active Visions" color={safeColor} sub="Lakshyas" /></Grid>
               <Grid item xs={6}><StatCard value={totalMilestones} label="Milestones Set" color={safeColor} sub="Milestones" /></Grid>
             </Grid>
-            <TrackerLakshyaLink area={AREA} color={safeColor} lakshyas={lakshyas} />
             <LakshyaSection area={AREA} color={safeColor} lakshyas={lakshyas} onUpdate={reload} />
             <AreaJournal area={AREA} color={safeColor} />
             <WeeklyGoals area={AREA} color={safeColor} />

@@ -7,7 +7,6 @@ import {
   LakshyaSection,
   AreaJournal,
   WeeklyGoals,
-  TrackerLakshyaLink,
 } from "../../components/shared/AreaComponents";
 import SankalpaPurpose from "../../components/shared/SankalpaPurpose";
 import VidyaTracker from "../tracker/VidyaTracker";
@@ -208,7 +207,6 @@ export default function VidyaPage() {
                 />
               </Grid>
             </Grid>
-            <TrackerLakshyaLink area={AREA} color={safeColor} lakshyas={lakshyas} />
             <LakshyaSection
               area={AREA}
               color={safeColor}
