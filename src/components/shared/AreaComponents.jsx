@@ -518,7 +518,7 @@ function HabitHero({ lakshyaId, color, onStreakLoaded }) {
       <Box sx={{ px: 2.5, pt: 0.5, pb: 0, mb: 2 }}>
         <Box sx={{ p: 2, borderRadius: 2.5, background: `${color}06`, border: `1px solid ${color}15` }}>
           <Typography sx={{ fontSize: 13, color: "text.secondary", fontStyle: "italic" }}>
-            Link a tracker above to start tracking consistency for this vision.
+            Open a tracker, add or edit an item, and set "Serves Vision" to this Lakshya to start tracking consistency.
           </Typography>
         </Box>
       </Box>
