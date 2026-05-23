@@ -63,7 +63,7 @@ const TRACKERS = [
     key: "sacred",
     path: "/tracker/sacred",
     icon: <AutoAwesome sx={{ fontSize: 24 }} />,
-    title: "Purohitam",
+    title: "Nitya Karma",
     quote: "What you do every day without exception becomes who you are. Count with devotion.",
     color: "#B37A32",
     chartData: "M0,15 C20,10 30,28 50,15 C60,8 70,20 85,10 C95,4 98,15 100,8",
