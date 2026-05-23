@@ -53,6 +53,17 @@ const EXP_CATS     = ["Guru Dakshina","Instrument","Accessories","Travel","Costu
 const MOODS        = ["Sattvik 🌸","Rajasic 🔥","Tamasic 🌑"];
 const FREQ_OPTS    = [{ value:"daily",label:"Daily" },{ value:"weekly",label:"Weekly" },{ value:"monthly",label:"Monthly" }];
 const DOW          = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+const MONTH_WEEK_ORDINALS = ["1st","2nd","3rd","4th"];
+const MONTHLY_WEEKDAY_OPTS = MONTH_WEEK_ORDINALS.flatMap((ord,wi) =>
+  DOW.map((day,di) => ({ value: 100 + wi*7 + di, label: `${ord} ${day}` }))
+);
+// Encode/decode monthly "nth weekday" in frequency_day (>=100 = encoded; <100 = legacy day-of-month)
+const decodeMonthlyWeekday = (val) => ({ weekOrdinal: Math.floor((val-100)/7)+1, weekDay: (val-100)%7 });
+const monthlyWeekdayLabel  = (val) => {
+  if (val < 100) return `Day ${val} of month`;
+  const { weekOrdinal, weekDay } = decodeMonthlyWeekday(val);
+  return `${MONTH_WEEK_ORDINALS[weekOrdinal-1]} ${DOW[weekDay]} of month`;
+};
 
 // ── HELPERS ───────────────────────────────────────────────────────────────────
 const haptic = (ms=8) => { try { if (navigator?.vibrate) navigator.vibrate(ms); } catch(_){} };
@@ -66,7 +77,14 @@ const isVisibleToday = (item) => {
   const t = dayjs();
   if (item.frequency==="daily")   return true;
   if (item.frequency==="weekly")  return t.day()===(item.frequency_day??0);
-  if (item.frequency==="monthly") return t.date()===(item.frequency_day??1);
+  if (item.frequency==="monthly") {
+    const fd = item.frequency_day ?? 106;
+    if (fd >= 100) {
+      const { weekOrdinal, weekDay } = decodeMonthlyWeekday(fd);
+      return t.day()===weekDay && Math.ceil(t.date()/7)===weekOrdinal;
+    }
+    return t.date()===fd;
+  }
   return true;
 };
 
@@ -164,9 +182,10 @@ export default function NaadaTracker({ embedded = false }) {
   // ── SAADHANA STATE ────────────────────────────────────────────────────────
   const [seqItems,   setSeqItems]   = useState(_naadaCache?.seqItems||[]);
   const [completions,setCompletions]= useState(_naadaCache?.completions||{});
-  const [seqDlg,     setSeqDlg]     = useState(false);
-  const [seqForm,    setSeqForm]    = useState({ label:"",emoji:"🎵",duration_minutes:"",frequency:"daily",frequency_day:0,order_index:0 });
-  const [editSeq,    setEditSeq]    = useState(null);
+  const [seqDlg,           setSeqDlg]           = useState(false);
+  const [seqForm,          setSeqForm]          = useState({ label:"",emoji:"🎵",duration_minutes:"",frequency:"daily",frequency_day:0,order_index:0 });
+  const [editSeq,          setEditSeq]          = useState(null);
+  const [seqItemLakshyaId, setSeqItemLakshyaId] = useState("");
   const [seqPage,    setSeqPage]    = useState(1);
   const SEQ_PER = 15;
 
@@ -317,12 +336,14 @@ export default function NaadaTracker({ embedded = false }) {
     if (editSeq) {
       const { error } = await supabase.from("naada_sequence_items").update(seqPayload).eq("id",editSeq.id);
       if (error) { err("Failed to save"); return; }
+      await saveItemLakshyaLink(user.id,"music",editSeq.id,seqItemLakshyaId);
     } else {
-      const { error } = await supabase.from("naada_sequence_items").insert({ ...seqPayload,user_id:user.id,order_index:maxIdx+1 });
+      const { data, error } = await supabase.from("naada_sequence_items").insert({ ...seqPayload,user_id:user.id,order_index:maxIdx+1 }).select("id").single();
       if (error) { err("Failed to save"); return; }
+      await saveItemLakshyaLink(user.id,"music",data.id,seqItemLakshyaId);
     }
     ok(editSeq?"Updated":"Added");
-    setSeqDlg(false); setEditSeq(null);
+    setSeqDlg(false); setEditSeq(null); setSeqItemLakshyaId("");
     setSeqForm({ label:"",emoji:"🎵",duration_minutes:"",frequency:"daily",frequency_day:0,order_index:0 });
     _naadaCache=null; load();
   };
@@ -620,107 +641,202 @@ export default function NaadaTracker({ embedded = false }) {
       {/* ════════════════════════════════════════════════════════════════════
           TAB 0 — SAADHANA
       ════════════════════════════════════════════════════════════════════ */}
-      {tab===0 && (
-        <Grid container spacing={3}>
-          {/* Today's sequence */}
-          <Grid item xs={12} md={5}>
-            <Card sx={{ borderRadius:3,bgcolor:cardBg,border:`1px solid ${bdr}` }}>
-              <CardContent sx={{ p:{xs:2,md:3} }}>
-                <Box sx={{ display:"flex",alignItems:"center",justifyContent:"space-between",mb:2 }}>
-                  <Box>
-                    <Typography sx={{ fontFamily:'"Fraunces",serif',fontSize:17,fontWeight:600,color:textP }}>Today's Practice</Typography>
-                    <Typography sx={{ fontSize:11,color:NAADA_GOLD,fontWeight:500 }}>
-                      {seqDone} / {visibleSeq.length} complete
-                    </Typography>
-                  </Box>
-                  {visibleSeq.length>0 && (
-                    <Box sx={{ position:"relative",width:48,height:48 }}>
-                      <CircularProgress variant="determinate" value={visibleSeq.length?Math.round((seqDone/visibleSeq.length)*100):0}
-                        sx={{ color:NAADA_GOLD,position:"absolute",top:0,left:0 }} size={48} thickness={4} />
+      {tab===0 && (() => {
+        const pct = visibleSeq.length ? Math.round((seqDone/visibleSeq.length)*100) : 0;
+        const pendingItems = visibleSeq.filter((s)=>!completions[s.id]);
+        const doneItems    = visibleSeq.filter((s)=>!!completions[s.id]);
+        const seqPaged     = seqItems.slice((seqPage-1)*SEQ_PER, seqPage*SEQ_PER);
+        const seqGrouped   = [
+          { freq:"daily",   label:"Daily",   color:"#4A90E2" },
+          { freq:"weekly",  label:"Weekly",  color:NAADA_GOLD },
+          { freq:"monthly", label:"Monthly", color:"#7C4DAB" },
+        ].map((g)=>({ ...g, items: seqPaged.filter((i)=>(i.frequency||"daily")===g.freq) }))
+         .filter((g)=>g.items.length>0);
+
+        const SeqRow = ({ item }) => {
+          const done = !!completions[item.id];
+          return (
+            <Box onClick={()=>toggleCompletion(item.id)}
+              sx={{ display:"flex",alignItems:"center",gap:1.5,py:1.25,px:1.5,borderRadius:2,cursor:"pointer",
+                mb:0.5, transition:"all 0.15s",
+                bgcolor: done
+                  ? (isDark?"rgba(192,120,48,0.07)":"rgba(192,120,48,0.04)")
+                  : (isDark?"rgba(255,255,255,0.02)":"rgba(0,0,0,0.01)"),
+                border:`1px solid ${done?NAADA_GOLD+"33":bdr}`,
+                "&:hover":{ bgcolor:isDark?"rgba(192,120,48,0.10)":"rgba(192,120,48,0.06)", borderColor:`${NAADA_GOLD}55` },
+                "&:active":{ transform:"scale(0.988)" },
+              }}
+            >
+              <Box sx={{ width:24,height:24,borderRadius:"50%",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",
+                bgcolor:done?NAADA_GOLD:"transparent",
+                border:`1.5px solid ${done?NAADA_GOLD:isDark?"#4A4540":"#C8BFB0"}`,transition:"all 0.18s" }}>
+                {done ? <CheckCircle sx={{ fontSize:13,color:"#fff" }} /> : <RadioButtonUnchecked sx={{ fontSize:13,color:textS }} />}
+              </Box>
+              <Box sx={{ flex:1,minWidth:0 }}>
+                <Typography noWrap sx={{ fontSize:13,fontWeight:done?400:500,color:done?textS:textP,
+                  textDecoration:done?"line-through":"none",transition:"all 0.15s" }}>
+                  {item.emoji||"🎵"} {item.label}
+                </Typography>
+                {item.duration_minutes && (
+                  <Typography sx={{ fontSize:10,color:textS }}>{item.duration_minutes} min</Typography>
+                )}
+              </Box>
+            </Box>
+          );
+        };
+
+        return (
+          <Grid container spacing={3}>
+            {/* Today's Practice */}
+            <Grid item xs={12} md={5}>
+              <Card sx={{ borderRadius:3,bgcolor:cardBg,border:`1px solid ${bdr}`,overflow:"hidden" }}>
+                {/* Colour-bar top */}
+                <Box sx={{ height:3, background:`linear-gradient(90deg,${NAADA_GOLD},${NAADA_DEEP})` }} />
+                <CardContent sx={{ p:{xs:2,md:2.5} }}>
+                  {/* Header row */}
+                  <Box sx={{ display:"flex",alignItems:"center",justifyContent:"space-between",mb:1.5 }}>
+                    <Box>
+                      <Typography sx={{ fontFamily:'"Fraunces",serif',fontSize:17,fontWeight:600,color:textP,lineHeight:1.2 }}>
+                        Today's Practice
+                      </Typography>
+                      <Typography sx={{ fontSize:11,color:textS,mt:0.2 }}>
+                        {seqDone > 0
+                          ? seqDone===visibleSeq.length
+                            ? <span style={{color:NAADA_GOLD,fontWeight:600}}>✓ All done!</span>
+                            : `${pendingItems.length} remaining`
+                          : `${visibleSeq.length} items`}
+                      </Typography>
+                    </Box>
+                    <Box sx={{ position:"relative",width:46,height:46,flexShrink:0 }}>
+                      <CircularProgress variant="determinate" value={100} size={46} thickness={3.5}
+                        sx={{ color:isDark?"rgba(255,255,255,0.06)":"rgba(0,0,0,0.06)",position:"absolute",top:0,left:0 }} />
+                      <CircularProgress variant="determinate" value={pct} size={46} thickness={3.5}
+                        sx={{ color:NAADA_GOLD,position:"absolute",top:0,left:0 }} />
                       <Box sx={{ position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center" }}>
-                        <Typography sx={{ fontSize:10,fontWeight:700,color:NAADA_GOLD }}>{visibleSeq.length?Math.round((seqDone/visibleSeq.length)*100):0}%</Typography>
+                        <Typography sx={{ fontSize:10,fontWeight:700,color:NAADA_GOLD }}>{pct}%</Typography>
                       </Box>
+                    </Box>
+                  </Box>
+
+                  {/* Thin progress bar */}
+                  {visibleSeq.length>0 && (
+                    <LinearProgress variant="determinate" value={pct}
+                      sx={{ mb:2,borderRadius:4,height:4,bgcolor:isDark?"rgba(192,120,48,0.15)":"rgba(192,120,48,0.12)",
+                        "& .MuiLinearProgress-bar":{ bgcolor:NAADA_GOLD,borderRadius:4 } }} />
+                  )}
+
+                  {visibleSeq.length===0 ? (
+                    <Typography sx={{ color:textS,fontSize:13,py:3,textAlign:"center" }}>
+                      No items scheduled for today.
+                    </Typography>
+                  ) : (
+                    <Box sx={{ maxHeight:380,overflowY:"auto",pr:0.5,
+                      "&::-webkit-scrollbar":{ width:3 },
+                      "&::-webkit-scrollbar-thumb":{ bgcolor:`${NAADA_GOLD}50`,borderRadius:2 } }}>
+                      {pendingItems.map((item)=><SeqRow key={item.id} item={item} />)}
+                      {doneItems.length>0 && (
+                        <>
+                          <Box sx={{ display:"flex",alignItems:"center",gap:1,my:1.5,opacity:0.5 }}>
+                            <Box sx={{ flex:1,height:"1px",bgcolor:bdr }} />
+                            <Typography sx={{ fontSize:10,color:textS,fontWeight:600,textTransform:"uppercase",letterSpacing:0.8 }}>Done</Typography>
+                            <Box sx={{ flex:1,height:"1px",bgcolor:bdr }} />
+                          </Box>
+                          {doneItems.map((item)=><SeqRow key={item.id} item={item} />)}
+                        </>
+                      )}
                     </Box>
                   )}
-                </Box>
-                {visibleSeq.length===0 ? (
-                  <Typography sx={{ color:textS,fontSize:13,py:3,textAlign:"center" }}>
-                    No items scheduled for today.<br/>Add items below.
-                  </Typography>
-                ) : visibleSeq.map((item)=>{
-                  const done = !!completions[item.id];
-                  return (
-                    <Box key={item.id} onClick={()=>toggleCompletion(item.id)}
-                      sx={{ display:"flex",alignItems:"center",gap:1.5,py:1.25,px:1,borderRadius:2,cursor:"pointer",
-                        borderBottom:`1px solid ${bdr}`, "&:last-child":{borderBottom:"none"},
-                        opacity:done?0.6:1, transition:"all 0.12s",
-                        "&:hover":{ bgcolor:isDark?"rgba(192,120,48,0.06)":"rgba(192,120,48,0.04)" },
-                        "&:active":{ transform:"scale(0.985)" },
-                      }}
-                    >
-                      <Box sx={{ width:26,height:26,borderRadius:"50%",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",
-                        bgcolor:done?NAADA_GOLD:isDark?"#1F1E1B":"#F5F0E8",
-                        border:`1.5px solid ${done?NAADA_GOLD:isDark?"#3C3C3C":"#D1CABB"}`,transition:"all 0.15s" }}>
-                        {done ? <CheckCircle sx={{ fontSize:14,color:"#fff" }} /> : <RadioButtonUnchecked sx={{ fontSize:14,color:textS }} />}
-                      </Box>
-                      <Box sx={{ flex:1,minWidth:0 }}>
-                        <Typography noWrap sx={{ fontSize:13,fontWeight:500,color:done?textS:textP,textDecoration:done?"line-through":"none" }}>
-                          {item.emoji||"🎵"} {item.label}
-                        </Typography>
-                        {item.duration_minutes && <Typography sx={{ fontSize:10,color:textS }}>{item.duration_minutes} min</Typography>}
-                      </Box>
-                    </Box>
-                  );
-                })}
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
 
-            {/* Stats strip */}
-            <Grid container spacing={1.5} sx={{ mt:1.5 }}>
-              <Grid item xs={4}><StatCard emoji="📜" label="Compositions" value={comps.length} /></Grid>
-              <Grid item xs={4}><StatCard emoji="🎼" label="Ragas Known" value={ragas.length} /></Grid>
-              <Grid item xs={4}><StatCard emoji="🎤" label="Concerts" value={concerts.filter((c)=>c.type==="performed").length} /></Grid>
+              {/* Stats strip */}
+              <Grid container spacing={1.5} sx={{ mt:1.5 }}>
+                <Grid item xs={4}><StatCard emoji="📜" label="Compositions" value={comps.length} /></Grid>
+                <Grid item xs={4}><StatCard emoji="🎼" label="Ragas Known" value={ragas.length} /></Grid>
+                <Grid item xs={4}><StatCard emoji="🎤" label="Concerts" value={concerts.filter((c)=>c.type==="performed").length} /></Grid>
+              </Grid>
+            </Grid>
+
+            {/* Manage sequence */}
+            <Grid item xs={12} md={7}>
+              <Card sx={{ borderRadius:3,bgcolor:cardBg,border:`1px solid ${bdr}`,overflow:"hidden" }}>
+                <Box sx={{ height:3, background:`linear-gradient(90deg,${NAADA_GOLD},${NAADA_DEEP})` }} />
+                <CardContent sx={{ p:{xs:2,md:2.5} }}>
+                  <SectionHead title="Practice Sequence" sub={`${seqItems.length} items · manage your routine`}
+                    onAdd={()=>{ setEditSeq(null);setSeqItemLakshyaId("");setSeqForm({ label:"",emoji:"🎵",duration_minutes:"",frequency:"daily",frequency_day:0,order_index:0 });setSeqDlg(true); }} />
+                  {seqItems.length===0 ? (
+                    <Typography sx={{ color:textS,fontSize:13,py:3,textAlign:"center" }}>
+                      No sequence items yet. Add your daily practice routine!
+                    </Typography>
+                  ) : (
+                    <>
+                      <Stack spacing={2.5}>
+                        {seqGrouped.map(({ freq,label,color,items })=>(
+                          <Box key={freq}>
+                            <Box sx={{ display:"flex",alignItems:"center",gap:1,mb:1 }}>
+                              <Chip label={label} size="small"
+                                sx={{ fontSize:10,height:20,fontWeight:700,bgcolor:`${color}18`,color,border:`1px solid ${color}40` }} />
+                              <Typography sx={{ fontSize:10,color:textS }}>{items.length} item{items.length!==1?"s":""}</Typography>
+                            </Box>
+                            <Stack spacing={0.5}>
+                              {items.map((item)=>{
+                                const isTodayVisible = isVisibleToday(item);
+                                return (
+                                  <Box key={item.id}
+                                    sx={{ display:"flex",alignItems:"center",gap:1.5,py:1,px:1.5,borderRadius:2,
+                                      opacity:isTodayVisible?1:0.45,
+                                      bgcolor:isDark?"rgba(255,255,255,0.02)":"rgba(0,0,0,0.015)",
+                                      border:`1px solid ${bdr}`,
+                                      "&:hover":{ borderColor:`${color}55` },
+                                    }}>
+                                    <Typography sx={{ fontSize:17,flexShrink:0,lineHeight:1 }}>{item.emoji||"🎵"}</Typography>
+                                    <Box sx={{ flex:1,minWidth:0 }}>
+                                      <Typography sx={{ fontSize:13,fontWeight:500,color:textP }} noWrap>{item.label}</Typography>
+                                      <Stack direction="row" spacing={0.75} sx={{ mt:0.3,flexWrap:"wrap",alignItems:"center" }}>
+                                        {item.duration_minutes && (
+                                          <Typography sx={{ fontSize:10,color:textS }}>{item.duration_minutes} min</Typography>
+                                        )}
+                                        {freq==="weekly" && (
+                                          <Chip label={`Every ${DOW[item.frequency_day??0]}`} size="small"
+                                            sx={{ fontSize:9,height:16,bgcolor:`${color}15`,color,fontWeight:600,px:0 }} />
+                                        )}
+                                        {freq==="monthly" && (
+                                          <Chip label={monthlyWeekdayLabel(item.frequency_day??106)} size="small"
+                                            sx={{ fontSize:9,height:16,bgcolor:`${color}15`,color,fontWeight:600,px:0 }} />
+                                        )}
+                                        {!isTodayVisible && (
+                                          <Typography sx={{ fontSize:9,color:textS,fontStyle:"italic" }}>not today</Typography>
+                                        )}
+                                      </Stack>
+                                    </Box>
+                                    <Stack direction="row" spacing={0.25} sx={{ flexShrink:0 }}>
+                                      <IconButton size="small" onClick={async()=>{ haptic();setEditSeq(item);setSeqForm({ label:item.label,emoji:item.emoji||"🎵",duration_minutes:item.duration_minutes||"",frequency:item.frequency||"daily",frequency_day:item.frequency_day||0,order_index:item.order_index||0 });const lId=await fetchItemLakshyaLink(user.id,"music",item.id);setSeqItemLakshyaId(lId||"");setSeqDlg(true); }}>
+                                        <Edit sx={{ fontSize:14,color:textS }} />
+                                      </IconButton>
+                                      <IconButton size="small" onClick={()=>confirmDel(`Remove "${item.label}"?`,()=>deleteSeqItem(item.id))}>
+                                        <Delete sx={{ fontSize:14,color:"#CF4E4E" }} />
+                                      </IconButton>
+                                    </Stack>
+                                  </Box>
+                                );
+                              })}
+                            </Stack>
+                          </Box>
+                        ))}
+                      </Stack>
+                      {seqItems.length>SEQ_PER && (
+                        <Box sx={{ display:"flex",justifyContent:"center",pt:2 }}>
+                          <Pagination count={Math.ceil(seqItems.length/SEQ_PER)} page={seqPage} onChange={(_,v)=>setSeqPage(v)} size="small" />
+                        </Box>
+                      )}
+                    </>
+                  )}
+                </CardContent>
+              </Card>
             </Grid>
           </Grid>
-
-          {/* Manage sequence */}
-          <Grid item xs={12} md={7}>
-            <Card sx={{ borderRadius:3,bgcolor:cardBg,border:`1px solid ${bdr}` }}>
-              <CardContent sx={{ p:{xs:2,md:3} }}>
-                <SectionHead title="Practice Sequence" sub="Items run in order each day" onAdd={()=>{ setEditSeq(null);setSeqForm({ label:"",emoji:"🎵",duration_minutes:"",frequency:"daily",frequency_day:0,order_index:0 });setSeqDlg(true); }} />
-                {seqItems.length===0 ? (
-                  <Typography sx={{ color:textS,fontSize:13,py:3,textAlign:"center" }}>
-                    No sequence items yet. Add your daily practice routine!
-                  </Typography>
-                ) : (
-                  <>
-                    {seqItems.slice((seqPage-1)*SEQ_PER,seqPage*SEQ_PER).map((item)=>{
-                      const isTodayVisible = isVisibleToday(item);
-                      return (
-                        <Box key={item.id} sx={{ display:"flex",alignItems:"center",gap:1.5,py:1,px:1,borderRadius:2,opacity:isTodayVisible?1:0.5,
-                          borderBottom:`1px solid ${bdr}`,"&:last-child":{borderBottom:"none"} }}>
-                          <Typography sx={{ fontSize:18,flexShrink:0 }}>{item.emoji||"🎵"}</Typography>
-                          <Box sx={{ flex:1,minWidth:0 }}>
-                            <Typography sx={{ fontSize:13,fontWeight:500,color:textP }} noWrap>{item.label}</Typography>
-                            <Typography sx={{ fontSize:10,color:textS }}>
-                              {item.frequency==="daily"?"Daily":item.frequency==="weekly"?`Every ${DOW[item.frequency_day??0]}`:`Monthly ${item.frequency_day??1}`}
-                              {item.duration_minutes ? ` · ${item.duration_minutes} min` : ""}
-                              {!isTodayVisible ? " · Not today" : ""}
-                            </Typography>
-                          </Box>
-                          <IconButton size="small" onClick={()=>{ haptic();setEditSeq(item);setSeqForm({ label:item.label,emoji:item.emoji||"🎵",duration_minutes:item.duration_minutes||"",frequency:item.frequency||"daily",frequency_day:item.frequency_day||0,order_index:item.order_index||0 });setSeqDlg(true); }}><Edit sx={{ fontSize:15,color:textS }} /></IconButton>
-                          <IconButton size="small" onClick={()=>confirmDel(`Remove "${item.label}" from sequence?`,()=>deleteSeqItem(item.id))}><Delete sx={{ fontSize:15,color:"#CF4E4E" }} /></IconButton>
-                        </Box>
-                      );
-                    })}
-                    {seqItems.length>SEQ_PER && <Box sx={{ display:"flex",justifyContent:"center",pt:2 }}><Pagination count={Math.ceil(seqItems.length/SEQ_PER)} page={seqPage} onChange={(_,v)=>setSeqPage(v)} size="small" /></Box>}
-                  </>
-                )}
-              </CardContent>
-            </Card>
-          </Grid>
-        </Grid>
-      )}
+        );
+      })()}
 
       {/* ════════════════════════════════════════════════════════════════════
           TAB 1 — COMPOSITIONS
@@ -1259,7 +1375,10 @@ export default function NaadaTracker({ embedded = false }) {
             <TextField label="Duration (minutes)" size="small" type="number" value={seqForm.duration_minutes} onChange={(e)=>setSeqForm((p)=>({...p,duration_minutes:e.target.value}))} />
             <FormControl size="small" fullWidth>
               <InputLabel>Frequency</InputLabel>
-              <Select label="Frequency" value={seqForm.frequency} onChange={(e)=>setSeqForm((p)=>({...p,frequency:e.target.value}))}>
+              <Select label="Frequency" value={seqForm.frequency} onChange={(e)=>{
+                const freq=e.target.value;
+                setSeqForm((p)=>({ ...p,frequency:freq,frequency_day:freq==="monthly"?106:0 }));
+              }}>
                 {FREQ_OPTS.map((o)=><MenuItem key={o.value} value={o.value}>{o.label}</MenuItem>)}
               </Select>
             </FormControl>
@@ -1272,8 +1391,15 @@ export default function NaadaTracker({ embedded = false }) {
               </FormControl>
             )}
             {seqForm.frequency==="monthly" && (
-              <TextField label="Day of Month (1-28)" size="small" type="number" value={seqForm.frequency_day} onChange={(e)=>setSeqForm((p)=>({...p,frequency_day:parseInt(e.target.value)||1}))} inputProps={{ min:1,max:28 }} />
+              <FormControl size="small" fullWidth>
+                <InputLabel>Recurs on</InputLabel>
+                <Select label="Recurs on" value={seqForm.frequency_day>=100?seqForm.frequency_day:106}
+                  onChange={(e)=>setSeqForm((p)=>({...p,frequency_day:e.target.value}))}>
+                  {MONTHLY_WEEKDAY_OPTS.map((o)=><MenuItem key={o.value} value={o.value}>{o.label}</MenuItem>)}
+                </Select>
+              </FormControl>
             )}
+            <LakshyaPicker value={seqItemLakshyaId} onChange={setSeqItemLakshyaId} isDark={isDark} pillar="music" />
           </Stack>
         </DialogContent>
         <DialogActions sx={{ px:3,pb:2.5 }}>

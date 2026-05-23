@@ -156,11 +156,12 @@ export default function VrittiTracker({ embedded = false }) {
 
   // ── SKILLS STATE ──────────────────────────────────────────────────────────
   const emptySkill = { category: "Technical", name: "", proficiency: 3, notes: "" };
-  const [skills,     setSkills]    = useState(_vrittiCache?.skills || []);
-  const [skillForm,  setSkillForm] = useState(emptySkill);
-  const [editSkill,  setEditSkill] = useState(null);
-  const [skillDlg,   setSkillDlg]  = useState(false);
-  const [skillPage,  setSkillPage] = useState(1);
+  const [skills,          setSkills]         = useState(_vrittiCache?.skills || []);
+  const [skillForm,       setSkillForm]      = useState(emptySkill);
+  const [editSkill,       setEditSkill]      = useState(null);
+  const [skillLakshyaId,  setSkillLakshyaId] = useState("");
+  const [skillDlg,        setSkillDlg]       = useState(false);
+  const [skillPage,       setSkillPage]      = useState(1);
 
   // ── JOURNAL STATE ─────────────────────────────────────────────────────────
   const emptyJ = { date: today, content: "", mood: "Focused 🎯", wins: "", challenges: "" };
@@ -314,13 +315,15 @@ export default function VrittiTracker({ embedded = false }) {
     if (editSkill) {
       const { error } = await supabase.from("vritti_skills").update(payload).eq("id", editSkill);
       if (error) { err("Save failed"); return; }
+      await saveItemLakshyaLink(user.id, "career", editSkill, skillLakshyaId);
       ok("Skill updated");
     } else {
-      const { error } = await supabase.from("vritti_skills").upsert(payload, { onConflict: "user_id,category,name" });
-      if (error) { err("Save failed"); return; }
+      const { data, error } = await supabase.from("vritti_skills").insert(payload).select("id").single();
+      if (error) { err(error.code === "23505" ? "Skill already exists in this category" : "Save failed"); return; }
+      await saveItemLakshyaLink(user.id, "career", data.id, skillLakshyaId);
       ok("Skill added");
     }
-    setSkillDlg(false); setSkillForm(emptySkill); setEditSkill(null); bust();
+    setSkillDlg(false); setSkillForm(emptySkill); setEditSkill(null); setSkillLakshyaId(""); bust();
   };
 
   const deleteSkill = async (id, name) => {
@@ -602,7 +605,7 @@ export default function VrittiTracker({ embedded = false }) {
       {tab === 3 && (
         <Grid container spacing={3}>
           <Grid item xs={12}>
-            <SectionHead title="Professional Skills" onAdd={() => { setSkillForm(emptySkill); setEditSkill(null); setSkillDlg(true); }} color={blue} isDark={isDark} addLabel="Add Skill" />
+            <SectionHead title="Professional Skills" onAdd={() => { setSkillForm(emptySkill); setEditSkill(null); setSkillLakshyaId(""); setSkillDlg(true); }} color={blue} isDark={isDark} addLabel="Add Skill" />
 
             {skills.length === 0 ? (
               <Typography sx={{ fontSize: 13, color: textS, py: 3, textAlign: "center" }}>No skills tracked yet →</Typography>
@@ -631,7 +634,7 @@ export default function VrittiTracker({ embedded = false }) {
                               {s.notes && <Typography sx={{ fontSize: 11, color: textS, mt: 0.2, fontStyle: "italic" }}>{s.notes}</Typography>}
                             </Box>
                             <Stack direction="row" spacing={0.3}>
-                              <IconButton size="small" onClick={() => { haptic(); setSkillForm(s); setEditSkill(s.id); setSkillDlg(true); }}
+                              <IconButton size="small" onClick={async () => { haptic(); setSkillForm(s); setEditSkill(s.id); const lId = await fetchItemLakshyaLink(user.id, "career", s.id); setSkillLakshyaId(lId || ""); setSkillDlg(true); }}
                                 sx={{ color: textS, "&:hover": { color: cat.color } }}><Edit sx={{ fontSize: 13 }} /></IconButton>
                               <IconButton size="small" onClick={() => deleteSkill(s.id, s.name)}
                                 sx={{ color: textS, "&:hover": { color: "#CF4E4E" } }}><Delete sx={{ fontSize: 13 }} /></IconButton>
@@ -850,6 +853,7 @@ export default function VrittiTracker({ embedded = false }) {
               <Stars value={skillForm.proficiency} onChange={(v) => setSkillForm((f) => ({ ...f, proficiency: v }))} size={22} />
             </Box>
             <TextField label="Notes" fullWidth size="small" multiline minRows={2} value={skillForm.notes} onChange={(e) => setSkillForm((f) => ({ ...f, notes: e.target.value }))} />
+            <LakshyaPicker value={skillLakshyaId} onChange={setSkillLakshyaId} isDark={isDark} pillar="career" />
           </Stack>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2.5 }}>
