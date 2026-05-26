@@ -1814,7 +1814,9 @@ function AnushtanamTab({ user, isDark }) {
       setSnack("Target count must be a positive number");
       return;
     }
-    const deadlineYears = goalForm.deadline_years ? Number(goalForm.deadline_years) : null;
+    const deadlineYears = (goalForm.deadline_years && goalForm.deadline_years.trim() !== "" && !isNaN(Number(goalForm.deadline_years)))
+      ? Number(goalForm.deadline_years)
+      : null;
 
     setSaving(true);
     try {
@@ -1848,6 +1850,7 @@ function AnushtanamTab({ user, isDark }) {
       setGoalForm(emptyGoal);
       setGoalLakshyaId("");
       setSnack(editGoal ? "Sankalpam updated" : "Mahasankalpam set");
+      _anushtanamCache = null;
       load();
     } catch (err) {
       console.error("saveGoal error:", err);
@@ -1861,7 +1864,7 @@ function AnushtanamTab({ user, isDark }) {
     setGoalForm({
       japa_name: g.japa_name,
       target_count: String(g.target_count),
-      deadline_years: String(g.deadline_years),
+      deadline_years: g.deadline_years != null ? String(g.deadline_years) : "",
       notes: g.notes || "",
     });
     setEditGoal(g);
