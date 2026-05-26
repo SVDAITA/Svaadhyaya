@@ -99,8 +99,8 @@ const DEFAULT_SACRED = [
   },
   {
     id: "sleep_healthy",
-    label: "Sleep healthy",
-    emoji: "🌙",
+    label: "Wake up between 5 and 6",
+    emoji: "🌅",
     locked: true,
     deep: true,
   },
@@ -140,15 +140,8 @@ const DEFAULT_EVENING = [
   },
   {
     id: "next_day_prep",
-    label: "Preparing for next day",
-    emoji: "📋",
-    locked: true,
-    deep: true,
-  },
-  {
-    id: "update_trackers",
-    label: "Update trackers",
-    emoji: "📊",
+    label: "Lay the ground for tomorrow",
+    emoji: "🪔",
     locked: true,
     deep: true,
   },

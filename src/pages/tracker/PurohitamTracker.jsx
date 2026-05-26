@@ -1829,7 +1829,7 @@ function AnushtanamTab({ user, isDark }) {
           })
           .eq("id", editGoal.id);
         if (error) throw error;
-        await saveItemLakshyaLink(user.id, "spirit", editGoal.id, goalLakshyaId);
+        await saveItemLakshyaLink(user.id, "japa", editGoal.id, goalLakshyaId);
       } else {
         const { data: inserted, error } = await supabase.from("japa_goals").upsert({
           user_id: user.id,
@@ -1841,7 +1841,7 @@ function AnushtanamTab({ user, isDark }) {
           is_active: true,
         }, { onConflict: "user_id,japa_name" }).select("id").single();
         if (error) throw error;
-        if (inserted?.id) await saveItemLakshyaLink(user.id, "spirit", inserted.id, goalLakshyaId);
+        if (inserted?.id) await saveItemLakshyaLink(user.id, "japa", inserted.id, goalLakshyaId);
       }
       setGoalOpen(false);
       setEditGoal(null);
@@ -1865,7 +1865,7 @@ function AnushtanamTab({ user, isDark }) {
       notes: g.notes || "",
     });
     setEditGoal(g);
-    fetchItemLakshyaLink(user.id, "spirit", g.id).then(id => setGoalLakshyaId(id || ""));
+    fetchItemLakshyaLink(user.id, "japa", g.id).then(id => setGoalLakshyaId(id || ""));
     setGoalOpen(true);
   };
 

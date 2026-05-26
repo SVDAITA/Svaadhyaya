@@ -301,29 +301,36 @@ function relDate(dateStr) {
   return `${diff}d ago`;
 }
 
-// Maps tracker_type → the table that actually records daily activity
-// `filter` = extra eq() conditions applied to the query (e.g. exclude un-ticked rows)
+// Maps tracker_type → one or more activity sources.
+// Each source: { table, col, filter? }
+// Spirit has two sources: daily sequence completions + japa logs.
 const TRACKER_ACTIVITY = {
-  spirit:  { table: "daily_item_completions",      col: "completion_date", filter: { is_completed: true } },
-  music:   { table: "naada_sequence_completions", col: "completion_date", filter: { is_completed: true } },
-  health:  { table: "health_logs",                col: "date",            filter: null },
-  finance: { table: "finance_logs",               col: "date",            filter: null },
-  career:  { table: "vritti_daily_log",           col: "date",            filter: null },
-  reading: { table: "vidya_study_log",            col: "date",            filter: null },
+  spirit:  [
+    { table: "daily_item_completions",     col: "completion_date", filter: { is_completed: true } },
+    { table: "japa_logs",                  col: "day_date",        filter: null },
+  ],
+  japa:    [{ table: "japa_logs",                  col: "day_date",        filter: null }],
+  music:   [{ table: "naada_sequence_completions", col: "completion_date", filter: { is_completed: true } }],
+  health:  [{ table: "health_logs",               col: "date",            filter: null }],
+  finance: [{ table: "finance_logs",              col: "date",            filter: null }],
+  career:  [{ table: "vritti_daily_log",           col: "date",            filter: null }],
+  reading: [{ table: "vidya_study_log",            col: "date",            filter: null }],
 };
 
 async function fetchActivityDates(user, trackerTypes) {
   const since = dayjs().subtract(60, "day").format("YYYY-MM-DD");
   const all = new Set();
   await Promise.all(
-    trackerTypes.map(async (type) => {
-      const m = TRACKER_ACTIVITY[type];
-      if (!m) return;
-      let q = supabase.from(m.table).select(m.col)
-        .eq("user_id", user.id).gte(m.col, since);
-      if (m.filter) Object.entries(m.filter).forEach(([k, v]) => { q = q.eq(k, v); });
-      const { data } = await q;
-      (data || []).forEach(d => all.add(d[m.col]));
+    trackerTypes.flatMap((type) => {
+      const sources = TRACKER_ACTIVITY[type];
+      if (!sources) return [];
+      return sources.map(async (m) => {
+        let q = supabase.from(m.table).select(m.col)
+          .eq("user_id", user.id).gte(m.col, since);
+        if (m.filter) Object.entries(m.filter).forEach(([k, v]) => { q = q.eq(k, v); });
+        const { data } = await q;
+        (data || []).forEach(d => all.add(d[m.col]));
+      });
     })
   );
   return [...all].sort().reverse();
@@ -755,6 +762,54 @@ function MilestoneCard({ milestone, color, onUpdate, progress }) {
   );
 }
 
+// Auto-computes total japa count for an outcome Lakshya linked to japa goals.
+function useJapaOutcomeTotal(lakshyaId) {
+  const { user } = useAuth();
+  const [total, setTotal] = useState(null); // null = not linked to any japa goal
+
+  useEffect(() => {
+    if (!user || !lakshyaId) return;
+    let cancelled = false;
+    (async () => {
+      // 1. Find japa goal links for this Lakshya
+      const { data: links } = await supabase
+        .from("tracker_lakshya_links")
+        .select("tracker_item_id")
+        .eq("lakshya_id", lakshyaId)
+        .eq("user_id", user.id)
+        .eq("tracker_type", "japa");
+
+      if (!links?.length) { if (!cancelled) setTotal(null); return; }
+
+      const goalIds = links.map(l => l.tracker_item_id);
+
+      // 2. Get japa names for those goals
+      const { data: goals } = await supabase
+        .from("japa_goals")
+        .select("japa_name")
+        .in("id", goalIds)
+        .eq("user_id", user.id);
+
+      if (!goals?.length) { if (!cancelled) setTotal(null); return; }
+
+      const names = goals.map(g => g.japa_name);
+
+      // 3. Sum all-time japa count for those names
+      const { data: logs } = await supabase
+        .from("japa_logs")
+        .select("count")
+        .eq("user_id", user.id)
+        .in("japa_name", names);
+
+      const sum = (logs || []).reduce((s, l) => s + (Number(l.count) || 0), 0);
+      if (!cancelled) setTotal(sum);
+    })();
+    return () => { cancelled = true; };
+  }, [user, lakshyaId]);
+
+  return total;
+}
+
 function LakshyaCard({ lakshya, color, onUpdate }) {
   const { user } = useAuth();
   const [editingTitle, setEditingTitle] = useState(false);
@@ -769,6 +824,7 @@ function LakshyaCard({ lakshya, color, onUpdate }) {
   const [outcomeVal, setOutcomeVal] = useState(String(lakshya.outcome_current ?? 0));
   const [habitStreak, setHabitStreak] = useState(null);
   const [habitConsistency, setHabitConsistency] = useState(null);
+  const japaTotal = useJapaOutcomeTotal(lakshya.type === "outcome" ? lakshya.id : null);
   const [achievedOpen, setAchievedOpen] = useState(false);
   const [showAllActive, setShowAllActive] = useState(false);
   const { mode } = useThemeMode();
@@ -858,14 +914,22 @@ function LakshyaCard({ lakshya, color, onUpdate }) {
     }
 
     if (type === "outcome") {
-      const current = lakshya.outcome_current ?? 0;
-      const target = lakshya.outcome_target ?? 0;
-      const pct = target > 0 ? Math.min(100, (current / target) * 100) : 0;
-      const unit = lakshya.outcome_unit || "";
+      const isJapaTracked = japaTotal !== null;
+      const current = isJapaTracked ? japaTotal : (lakshya.outcome_current ?? 0);
+      const target   = lakshya.outcome_target ?? 0;
+      const pct      = target > 0 ? Math.min(100, (current / target) * 100) : 0;
+      const unit     = lakshya.outcome_unit || "";
       return (
         <Box sx={{ px: 2.5, pt: 0.5, pb: 0, mb: 2 }}>
           <Box sx={{ p: 2, borderRadius: 2.5, background: `${color}06`, border: `1px solid ${color}15` }}>
-            {outcomeEdit ? (
+            {/* Auto-tracked badge */}
+            {isJapaTracked && (
+              <Typography sx={{ fontSize: 10, color, fontWeight: 600, mb: 1, letterSpacing: 0.4 }}>
+                📿 Auto-tracked from Japam
+              </Typography>
+            )}
+            {/* Manual edit (only when not japa-tracked) */}
+            {!isJapaTracked && outcomeEdit ? (
               <Box sx={{ display: "flex", gap: 1, alignItems: "center", mb: 1.5 }}>
                 <TextField size="small" type="number" autoFocus
                   value={outcomeVal} onChange={e => setOutcomeVal(e.target.value)}
@@ -880,15 +944,17 @@ function LakshyaCard({ lakshya, color, onUpdate }) {
             ) : (
               <Box sx={{ display: "flex", alignItems: "baseline", gap: 0.75, mb: 1.25 }}>
                 <Typography sx={{ fontFamily: '"Fraunces", serif', fontSize: 32, fontWeight: 400, color, lineHeight: 1 }}>
-                  {current}{unit ? ` ${unit}` : ""}
+                  {current.toLocaleString("en-IN")}{unit ? ` ${unit}` : ""}
                 </Typography>
                 <Typography sx={{ fontSize: 14, color: "text.disabled" }}>
-                  → {target > 0 ? `${target}${unit ? ` ${unit}` : ""}` : "no target set"}
+                  → {target > 0 ? `${target.toLocaleString("en-IN")}${unit ? ` ${unit}` : ""}` : "no target set"}
                 </Typography>
-                <IconButton size="small" onClick={() => setOutcomeEdit(true)}
-                  sx={{ p: 0.25, ml: 0.25, color: "text.disabled", "&:hover": { color } }}>
-                  <Edit sx={{ fontSize: 13 }} />
-                </IconButton>
+                {!isJapaTracked && (
+                  <IconButton size="small" onClick={() => setOutcomeEdit(true)}
+                    sx={{ p: 0.25, ml: 0.25, color: "text.disabled", "&:hover": { color } }}>
+                    <Edit sx={{ fontSize: 13 }} />
+                  </IconButton>
+                )}
               </Box>
             )}
             {target > 0 && (
@@ -896,7 +962,7 @@ function LakshyaCard({ lakshya, color, onUpdate }) {
                 <LinearProgress variant="determinate" value={pct}
                   sx={{ height: 7, borderRadius: 3, bgcolor: `${color}18`, "& .MuiLinearProgress-bar": { bgcolor: color, borderRadius: 3 } }} />
                 <Typography variant="caption" sx={{ fontSize: 11, color: "text.secondary", mt: 0.75, display: "block" }}>
-                  {Math.round(pct)}% toward target
+                  {Math.round(pct)}% toward target{isJapaTracked ? " · updates live from your logs" : ""}
                 </Typography>
               </>
             )}
