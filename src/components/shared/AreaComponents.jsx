@@ -1074,11 +1074,12 @@ function LakshyaCard({ lakshya, color, onUpdate }) {
             )}
           </Box>
           {(() => {
+            const liveOutcome = japaTotal !== null ? japaTotal : (lakshya.outcome_current ?? 0);
             const sentence = lakshyaProgressSentence({
               type,
               streak: habitStreak,
               consistency: habitConsistency,
-              outcomeCurrent: lakshya.outcome_current ?? 0,
+              outcomeCurrent: liveOutcome,
               outcomeTarget:  lakshya.outcome_target  ?? 0,
               outcomeUnit:    lakshya.outcome_unit    || "",
               achievedCount:  achievedMilestones.length,
@@ -1145,7 +1146,7 @@ function LakshyaCard({ lakshya, color, onUpdate }) {
             {/* Active milestones */}
             {visibleActive.map(m => (
               <MilestoneCard key={m.id} milestone={m} color={color} onUpdate={onUpdate}
-                progress={{ type, streak: habitStreak, outcomeCurrent: lakshya.outcome_current ?? 0, outcomeTarget: lakshya.outcome_target ?? 0, outcomeUnit: lakshya.outcome_unit || "" }}
+                progress={{ type, streak: habitStreak, outcomeCurrent: japaTotal !== null ? japaTotal : (lakshya.outcome_current ?? 0), outcomeTarget: lakshya.outcome_target ?? 0, outcomeUnit: lakshya.outcome_unit || "" }}
               />
             ))}
 
