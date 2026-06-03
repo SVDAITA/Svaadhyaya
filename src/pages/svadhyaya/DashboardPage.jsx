@@ -3022,8 +3022,7 @@ export default function DashboardPage() {
         supabase
           .from("vacations")
           .select("start_date, end_date")
-          .eq("user_id", user.id)
-          .catch(() => ({ data: [] })),
+          .eq("user_id", user.id),
         supabase
           .from("weekly_goals")
           .select("*")
