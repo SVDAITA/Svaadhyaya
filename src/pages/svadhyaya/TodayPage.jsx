@@ -2505,6 +2505,7 @@ function VacationDialog({ open, onClose, onSave, heroColor, isDark }) {
   const [reason,    setReason]    = useState("");
   const [minTasks,  setMinTasks]  = useState(["anushthanam"]);
   const [saving,    setSaving]    = useState(false);
+  const [snack,     setSnack]     = useState({ open: false, msg: "", severity: "success" });
 
   useEffect(() => { if (open) { setStartDate(today); setEndDate(today); setReason(""); setMinTasks(["anushthanam"]); } }, [open]);
 
@@ -2519,9 +2520,14 @@ function VacationDialog({ open, onClose, onSave, heroColor, isDark }) {
   const handle = async () => {
     if (!startDate || !endDate) return;
     setSaving(true);
-    await onSave({ start_date: startDate, end_date: endDate, reason, minimal_task_ids: minTasks });
+    const result = await onSave({ start_date: startDate, end_date: endDate, reason, minimal_task_ids: minTasks });
     setSaving(false);
-    onClose();
+    if (result?.error) {
+      setSnack({ open: true, msg: String(result.error), severity: "error" });
+    } else {
+      setSnack({ open: true, msg: "Vacation declared 🏖️ — streaks protected", severity: "success" });
+      setTimeout(onClose, 1400);
+    }
   };
 
   return (
@@ -2587,6 +2593,21 @@ function VacationDialog({ open, onClose, onSave, heroColor, isDark }) {
           Past dates are supported — declare retroactively without streak penalty.
         </Typography>
       </DialogContent>
+
+      <Snackbar
+        open={snack.open}
+        autoHideDuration={snack.severity === "success" ? 1800 : 4000}
+        onClose={() => setSnack(s => ({ ...s, open: false }))}
+        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+      >
+        <Alert
+          severity={snack.severity}
+          onClose={() => setSnack(s => ({ ...s, open: false }))}
+          sx={{ width: "100%", fontSize: 13 }}
+        >
+          {snack.msg}
+        </Alert>
+      </Snackbar>
     </Dialog>
   );
 }

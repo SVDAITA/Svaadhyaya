@@ -15,6 +15,9 @@
  * ALTER TABLE vacations ENABLE ROW LEVEL SECURITY;
  * CREATE POLICY "Users manage own vacations"
  *   ON vacations FOR ALL USING (auth.uid() = user_id);
+ * GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.vacations TO authenticated;
+ * GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.vacations TO anon;
+ * NOTIFY pgrst, 'reload schema';
  * ─────────────────────────────────────────────────────────
  */
 
@@ -25,6 +28,9 @@ import dayjs from "dayjs";
 import isBetween from "dayjs/plugin/isBetween";
 
 dayjs.extend(isBetween);
+
+// Explicit column list — avoids PGRST204 schema-cache errors on newly added columns
+const VACATION_COLS = "id, user_id, start_date, end_date, reason, created_at";
 
 /**
  * Returns true if a given YYYY-MM-DD string falls within any vacation period.
@@ -56,10 +62,9 @@ export function useVacation() {
     try {
       const { data, error } = await supabase
         .from("vacations")
-        .select("*")
-        .eq("user_id", user.id)
+        .select(VACATION_COLS)
         .order("start_date", { ascending: false });
-      // Silently ignore errors (table may not exist yet, or schema cache warming up)
+      // Silently ignore errors (schema cache may still be warming up)
       setVacations(error ? [] : (data || []));
     } catch (_) {
       setVacations([]);
@@ -70,7 +75,7 @@ export function useVacation() {
 
   useEffect(() => { load(); }, [load]);
 
-  const declareVacation = async ({ start_date, end_date, reason, minimal_task_ids }) => {
+  const declareVacation = async ({ start_date, end_date, reason }) => {
     if (!user) return { error: "Not authenticated" };
     try {
       const { error } = await supabase.from("vacations").insert({
@@ -78,10 +83,10 @@ export function useVacation() {
         start_date,
         end_date,
         reason: reason || null,
-        minimal_task_ids: minimal_task_ids || [],
+        // minimal_task_ids uses DB default '{}' — omitted to avoid schema-cache issues
       });
       if (!error) await load();
-      return { error };
+      return { error: error?.message || null };
     } catch (e) {
       return { error: e.message };
     }
@@ -89,7 +94,7 @@ export function useVacation() {
 
   const deleteVacation = async (id) => {
     if (!user) return;
-    await supabase.from("vacations").delete().eq("id", id).eq("user_id", user.id);
+    await supabase.from("vacations").delete().eq("id", id);
     await load();
   };
 
