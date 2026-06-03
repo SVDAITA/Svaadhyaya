@@ -54,14 +54,14 @@ export function useVacation() {
     if (!user) return;
     setLoading(true);
     try {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("vacations")
         .select("*")
         .eq("user_id", user.id)
         .order("start_date", { ascending: false });
-      setVacations(data || []);
+      // Silently ignore errors (table may not exist yet, or schema cache warming up)
+      setVacations(error ? [] : (data || []));
     } catch (_) {
-      // Table may not exist yet — silently ignore
       setVacations([]);
     } finally {
       setLoading(false);

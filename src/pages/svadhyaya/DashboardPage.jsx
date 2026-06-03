@@ -2955,6 +2955,21 @@ export default function DashboardPage() {
   );
   const [latestWeightKg, setLatestWeightKg] = useState(_dashCache?.latestWeightKg ?? null);
   const [analyticsRange, setAnalyticsRange] = useState("month");
+  const [vacRows, setVacRows] = useState(_dashCache?.vacRows || []);
+
+  // Derived set of all vacation day strings (YYYY-MM-DD)
+  const vacationDays = useMemo(() => {
+    const s = new Set();
+    vacRows.forEach(({ start_date, end_date }) => {
+      let cur = dayjs(start_date);
+      const end = dayjs(end_date);
+      while (!cur.isAfter(end)) {
+        s.add(cur.format("YYYY-MM-DD"));
+        cur = cur.add(1, "day");
+      }
+    });
+    return s;
+  }, [vacRows]);
 
   const textP = isDark ? "#F0EDE8" : "#2C2C2C";
   const textS = isDark ? "#7A7874" : "#9C9A94";
@@ -3006,8 +3021,9 @@ export default function DashboardPage() {
           .eq("user_id", user.id),
         supabase
           .from("vacations")
-          .select("from_date, to_date")
-          .eq("user_id", user.id),
+          .select("start_date, end_date")
+          .eq("user_id", user.id)
+          .catch(() => ({ data: [] })),
         supabase
           .from("weekly_goals")
           .select("*")
@@ -3090,18 +3106,20 @@ export default function DashboardPage() {
         financeBudgets: budgetsData || [],
         activityLogs: activityData || [],
         latestWeightKg: weightData?.[0]?.value ?? null,
+        vacRows: vacData || [],
         dynamicStreaks: [], // filled below after vacation set is built
       };
 
       const vacationDateSet = new Set();
-      (vacData || []).forEach(({ from_date, to_date }) => {
-        let cur = dayjs(from_date);
-        const end = dayjs(to_date);
+      (vacData || []).forEach(({ start_date, end_date }) => {
+        let cur = dayjs(start_date);
+        const end = dayjs(end_date);
         while (!cur.isAfter(end)) {
           vacationDateSet.add(cur.format("YYYY-MM-DD"));
           cur = cur.add(1, "day");
         }
       });
+      setVacRows(vacData || []);
 
       const AREA_HABIT_MAP = {
         spirit: "anushthanam",
@@ -3176,11 +3194,17 @@ export default function DashboardPage() {
           const mass = calculateDailyMass(dayData);
           const intensity = Math.min(mass / MAX_EXPECTED_MASS, 1);
           const isToday = dateStr === dayjs().format("YYYY-MM-DD");
+          const dm = dayData?.disruption_mode;
+          const isVacation = vacationDays.has(dateStr) || dm === "vacation";
+          const isDisrupted = dm === "disrupted";
+          const isHoliday = dm === "holiday";
+          const statusEmoji = isVacation ? "🏖" : isDisrupted ? "⚠" : isHoliday ? "✦" : null;
+          const statusColor = isVacation ? "#2C7BB6" : isDisrupted ? "#CF4E4E" : isHoliday ? "#9B6AC8" : null;
 
           return (
             <Tooltip
               key={dateStr}
-              title={`${dayjs(dateStr).format("D MMM")} · Mass ${mass}`}
+              title={`${dayjs(dateStr).format("D MMM")} · Mass ${mass}${isVacation ? " · Vacation" : isDisrupted ? " · Disrupted" : isHoliday ? " · Holiday" : ""}`}
               arrow
               placement="top"
             >
@@ -3191,21 +3215,24 @@ export default function DashboardPage() {
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
+                  flexDirection: "column",
                   aspectRatio: "1/1",
                   width: "100%",
                   borderRadius: "50%",
                   cursor: "pointer",
                   transition: "all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)",
                   position: "relative",
-                  background:
-                    mass > 0
+                  background: statusColor
+                    ? `${statusColor}18`
+                    : mass > 0
                       ? heroColor
                       : isDark
                         ? "rgba(255,255,255,0.03)"
                         : "rgba(0,0,0,0.03)",
-                  opacity: mass > 0 ? 0.2 + intensity * 0.8 : 1,
-                  boxShadow:
-                    mass > 60 ? `0 4px 12px ${alpha(heroColor, 0.4)}` : "none",
+                  opacity: mass > 0 && !statusColor ? 0.2 + intensity * 0.8 : 1,
+                  boxShadow: statusColor
+                    ? `0 0 0 1.5px ${statusColor}50`
+                    : mass > 60 ? `0 4px 12px ${alpha(heroColor, 0.4)}` : "none",
                   outline: isToday ? `2px solid ${heroColor}` : "none",
                   outlineOffset: "3px",
                   "&:hover": {
@@ -3215,16 +3242,22 @@ export default function DashboardPage() {
                   },
                 }}
               >
-                <Typography
-                  sx={{
-                    fontSize: { xs: 10, sm: 12 },
-                    fontWeight: isToday ? 900 : mass > 0 ? 700 : 500,
-                    color: mass > 0 && intensity > 0.3 ? "#fff" : textS,
-                    userSelect: "none",
-                  }}
-                >
-                  {i + 1}
-                </Typography>
+                {statusEmoji ? (
+                  <Typography sx={{ fontSize: { xs: 8, sm: 10 }, lineHeight: 1, userSelect: "none" }}>
+                    {statusEmoji}
+                  </Typography>
+                ) : (
+                  <Typography
+                    sx={{
+                      fontSize: { xs: 10, sm: 12 },
+                      fontWeight: isToday ? 900 : mass > 0 ? 700 : 500,
+                      color: mass > 0 && intensity > 0.3 ? "#fff" : textS,
+                      userSelect: "none",
+                    }}
+                  >
+                    {i + 1}
+                  </Typography>
+                )}
               </Box>
             </Tooltip>
           );
@@ -3258,6 +3291,12 @@ export default function DashboardPage() {
             ).length;
             const mass = calculateDailyMass(dayData);
             const isToday = dateStr === dayjs().format("YYYY-MM-DD");
+            const dm = dayData?.disruption_mode;
+            const isVacation = vacationDays.has(dateStr) || dm === "vacation";
+            const isDisrupted = dm === "disrupted";
+            const isHoliday = dm === "holiday";
+            const weekStatusColor = isVacation ? "#2C7BB6" : isDisrupted ? "#CF4E4E" : isHoliday ? "#9B6AC8" : null;
+            const weekStatusLabel = isVacation ? "🏖 Vacation" : isDisrupted ? "⚠ Disrupted" : isHoliday ? "✦ Holiday" : null;
 
             return (
               <Grid
@@ -3273,10 +3312,12 @@ export default function DashboardPage() {
                   sx={{
                     p: 1.5,
                     borderRadius: 3,
-                    border: `1px solid ${isToday ? heroColor : border}`,
-                    background: isToday
-                      ? alpha(heroColor, 0.05)
-                      : "transparent",
+                    border: `1px solid ${weekStatusColor ? weekStatusColor + "50" : isToday ? heroColor : border}`,
+                    background: weekStatusColor
+                      ? alpha(weekStatusColor, 0.06)
+                      : isToday
+                        ? alpha(heroColor, 0.05)
+                        : "transparent",
                     cursor: "pointer",
                     textAlign: "center",
                     position: "relative",
@@ -3339,6 +3380,18 @@ export default function DashboardPage() {
                     </Typography>
                   </Box>
 
+                  {/* Vacation / disruption badge */}
+                  {weekStatusLabel && (
+                    <Typography sx={{
+                      fontSize: 9, fontWeight: 700, mt: 0.75,
+                      color: weekStatusColor,
+                      letterSpacing: 0.3,
+                      textTransform: "uppercase",
+                    }}>
+                      {weekStatusLabel}
+                    </Typography>
+                  )}
+
                   {/* Subtle Progress Bar per day */}
                   <Box
                     sx={{
@@ -3354,7 +3407,7 @@ export default function DashboardPage() {
                       sx={{
                         height: "100%",
                         width: `${Math.min((mass / MAX_EXPECTED_MASS) * 100, 100)}%`,
-                        bgcolor: heroColor,
+                        bgcolor: weekStatusColor || heroColor,
                         borderRadius: 2,
                       }}
                     />
