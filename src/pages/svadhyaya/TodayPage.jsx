@@ -2715,6 +2715,7 @@ export default function TodayPage() {
   const cardBg = isDark ? "#1A1916" : "#FCFBF9";
   const border = isDark ? "rgba(255,255,255,0.08)" : "#D1D0CF";
   const textP = isDark ? "#F0EDE8" : "#2C2C2C";
+  const textS = isDark ? "#7A7874" : "#9C9A94";
 
   const load = useCallback(async () => {
     if (!user) {
