@@ -28,6 +28,7 @@ import {
 } from "@mui/icons-material";
 import { useAuth } from "../../hooks/useAuth";
 import { useThemeMode } from "../../hooks/useTheme";
+import { useVacation } from "../../hooks/useVacation";
 import { supabase } from "../../lib/supabase";
 import dayjs from "dayjs";
 import isBetween from "dayjs/plugin/isBetween";
@@ -205,6 +206,9 @@ export default function DisruptionPage() {
   const [baselines, setBaselines] = useState(buildDefaultBaselines());
   const [baselinesLoading, setBaselinesLoading] = useState(true);
   const [baselinesSaving, setBaselinesSaving] = useState(false);
+
+  // ── Vacation history (from vacations table)
+  const { vacations, deleteVacation } = useVacation();
 
   // ── Shared UI state
   const [error, setError] = useState("");
@@ -676,6 +680,67 @@ export default function DisruptionPage() {
             </Button>
           </CardContent>
         </Card>
+      )}
+
+      {/* ── Vacation History (shown when on vacation tab) ── */}
+      {tab === "vacation" && vacations.length > 0 && (
+        <Box sx={{ mt: 2.5 }}>
+          <Typography sx={{
+            fontSize: 10, fontWeight: 700, letterSpacing: 1.5,
+            textTransform: "uppercase", color: textS, mb: 1.5,
+          }}>
+            Declared Vacations
+          </Typography>
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+            {vacations.map((v) => {
+              const today = dayjs().format("YYYY-MM-DD");
+              const isActive  = today >= v.start_date && today <= v.end_date;
+              const isPast    = today > v.end_date;
+              const isFuture  = today < v.start_date;
+              const statusLabel = isActive ? "Active" : isPast ? "Past" : "Upcoming";
+              const statusColor = isActive ? "#2C7BB6" : isPast ? textS : "#2D9E6B";
+              const nights = dayjs(v.end_date).diff(dayjs(v.start_date), "day") + 1;
+              return (
+                <Box key={v.id} sx={{
+                  display: "flex", alignItems: "center", gap: 1.5,
+                  p: "12px 16px", borderRadius: 2.5,
+                  border: `1px solid ${isActive ? "#2C7BB640" : border}`,
+                  background: isActive
+                    ? "rgba(44,123,182,0.06)"
+                    : isDark ? "rgba(255,255,255,0.02)" : "rgba(0,0,0,0.01)",
+                }}>
+                  <Typography sx={{ fontSize: 18, flexShrink: 0 }}>🏖️</Typography>
+                  <Box sx={{ flex: 1, minWidth: 0 }}>
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
+                      <Typography sx={{ fontSize: 13, fontWeight: 600, color: textP }}>
+                        {dayjs(v.start_date).format("D MMM")} – {dayjs(v.end_date).format("D MMM YYYY")}
+                      </Typography>
+                      <Typography sx={{
+                        fontSize: 10, fontWeight: 700, color: statusColor,
+                        textTransform: "uppercase", letterSpacing: 0.5,
+                      }}>
+                        {statusLabel}
+                      </Typography>
+                      <Typography sx={{ fontSize: 10, color: textS }}>
+                        {nights} {nights === 1 ? "day" : "days"}
+                      </Typography>
+                    </Box>
+                    {v.reason && (
+                      <Typography sx={{ fontSize: 11.5, color: textS, mt: 0.25 }}>
+                        {v.reason}
+                      </Typography>
+                    )}
+                  </Box>
+                  <IconButton size="small"
+                    onClick={() => deleteVacation(v.id)}
+                    sx={{ color: textS, flexShrink: 0, "&:hover": { color: "#CF4E4E" } }}>
+                    <Close sx={{ fontSize: 14 }} />
+                  </IconButton>
+                </Box>
+              );
+            })}
+          </Box>
+        </Box>
       )}
 
       {/* ════════════════════════════════════════════════════

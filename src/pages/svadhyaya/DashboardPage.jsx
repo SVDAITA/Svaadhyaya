@@ -380,7 +380,7 @@ const DISRUPTION_META = {
   "working day": { label: "Full Day", emoji: "⚡", color: "#5C5A52" },
 };
 
-function DayDialog({ date, dayData, onClose, heroColor, isDark }) {
+function DayDialog({ date, dayData, isVacation, onClose, heroColor, isDark }) {
   if (!date) return null;
 
   const habits = dayData?.habits || {};
@@ -462,6 +462,21 @@ function DayDialog({ date, dayData, onClose, heroColor, isDark }) {
             {dayjs(date).format("dddd, D MMMM YYYY")}
           </Typography>
           <Box sx={{ display: "flex", gap: 0.75, flexWrap: "wrap" }}>
+            {isVacation && (
+              <Chip
+                label="🏖 Vacation · Streaks protected"
+                size="small"
+                sx={{
+                  height: 20,
+                  fontSize: 10,
+                  fontWeight: 700,
+                  letterSpacing: 0.3,
+                  background: "rgba(44,123,182,0.12)",
+                  color: "#2C7BB6",
+                  border: "1px solid rgba(44,123,182,0.30)",
+                }}
+              />
+            )}
             {isClosed && (
               <Chip
                 label="Day Closed"
@@ -3859,6 +3874,7 @@ export default function DashboardPage() {
       <DayDialog
         date={selectedDate}
         dayData={dayMap[selectedDate]}
+        isVacation={selectedDate ? vacationDays.has(selectedDate) : false}
         onClose={() => setSelectedDate(null)}
         heroColor={heroColor}
         isDark={isDark}

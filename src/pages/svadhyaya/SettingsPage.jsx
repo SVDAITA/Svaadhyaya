@@ -487,6 +487,9 @@ export default function SettingsPage() {
           <Tabs
             value={tab}
             onChange={(_, v) => setTab(v)}
+            variant="scrollable"
+            scrollButtons="auto"
+            allowScrollButtonsMobile
             sx={{
               px: 2,
               "& .MuiTab-root": {

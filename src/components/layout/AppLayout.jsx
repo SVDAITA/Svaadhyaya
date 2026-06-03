@@ -36,6 +36,7 @@ import {
   SettingsOutlined,
   Spa,
   GridViewOutlined,
+  Waves,
 } from "@mui/icons-material";
 import { useAuth } from "../../hooks/useAuth";
 import { useThemeMode } from "../../hooks/useTheme";
@@ -52,6 +53,12 @@ const NAV_ITEMS = [
     icon: <Dashboard />,
     path: "/svadhyaya/dashboard",
     color: "#C07830",
+  },
+  {
+    label: "Life happened",
+    icon: <Waves />,
+    path: "/svadhyaya/disruption",
+    color: "#2C7BB6",
   },
   { divider: true, label: "Life Areas" },
   {
