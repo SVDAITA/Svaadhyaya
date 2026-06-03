@@ -51,6 +51,7 @@ import dayjs from "dayjs";
 import { useAuth } from "../../hooks/useAuth";
 import { useThemeMode } from "../../hooks/useTheme";
 import { supabase } from "../../lib/supabase";
+import { isDateOnVacation } from "../../hooks/useVacation";
 
 // Module-level caches — survive re-renders and back-navigation
 const _journalCache = {} // { [area]: { content: string, updated_at: string } }
@@ -336,16 +337,35 @@ async function fetchActivityDates(user, trackerTypes) {
   return [...all].sort().reverse();
 }
 
-function calcStreak(datesDesc) {
-  if (!datesDesc.length) return 0;
+/**
+ * Calculate streak from a sorted-descending list of activity date strings.
+ * vacationDates: optional Set of YYYY-MM-DD strings that are vacation days.
+ * Vacation days count as "practised" so they don't break the streak.
+ */
+function calcStreak(datesDesc, vacationDates = new Set()) {
+  if (!datesDesc.length && !vacationDates.size) return 0;
+  const activitySet = new Set(datesDesc);
   let streak = 0;
   let cursor = dayjs().startOf("day");
-  for (const d of datesDesc) {
-    const dd = dayjs(d).startOf("day");
-    if (dd.isSame(cursor)) { streak++; cursor = cursor.subtract(1, "day"); }
-    else if (streak === 0 && dd.isSame(cursor.subtract(1, "day"))) {
-      cursor = cursor.subtract(1, "day"); streak++; cursor = cursor.subtract(1, "day");
-    } else if (dd.isBefore(cursor)) break;
+  // Walk backwards day by day for up to 400 days
+  for (let i = 0; i < 400; i++) {
+    const key = cursor.format("YYYY-MM-DD");
+    if (activitySet.has(key) || vacationDates.has(key)) {
+      streak++;
+      cursor = cursor.subtract(1, "day");
+    } else {
+      // Allow one grace day only if today has no activity yet (streak=0)
+      if (streak === 0) {
+        cursor = cursor.subtract(1, "day");
+        const prevKey = cursor.format("YYYY-MM-DD");
+        if (activitySet.has(prevKey) || vacationDates.has(prevKey)) {
+          streak++;
+          cursor = cursor.subtract(1, "day");
+          continue;
+        }
+      }
+      break;
+    }
   }
   return streak;
 }
@@ -501,16 +521,35 @@ function HabitHero({ lakshyaId, color, onStreakLoaded }) {
         return;
       }
 
-      // 2. Get activity dates
-      const datesDesc = await fetchActivityDates(user, trackerTypes);
+      // 2. Get activity dates + vacation dates (last 60 days)
+      const since = dayjs().subtract(60, "day").format("YYYY-MM-DD");
+      const [datesDesc, vacRows] = await Promise.all([
+        fetchActivityDates(user, trackerTypes),
+        supabase.from("vacations").select("start_date,end_date")
+          .eq("user_id", user.id).gte("end_date", since)
+          .then(r => r.data || []).catch(() => []),
+      ]);
 
-      // 3. Streak
-      const streak = calcStreak(datesDesc);
+      // Build a set of all vacation days within the last 60 days
+      const vacDays = new Set();
+      vacRows.forEach(v => {
+        let d = dayjs(v.start_date);
+        const end = dayjs(v.end_date);
+        while (!d.isAfter(end)) {
+          const key = d.format("YYYY-MM-DD");
+          if (key >= since) vacDays.add(key);
+          d = d.add(1, "day");
+        }
+      });
 
-      // 4. 30-day consistency
+      // 3. Streak (vacation days count as active)
+      const streak = calcStreak(datesDesc, vacDays);
+
+      // 4. 30-day consistency (vacation days count)
       const cutoff = dayjs().subtract(30, "day").format("YYYY-MM-DD");
-      const last30 = new Set(datesDesc.filter(d => d >= cutoff));
-      const consistency = Math.round((last30.size / 30) * 100);
+      const last30Activity = new Set(datesDesc.filter(d => d >= cutoff));
+      vacDays.forEach(d => { if (d >= cutoff) last30Activity.add(d); });
+      const consistency = Math.round((last30Activity.size / 30) * 100);
 
       // 5. Last practiced
       const lastDate = datesDesc[0] || null;

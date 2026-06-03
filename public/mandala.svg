@@ -1,125 +1,62 @@
-<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
   <defs>
-    <radialGradient id="fav-glow" cx="50%" cy="50%" r="50%">
-      <stop offset="0%"   stop-color="#C07830" stop-opacity="0.32"/>
-      <stop offset="52%"  stop-color="#C07830" stop-opacity="0.10"/>
-      <stop offset="100%" stop-color="#C07830" stop-opacity="0"/>
-    </radialGradient>
-    <radialGradient id="fav-outer" cx="50%" cy="50%" r="50%">
-      <stop offset="58%"  stop-color="#C07830" stop-opacity="0"/>
-      <stop offset="100%" stop-color="#C07830" stop-opacity="0.07"/>
+    <radialGradient id="bg" cx="38%" cy="36%" r="68%">
+      <stop offset="0%" stop-color="#E09444"/>
+      <stop offset="100%" stop-color="#9E5A14"/>
     </radialGradient>
   </defs>
 
-  <!-- Outer perimeter diffusion -->
-  <circle cx="50" cy="50" r="48" fill="url(#fav-outer)"/>
+  <!-- Rich saffron background disc -->
+  <circle cx="50" cy="50" r="50" fill="url(#bg)"/>
 
-  <!-- 16 outer spike tips -->
-  <g opacity="0.30">
-    <path d="M50,50 L49.1,37 Q50,28 50.9,37 Z" fill="#C07830" transform="rotate(0,50,50)"/>
-    <path d="M50,50 L49.1,37 Q50,28 50.9,37 Z" fill="#C07830" transform="rotate(22.5,50,50)"/>
-    <path d="M50,50 L49.1,37 Q50,28 50.9,37 Z" fill="#C07830" transform="rotate(45,50,50)"/>
-    <path d="M50,50 L49.1,37 Q50,28 50.9,37 Z" fill="#C07830" transform="rotate(67.5,50,50)"/>
-    <path d="M50,50 L49.1,37 Q50,28 50.9,37 Z" fill="#C07830" transform="rotate(90,50,50)"/>
-    <path d="M50,50 L49.1,37 Q50,28 50.9,37 Z" fill="#C07830" transform="rotate(112.5,50,50)"/>
-    <path d="M50,50 L49.1,37 Q50,28 50.9,37 Z" fill="#C07830" transform="rotate(135,50,50)"/>
-    <path d="M50,50 L49.1,37 Q50,28 50.9,37 Z" fill="#C07830" transform="rotate(157.5,50,50)"/>
-    <path d="M50,50 L49.1,37 Q50,28 50.9,37 Z" fill="#C07830" transform="rotate(180,50,50)"/>
-    <path d="M50,50 L49.1,37 Q50,28 50.9,37 Z" fill="#C07830" transform="rotate(202.5,50,50)"/>
-    <path d="M50,50 L49.1,37 Q50,28 50.9,37 Z" fill="#C07830" transform="rotate(225,50,50)"/>
-    <path d="M50,50 L49.1,37 Q50,28 50.9,37 Z" fill="#C07830" transform="rotate(247.5,50,50)"/>
-    <path d="M50,50 L49.1,37 Q50,28 50.9,37 Z" fill="#C07830" transform="rotate(270,50,50)"/>
-    <path d="M50,50 L49.1,37 Q50,28 50.9,37 Z" fill="#C07830" transform="rotate(292.5,50,50)"/>
-    <path d="M50,50 L49.1,37 Q50,28 50.9,37 Z" fill="#C07830" transform="rotate(315,50,50)"/>
-    <path d="M50,50 L49.1,37 Q50,28 50.9,37 Z" fill="#C07830" transform="rotate(337.5,50,50)"/>
+  <!-- Outer ring -->
+  <circle cx="50" cy="50" r="45" fill="none" stroke="white" stroke-width="1.2" opacity="0.38"/>
+
+  <!-- 8 bold outer lotus petals -->
+  <g fill="white" opacity="0.90">
+    <path d="M50,50 Q40,34 50,12 Q60,34 50,50" transform="rotate(0,50,50)"/>
+    <path d="M50,50 Q40,34 50,12 Q60,34 50,50" transform="rotate(45,50,50)"/>
+    <path d="M50,50 Q40,34 50,12 Q60,34 50,50" transform="rotate(90,50,50)"/>
+    <path d="M50,50 Q40,34 50,12 Q60,34 50,50" transform="rotate(135,50,50)"/>
+    <path d="M50,50 Q40,34 50,12 Q60,34 50,50" transform="rotate(180,50,50)"/>
+    <path d="M50,50 Q40,34 50,12 Q60,34 50,50" transform="rotate(225,50,50)"/>
+    <path d="M50,50 Q40,34 50,12 Q60,34 50,50" transform="rotate(270,50,50)"/>
+    <path d="M50,50 Q40,34 50,12 Q60,34 50,50" transform="rotate(315,50,50)"/>
   </g>
 
-  <!-- 8 wide outer petals -->
-  <g opacity="0.28">
-    <path d="M50,50 Q44,37 50,27 Q56,37 50,50" fill="#C07830" transform="rotate(0,50,50)"/>
-    <path d="M50,50 Q44,37 50,27 Q56,37 50,50" fill="#C07830" transform="rotate(45,50,50)"/>
-    <path d="M50,50 Q44,37 50,27 Q56,37 50,50" fill="#C07830" transform="rotate(90,50,50)"/>
-    <path d="M50,50 Q44,37 50,27 Q56,37 50,50" fill="#C07830" transform="rotate(135,50,50)"/>
-    <path d="M50,50 Q44,37 50,27 Q56,37 50,50" fill="#C07830" transform="rotate(180,50,50)"/>
-    <path d="M50,50 Q44,37 50,27 Q56,37 50,50" fill="#C07830" transform="rotate(225,50,50)"/>
-    <path d="M50,50 Q44,37 50,27 Q56,37 50,50" fill="#C07830" transform="rotate(270,50,50)"/>
-    <path d="M50,50 Q44,37 50,27 Q56,37 50,50" fill="#C07830" transform="rotate(315,50,50)"/>
+  <!-- 8 narrow accent spikes between outer petals -->
+  <g fill="white" opacity="0.52">
+    <path d="M50,50 L49.2,30 Q50,21 50.8,30 Z" transform="rotate(22.5,50,50)"/>
+    <path d="M50,50 L49.2,30 Q50,21 50.8,30 Z" transform="rotate(67.5,50,50)"/>
+    <path d="M50,50 L49.2,30 Q50,21 50.8,30 Z" transform="rotate(112.5,50,50)"/>
+    <path d="M50,50 L49.2,30 Q50,21 50.8,30 Z" transform="rotate(157.5,50,50)"/>
+    <path d="M50,50 L49.2,30 Q50,21 50.8,30 Z" transform="rotate(202.5,50,50)"/>
+    <path d="M50,50 L49.2,30 Q50,21 50.8,30 Z" transform="rotate(247.5,50,50)"/>
+    <path d="M50,50 L49.2,30 Q50,21 50.8,30 Z" transform="rotate(292.5,50,50)"/>
+    <path d="M50,50 L49.2,30 Q50,21 50.8,30 Z" transform="rotate(337.5,50,50)"/>
   </g>
 
-  <!-- Outer bounding circle -->
-  <circle cx="50" cy="50" r="43" fill="none" stroke="#C07830" stroke-width="0.5" opacity="0.18"/>
+  <!-- Mid ring -->
+  <circle cx="50" cy="50" r="22" fill="none" stroke="white" stroke-width="1" opacity="0.48"/>
 
-  <!-- 8 stroke teardrop petals -->
-  <g opacity="0.42">
-    <path d="M50,50 Q44.5,36 50,26 Q55.5,36 50,50" fill="none" stroke="#C07830" stroke-width="1.2" transform="rotate(0,50,50)"/>
-    <path d="M50,50 Q44.5,36 50,26 Q55.5,36 50,50" fill="none" stroke="#C07830" stroke-width="1.2" transform="rotate(45,50,50)"/>
-    <path d="M50,50 Q44.5,36 50,26 Q55.5,36 50,50" fill="none" stroke="#C07830" stroke-width="1.2" transform="rotate(90,50,50)"/>
-    <path d="M50,50 Q44.5,36 50,26 Q55.5,36 50,50" fill="none" stroke="#C07830" stroke-width="1.2" transform="rotate(135,50,50)"/>
-    <path d="M50,50 Q44.5,36 50,26 Q55.5,36 50,50" fill="none" stroke="#C07830" stroke-width="1.2" transform="rotate(180,50,50)"/>
-    <path d="M50,50 Q44.5,36 50,26 Q55.5,36 50,50" fill="none" stroke="#C07830" stroke-width="1.2" transform="rotate(225,50,50)"/>
-    <path d="M50,50 Q44.5,36 50,26 Q55.5,36 50,50" fill="none" stroke="#C07830" stroke-width="1.2" transform="rotate(270,50,50)"/>
-    <path d="M50,50 Q44.5,36 50,26 Q55.5,36 50,50" fill="none" stroke="#C07830" stroke-width="1.2" transform="rotate(315,50,50)"/>
+  <!-- 8 bold inner lotus petals -->
+  <g fill="white" opacity="0.95">
+    <path d="M50,50 Q46.5,43 50,34 Q53.5,43 50,50" transform="rotate(0,50,50)"/>
+    <path d="M50,50 Q46.5,43 50,34 Q53.5,43 50,50" transform="rotate(45,50,50)"/>
+    <path d="M50,50 Q46.5,43 50,34 Q53.5,43 50,50" transform="rotate(90,50,50)"/>
+    <path d="M50,50 Q46.5,43 50,34 Q53.5,43 50,50" transform="rotate(135,50,50)"/>
+    <path d="M50,50 Q46.5,43 50,34 Q53.5,43 50,50" transform="rotate(180,50,50)"/>
+    <path d="M50,50 Q46.5,43 50,34 Q53.5,43 50,50" transform="rotate(225,50,50)"/>
+    <path d="M50,50 Q46.5,43 50,34 Q53.5,43 50,50" transform="rotate(270,50,50)"/>
+    <path d="M50,50 Q46.5,43 50,34 Q53.5,43 50,50" transform="rotate(315,50,50)"/>
   </g>
 
-  <!-- Mid circle -->
-  <circle cx="50" cy="50" r="24" fill="none" stroke="#C07830" stroke-width="0.5" opacity="0.22"/>
+  <!-- Inner circle fill -->
+  <circle cx="50" cy="50" r="11" fill="white" opacity="0.20"/>
 
-  <!-- Central glow disc -->
-  <circle cx="50" cy="50" r="26" fill="url(#fav-glow)"/>
+  <!-- Center bold disc -->
+  <circle cx="50" cy="50" r="7.5" fill="white" opacity="0.98"/>
 
-  <!-- LOTUS: 8 bold wide petals — dominant visual weight -->
-  <g opacity="0.68">
-    <path d="M50,50 Q42,38 50,22 Q58,38 50,50" fill="#C07830" transform="rotate(0,50,50)"/>
-    <path d="M50,50 Q42,38 50,22 Q58,38 50,50" fill="#C07830" transform="rotate(45,50,50)"/>
-    <path d="M50,50 Q42,38 50,22 Q58,38 50,50" fill="#C07830" transform="rotate(90,50,50)"/>
-    <path d="M50,50 Q42,38 50,22 Q58,38 50,50" fill="#C07830" transform="rotate(135,50,50)"/>
-    <path d="M50,50 Q42,38 50,22 Q58,38 50,50" fill="#C07830" transform="rotate(180,50,50)"/>
-    <path d="M50,50 Q42,38 50,22 Q58,38 50,50" fill="#C07830" transform="rotate(225,50,50)"/>
-    <path d="M50,50 Q42,38 50,22 Q58,38 50,50" fill="#C07830" transform="rotate(270,50,50)"/>
-    <path d="M50,50 Q42,38 50,22 Q58,38 50,50" fill="#C07830" transform="rotate(315,50,50)"/>
-  </g>
-
-  <!-- 16 inner accent petals -->
-  <g opacity="0.48">
-    <path d="M50,50 L49.4,39 Q50,34 50.6,39 Z" fill="#C07830" transform="rotate(0,50,50)"/>
-    <path d="M50,50 L49.4,39 Q50,34 50.6,39 Z" fill="#C07830" transform="rotate(22.5,50,50)"/>
-    <path d="M50,50 L49.4,39 Q50,34 50.6,39 Z" fill="#C07830" transform="rotate(45,50,50)"/>
-    <path d="M50,50 L49.4,39 Q50,34 50.6,39 Z" fill="#C07830" transform="rotate(67.5,50,50)"/>
-    <path d="M50,50 L49.4,39 Q50,34 50.6,39 Z" fill="#C07830" transform="rotate(90,50,50)"/>
-    <path d="M50,50 L49.4,39 Q50,34 50.6,39 Z" fill="#C07830" transform="rotate(112.5,50,50)"/>
-    <path d="M50,50 L49.4,39 Q50,34 50.6,39 Z" fill="#C07830" transform="rotate(135,50,50)"/>
-    <path d="M50,50 L49.4,39 Q50,34 50.6,39 Z" fill="#C07830" transform="rotate(157.5,50,50)"/>
-    <path d="M50,50 L49.4,39 Q50,34 50.6,39 Z" fill="#C07830" transform="rotate(180,50,50)"/>
-    <path d="M50,50 L49.4,39 Q50,34 50.6,39 Z" fill="#C07830" transform="rotate(202.5,50,50)"/>
-    <path d="M50,50 L49.4,39 Q50,34 50.6,39 Z" fill="#C07830" transform="rotate(225,50,50)"/>
-    <path d="M50,50 L49.4,39 Q50,34 50.6,39 Z" fill="#C07830" transform="rotate(247.5,50,50)"/>
-    <path d="M50,50 L49.4,39 Q50,34 50.6,39 Z" fill="#C07830" transform="rotate(270,50,50)"/>
-    <path d="M50,50 L49.4,39 Q50,34 50.6,39 Z" fill="#C07830" transform="rotate(292.5,50,50)"/>
-    <path d="M50,50 L49.4,39 Q50,34 50.6,39 Z" fill="#C07830" transform="rotate(315,50,50)"/>
-    <path d="M50,50 L49.4,39 Q50,34 50.6,39 Z" fill="#C07830" transform="rotate(337.5,50,50)"/>
-  </g>
-
-  <!-- Inner circle -->
-  <circle cx="50" cy="50" r="12" fill="none" stroke="#C07830" stroke-width="0.7" opacity="0.45"/>
-
-  <!-- 8-petal center star -->
-  <g opacity="0.88">
-    <path d="M50,50 L49.4,44.5 Q50,41 50.6,44.5 Z" fill="#C07830" transform="rotate(0,50,50)"/>
-    <path d="M50,50 L49.4,44.5 Q50,41 50.6,44.5 Z" fill="#C07830" transform="rotate(45,50,50)"/>
-    <path d="M50,50 L49.4,44.5 Q50,41 50.6,44.5 Z" fill="#C07830" transform="rotate(90,50,50)"/>
-    <path d="M50,50 L49.4,44.5 Q50,41 50.6,44.5 Z" fill="#C07830" transform="rotate(135,50,50)"/>
-    <path d="M50,50 L49.4,44.5 Q50,41 50.6,44.5 Z" fill="#C07830" transform="rotate(180,50,50)"/>
-    <path d="M50,50 L49.4,44.5 Q50,41 50.6,44.5 Z" fill="#C07830" transform="rotate(225,50,50)"/>
-    <path d="M50,50 L49.4,44.5 Q50,41 50.6,44.5 Z" fill="#C07830" transform="rotate(270,50,50)"/>
-    <path d="M50,50 L49.4,44.5 Q50,41 50.6,44.5 Z" fill="#C07830" transform="rotate(315,50,50)"/>
-  </g>
-
-  <!-- Hub glow -->
-  <circle cx="50" cy="50" r="6" fill="#C07830" opacity="0.22"/>
-
-  <!-- Hub fill -->
-  <circle cx="50" cy="50" r="4.8" fill="#C07830" opacity="0.90"/>
-
-  <!-- Soft off-center highlight -->
-  <circle cx="49.2" cy="48.8" r="1.6" fill="white" opacity="0.48"/>
+  <!-- Center highlight -->
+  <circle cx="48.6" cy="48.6" r="2.8" fill="white" opacity="0.52"/>
 </svg>

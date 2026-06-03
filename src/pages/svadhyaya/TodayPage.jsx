@@ -54,6 +54,7 @@ import { supabase } from "../../lib/supabase";
 import { usePanchang } from "../../hooks/usePanchang";
 import { QUOTES, getAllQuotesAsync } from "../../lib/quotes";
 import { bustLakshyaSiddhisCache } from "../../hooks/useLakshyaSiddhis";
+import { useVacation } from "../../hooks/useVacation";
 import dayjs from "dayjs";
 import { ASHTA_SIDDHI_SCALE } from "../../components/shared/AreaComponents";
 
@@ -2007,26 +2008,24 @@ function TaskRow({
         <Box
           sx={{
             display: "flex",
-            alignItems: "center",
+            alignItems: "flex-start",
             gap: 0.75,
-            flexWrap: "nowrap",
+            flexWrap: "wrap",
           }}
         >
-          <Tooltip title={item.label} placement="top" disableInteractive>
-            <Typography
-              noWrap
-              sx={{
-                fontSize: 13,
-                fontWeight: 500,
-                color: checked ? (isDark ? "#5C5A54" : "#9C9A94") : textP,
-                textDecoration: checked ? "line-through" : "none",
-                lineHeight: 1.2,
-                display: "block",
-              }}
-            >
-              {item.label}
-            </Typography>
-          </Tooltip>
+          <Typography
+            sx={{
+              fontSize: 13,
+              fontWeight: 500,
+              color: checked ? (isDark ? "#5C5A54" : "#9C9A94") : textP,
+              textDecoration: checked ? "line-through" : "none",
+              lineHeight: 1.4,
+              display: "block",
+              wordBreak: "break-word",
+            }}
+          >
+            {item.label}
+          </Typography>
           {isAnsh && (
             <Box
               sx={{
@@ -2488,6 +2487,110 @@ function JapamLogDialog({ userId, goal, todayCount, allCount, open, onClose, onL
   );
 }
 
+// ── VACATION DIALOG ────────────────────────────────────────────────────────────
+const ALL_MINIMAL_OPTIONS = [
+  { id: "anushthanam",   label: "Anushthanam",        emoji: "🪔" },
+  { id: "saadhana",      label: "Naada Saadhana",      emoji: "🎵" },
+  { id: "walk",          label: "Vyaayamam",           emoji: "🏃" },
+  { id: "reading",       label: "Pustaka Pathanam",    emoji: "📖" },
+  { id: "eat_healthy",   label: "Eat healthy",         emoji: "🥗" },
+  { id: "sleep_healthy", label: "Wake up 5–6 am",      emoji: "🌅" },
+  { id: "saayam_sandhya",label: "Sāyam Sandhyā",       emoji: "🪔" },
+];
+
+function VacationDialog({ open, onClose, onSave, heroColor, isDark }) {
+  const today = dayjs().format("YYYY-MM-DD");
+  const [startDate, setStartDate] = useState(today);
+  const [endDate,   setEndDate]   = useState(today);
+  const [reason,    setReason]    = useState("");
+  const [minTasks,  setMinTasks]  = useState(["anushthanam"]);
+  const [saving,    setSaving]    = useState(false);
+
+  useEffect(() => { if (open) { setStartDate(today); setEndDate(today); setReason(""); setMinTasks(["anushthanam"]); } }, [open]);
+
+  const bg     = isDark ? "#1A1916" : "#FCFBF9";
+  const border = isDark ? "rgba(255,255,255,0.08)" : "#D1D0CF";
+  const textP  = isDark ? "#F0EDE8" : "#2C2C2C";
+  const textS  = isDark ? "#7A7874" : "#9C9A94";
+
+  const toggleMin = (id) =>
+    setMinTasks(p => p.includes(id) ? p.filter(x => x !== id) : [...p, id]);
+
+  const handle = async () => {
+    if (!startDate || !endDate) return;
+    setSaving(true);
+    await onSave({ start_date: startDate, end_date: endDate, reason, minimal_task_ids: minTasks });
+    setSaving(false);
+    onClose();
+  };
+
+  return (
+    <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth
+      PaperProps={{ sx: { borderRadius: 3, border: `1px solid ${border}`, background: bg, boxShadow: "none" } }}>
+      <DialogContent sx={{ p: "24px 28px !important" }}>
+        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2.5 }}>
+          <Box>
+            <Typography sx={{ fontSize: 9, letterSpacing: 2, textTransform: "uppercase", color: textS, fontWeight: 700, mb: 0.5 }}>Vacation / Travel</Typography>
+            <Typography sx={{ fontFamily: '"Lora","Fraunces",serif', fontSize: 17, fontWeight: 600, color: textP }}>Declare a vacation</Typography>
+          </Box>
+          <IconButton size="small" onClick={onClose} sx={{ color: textS }}><Close sx={{ fontSize: 16 }} /></IconButton>
+        </Box>
+
+        {/* Date range */}
+        <Box sx={{ display: "flex", gap: 1.5, mb: 2 }}>
+          <TextField size="small" fullWidth type="date" label="From"
+            value={startDate} onChange={e => setStartDate(e.target.value)}
+            InputLabelProps={{ shrink: true }} />
+          <TextField size="small" fullWidth type="date" label="To"
+            value={endDate} onChange={e => setEndDate(e.target.value)}
+            InputLabelProps={{ shrink: true }} />
+        </Box>
+
+        {/* Reason */}
+        <TextField size="small" fullWidth multiline minRows={2}
+          label="Reason / note (optional)"
+          placeholder="e.g. Family trip to Tirupati"
+          value={reason} onChange={e => setReason(e.target.value)}
+          sx={{ mb: 2.5 }} />
+
+        {/* Minimal tasks */}
+        <Typography sx={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.5, textTransform: "uppercase", color: heroColor, mb: 1 }}>
+          Minimum tasks to maintain
+        </Typography>
+        <Typography sx={{ fontSize: 11, color: textS, mb: 1.5, lineHeight: 1.5 }}>
+          These will be highlighted even during vacation. Everything else is optional.
+        </Typography>
+        <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.75, mb: 2.5 }}>
+          {ALL_MINIMAL_OPTIONS.map(opt => {
+            const on = minTasks.includes(opt.id);
+            return (
+              <Box key={opt.id} onClick={() => toggleMin(opt.id)} sx={{
+                px: 1.25, py: 0.6, borderRadius: 10, cursor: "pointer", fontSize: 12, fontWeight: 500,
+                border: `1.5px solid ${on ? heroColor + "80" : border}`,
+                background: on ? `${heroColor}14` : "transparent",
+                color: on ? heroColor : textS,
+                display: "flex", alignItems: "center", gap: 0.5,
+                transition: "all 0.15s",
+                "&:hover": { borderColor: heroColor + "60" },
+              }}>
+                <span>{opt.emoji}</span> {opt.label}
+              </Box>
+            );
+          })}
+        </Box>
+
+        <Button fullWidth variant="contained" onClick={handle} disabled={saving || !startDate || !endDate}
+          sx={{ py: 1.2, background: heroColor, "&:hover": { background: heroColor, opacity: 0.88 }, boxShadow: "none", borderRadius: 2, fontSize: 13, fontWeight: 600 }}>
+          {saving ? "Saving…" : "Declare vacation 🏖️"}
+        </Button>
+        <Typography sx={{ fontSize: 10.5, color: textS, mt: 1.5, textAlign: "center", lineHeight: 1.5 }}>
+          Past dates are supported — declare retroactively without streak penalty.
+        </Typography>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // ── MAIN PAGE ──────────────────────────────────────────────────────────────────
 export default function TodayPage() {
   const { user } = useAuth();
@@ -2538,6 +2641,8 @@ export default function TodayPage() {
   const [todayJapaLogs, setTodayJapaLogs] = useState(_todayCache?.todayJapaLogs ?? []);
   const [allJapaLogs, setAllJapaLogs] = useState(_todayCache?.allJapaLogs ?? []);
   const [japamLogGoal, setJapamLogGoal] = useState(null);
+  const [showVacationDlg, setShowVacationDlg] = useState(false);
+  const { vacations, activeVacation, declareVacation, deleteVacation } = useVacation();
   const isDark = mode === "dark";
   const { data: panchangam, loading: panchLoading } = usePanchang();
   const today = dayjs().format("YYYY-MM-DD");
@@ -3373,6 +3478,24 @@ export default function TodayPage() {
               </Box>
             </Tooltip>
           )}
+          <Tooltip title={activeVacation ? `On vacation · ${activeVacation.reason || ""}`.trim().replace(/·\s*$/, "") : "Declare a vacation period — streaks protected"}>
+            <Box
+              onClick={() => setShowVacationDlg(true)}
+              sx={{
+                display: "flex", alignItems: "center", gap: 0.5,
+                border: `1px solid ${activeVacation ? "#2C7BB640" : border}`,
+                borderRadius: 12, px: 1.25, py: 0.4,
+                background: activeVacation ? "rgba(44,123,182,0.10)" : cardBg,
+                cursor: "pointer",
+                "&:hover": { background: activeVacation ? "rgba(44,123,182,0.16)" : `${heroColor}08`, borderColor: `${heroColor}40` },
+              }}
+            >
+              <Typography sx={{ fontSize: 11 }}>🏖️</Typography>
+              <Typography sx={{ fontSize: 11, color: activeVacation ? "#2C7BB6" : textS, fontWeight: activeVacation ? 700 : 500 }}>
+                {activeVacation ? "Vacation" : "Vacation"}
+              </Typography>
+            </Box>
+          </Tooltip>
           <Box
             sx={{
               display: "flex",
@@ -3492,6 +3615,49 @@ export default function TodayPage() {
               }}
             >
               Unmark
+            </Button>
+          </Box>
+        </Fade>
+      )}
+
+      {/* ── VACATION BANNER ── */}
+      {activeVacation && (
+        <Fade in>
+          <Box
+            sx={{
+              mb: 2.5,
+              p: "14px 20px",
+              borderRadius: 3,
+              background: isDark ? "rgba(44,123,182,0.13)" : "rgba(44,123,182,0.08)",
+              border: "2px solid #2C7BB6",
+              display: "flex",
+              alignItems: "center",
+              gap: 1.5,
+              flexWrap: "wrap",
+            }}
+          >
+            <Typography sx={{ fontSize: 20, flexShrink: 0 }}>🏖️</Typography>
+            <Box sx={{ flex: 1, minWidth: 0 }}>
+              <Typography sx={{ fontSize: 14, fontWeight: 700, color: "#2C7BB6", letterSpacing: 0.3 }}>
+                Vacation mode · Streaks protected
+              </Typography>
+              <Typography sx={{ fontSize: 12, color: isDark ? "#2C7BB699" : "#2C7BB6cc", wordBreak: "break-word" }}>
+                {activeVacation.reason
+                  ? `${activeVacation.reason} · `
+                  : ""}
+                Until {dayjs(activeVacation.end_date).format("D MMM YYYY")}
+                {activeVacation.minimal_task_ids?.length
+                  ? ` · ${activeVacation.minimal_task_ids.length} minimal task${activeVacation.minimal_task_ids.length !== 1 ? "s" : ""} active`
+                  : ""}
+              </Typography>
+            </Box>
+            <Button
+              size="small"
+              variant="outlined"
+              onClick={() => deleteVacation(activeVacation.id)}
+              sx={{ fontSize: 12, fontWeight: 600, color: "#2C7BB6", borderColor: "#2C7BB6", borderRadius: 2, px: 2, flexShrink: 0, "&:hover": { background: "#2C7BB615" } }}
+            >
+              End
             </Button>
           </Box>
         </Fade>
@@ -3925,6 +4091,13 @@ export default function TodayPage() {
         open={showDisrupt}
         onClose={() => setShowDisrupt(false)}
         onSelect={changeDayType}
+        heroColor={heroColor}
+        isDark={isDark}
+      />
+      <VacationDialog
+        open={showVacationDlg}
+        onClose={() => setShowVacationDlg(false)}
+        onSave={declareVacation}
         heroColor={heroColor}
         isDark={isDark}
       />
@@ -4458,8 +4631,8 @@ export default function TodayPage() {
                   {done ? <CheckCircle sx={{ fontSize: 13, color: "#fff" }} /> : <RadioButtonUnchecked sx={{ fontSize: 13, color: isDark ? "#5C5A54" : "#C8C6C0" }} />}
                 </Box>
                 <Box sx={{ flex: 1, minWidth: 0 }}>
-                  <Typography noWrap sx={{ fontSize: 13, fontWeight: 500, color: done ? (isDark ? "#5C5A54" : "#9C9A94") : (isDark ? "#F0EDE8" : "#2C2C2C"),
-                    textDecoration: done ? "line-through" : "none" }}>
+                  <Typography sx={{ fontSize: 13, fontWeight: 500, color: done ? (isDark ? "#5C5A54" : "#9C9A94") : (isDark ? "#F0EDE8" : "#2C2C2C"),
+                    textDecoration: done ? "line-through" : "none", lineHeight: 1.4, wordBreak: "break-word" }}>
                     {item.emoji ? `${item.emoji} ` : ""}{item.label}
                   </Typography>
                   {item.duration_minutes && <Typography sx={{ fontSize: 10, color: isDark ? "#6C6A64" : "#B0AEA8", mt: 0.1 }}>{item.duration_minutes} min</Typography>}
@@ -4602,12 +4775,13 @@ export default function TodayPage() {
                   </Box>
                   <Box sx={{ flex: 1, minWidth: 0 }}>
                     <Typography
-                      noWrap
                       sx={{
                         fontSize: 13,
                         fontWeight: 500,
                         color: done ? (isDark ? "#5C5A54" : "#9C9A94") : (isDark ? "#F0EDE8" : "#2C2C2C"),
                         textDecoration: done ? "line-through" : "none",
+                        lineHeight: 1.4,
+                        wordBreak: "break-word",
                       }}
                     >
                       {item.emoji ? `${item.emoji} ` : ""}{item.label}
@@ -4757,7 +4931,7 @@ export default function TodayPage() {
                         }
                       </Box>
                       <Box sx={{ flex: 1, minWidth: 0 }}>
-                        <Typography noWrap sx={{ fontSize: 13, fontWeight: 500, color: done ? (isDark ? "#5C5A54" : "#9C9A94") : (isDark ? "#F0EDE8" : "#2C2C2C"), textDecoration: done ? "line-through" : "none" }}>
+                        <Typography sx={{ fontSize: 13, fontWeight: 500, color: done ? (isDark ? "#5C5A54" : "#9C9A94") : (isDark ? "#F0EDE8" : "#2C2C2C"), textDecoration: done ? "line-through" : "none", lineHeight: 1.4, wordBreak: "break-word" }}>
                           {item.emoji ? `${item.emoji} ` : ""}{item.label}
                         </Typography>
                         {item.duration_minutes && (
@@ -4813,7 +4987,7 @@ export default function TodayPage() {
                             }
                           </Box>
                           <Box sx={{ flex: 1, minWidth: 0 }}>
-                            <Typography noWrap sx={{ fontSize: 13, fontWeight: 500, color: isDark ? "#F0EDE8" : "#2C2C2C" }}>
+                            <Typography sx={{ fontSize: 13, fontWeight: 500, color: isDark ? "#F0EDE8" : "#2C2C2C", lineHeight: 1.4, wordBreak: "break-word" }}>
                               {goal.japa_name}
                             </Typography>
                             <Typography sx={{ fontSize: 10, color: isDark ? "#6C6A64" : "#B0AEA8", mt: 0.1 }}>

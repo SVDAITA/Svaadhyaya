@@ -619,11 +619,14 @@ export default function AppLayout() {
             elevation={0}
             sx={{
               background: isDark
-                ? `rgba(13, 12, 10, 0.82)`
-                : `rgba(248, 245, 239, 0.88)`,
+                ? `rgba(10, 9, 8, 0.92)`
+                : `rgba(252, 249, 244, 0.96)`,
               backdropFilter: "blur(16px)",
               WebkitBackdropFilter: "blur(16px)",
-              borderBottom: `1px solid ${dividerClr}`,
+              borderBottom: `1.5px solid ${isDark ? "rgba(255,255,255,0.10)" : "rgba(0,0,0,0.10)"}`,
+              boxShadow: isDark
+                ? "0 1px 12px rgba(0,0,0,0.4)"
+                : "0 1px 8px rgba(0,0,0,0.08)",
               zIndex: 1200,
             }}
           >
@@ -631,7 +634,14 @@ export default function AppLayout() {
               <IconButton
                 size="small"
                 onClick={() => setMobileOpen(true)}
-                sx={{ color: textP, mr: 1 }}
+                sx={{
+                  color: textP,
+                  mr: 1,
+                  border: `1px solid ${isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.12)"}`,
+                  borderRadius: 2,
+                  p: "6px",
+                  "&:hover": { background: `${heroColor}14`, borderColor: heroColor, color: heroColor },
+                }}
               >
                 <MenuIcon sx={{ fontSize: 24 }} />
               </IconButton>
