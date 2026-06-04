@@ -121,6 +121,52 @@ const ASSET_CLASSES = [
   "Other",
 ];
 
+const PAYMENT_METHODS = [
+  "UPI",
+  "Cash",
+  "Credit Card",
+  "Debit Card",
+  "Net Banking",
+  "Cheque",
+  "Auto-debit / ECS",
+  "Other",
+];
+
+const INCOME_SOURCES = [
+  "Salary",
+  "Freelance / Consulting",
+  "Business",
+  "Rental",
+  "Dividends / Interest",
+  "Capital Gains",
+  "Gift",
+  "Refund",
+  "Other",
+];
+
+const PM_EMOJI = {
+  "UPI": "📲",
+  "Cash": "💵",
+  "Credit Card": "💳",
+  "Debit Card": "🏦",
+  "Net Banking": "🖥️",
+  "Cheque": "📝",
+  "Auto-debit / ECS": "🔄",
+  "Other": "📦",
+};
+
+const IS_EMOJI = {
+  "Salary": "💼",
+  "Freelance / Consulting": "🧑‍💻",
+  "Business": "🏪",
+  "Rental": "🏠",
+  "Dividends / Interest": "📈",
+  "Capital Gains": "💹",
+  "Gift": "🎁",
+  "Refund": "↩️",
+  "Other": "💰",
+};
+
 const CAT_EMOJI = {
   Groceries: "🛒",
   "Dining out": "🍽️",
@@ -341,12 +387,15 @@ export default function FinanceOSPage({ embedded = false }) {
   const [loanErrors, setLoanErrors] = useState({});
   const [investErrors, setInvestErrors] = useState({});
   const [addOpen, setAddOpen] = useState(false);
+  const [breakdownView, setBreakdownView] = useState("category"); // "category" | "payment"
   const [form, setForm] = useState({
     isIncome: false,
     amount: "",
     category: "Groceries",
     description: "",
     type: "needed",
+    payment_method: "UPI",
+    income_source: "Salary",
     date: dayjs().format("YYYY-MM-DD"),
   });
 
@@ -520,11 +569,13 @@ export default function FinanceOSPage({ embedded = false }) {
       const { error } = await supabase.from("finance_logs").insert({
         user_id: user.id,
         amount: Number(form.amount),
-        category: form.isIncome ? "Salary/Income" : form.category,
+        category: form.isIncome ? (form.income_source || "Income") : form.category,
         description: form.description,
         type: form.isIncome ? null : form.type,
         date: form.date,
         income_flag: form.isIncome,
+        payment_method: form.isIncome ? null : form.payment_method,
+        income_source: form.isIncome ? form.income_source : null,
       });
       if (error) throw error;
       setForm({
@@ -533,6 +584,8 @@ export default function FinanceOSPage({ embedded = false }) {
         category: "Groceries",
         description: "",
         type: "needed",
+        payment_method: "UPI",
+        income_source: "Salary",
         date: dayjs().format("YYYY-MM-DD"),
       });
       setAddOpen(false);
@@ -861,6 +914,28 @@ export default function FinanceOSPage({ embedded = false }) {
         .sort((a, b) => b.total - a.total),
     [spends],
   );
+
+  const paymentMethodBreakdown = useMemo(() => {
+    const map = {};
+    spends.filter((s) => !s.income_flag).forEach((s) => {
+      const m = s.payment_method || "Other";
+      map[m] = (map[m] || 0) + Number(s.amount);
+    });
+    return Object.entries(map)
+      .map(([method, total]) => ({ method, total }))
+      .sort((a, b) => b.total - a.total);
+  }, [spends]);
+
+  const incomeSourceBreakdown = useMemo(() => {
+    const map = {};
+    spends.filter((s) => s.income_flag).forEach((s) => {
+      const src = s.income_source || s.category || "Other";
+      map[src] = (map[src] || 0) + Number(s.amount);
+    });
+    return Object.entries(map)
+      .map(([source, total]) => ({ source, total }))
+      .sort((a, b) => b.total - a.total);
+  }, [spends]);
 
   const portfolioPieData = useMemo(() => {
     const byClass = {};
@@ -1416,21 +1491,32 @@ export default function FinanceOSPage({ embedded = false }) {
                                       ? "rgba(255,255,255,0.05)"
                                       : "rgba(0,0,0,0.04)",
                                     fontSize: 16,
+                                    flexShrink: 0,
                                   }}
                                 >
                                   {s.income_flag
-                                    ? "💰"
+                                    ? (IS_EMOJI[s.income_source] || "💰")
                                     : CAT_EMOJI[s.category] || "📦"}
                                 </Avatar>
-                                <Typography
-                                  sx={{
-                                    fontSize: 13,
-                                    fontWeight: 500,
-                                    color: "text.primary",
-                                  }}
-                                >
-                                  {s.category}
-                                </Typography>
+                                <Box>
+                                  <Typography
+                                    sx={{
+                                      fontSize: 13,
+                                      fontWeight: 500,
+                                      color: "text.primary",
+                                      lineHeight: 1.3,
+                                    }}
+                                  >
+                                    {s.category}
+                                  </Typography>
+                                  {(s.payment_method || s.income_source) && (
+                                    <Typography sx={{ fontSize: 10, color: "text.disabled", lineHeight: 1.2 }}>
+                                      {s.income_flag
+                                        ? s.income_source
+                                        : `via ${s.payment_method}`}
+                                    </Typography>
+                                  )}
+                                </Box>
                               </Box>
                             </TableCell>
                             <TableCell
@@ -1478,79 +1564,126 @@ export default function FinanceOSPage({ embedded = false }) {
               </Card>
             </Grid>
 
-            {/* Category Breakdown */}
+            {/* Breakdown Card */}
             <Grid item xs={12} md={5}>
               <Card sx={cardSx}>
                 <CardContent sx={{ p: "24px !important" }}>
-                  <SectionLabel icon={<DonutLarge />}>By Category</SectionLabel>
-                  {categoryBreakdown.length === 0 ? (
-                    <Box sx={{ py: 6, textAlign: "center" }}>
-                      <Category
+                  {/* Toggle */}
+                  <Box sx={{ display: "flex", gap: 0.5, mb: 2.5, borderRadius: 2, overflow: "hidden", border: `1px solid ${isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)"}` }}>
+                    {[
+                      { key: "category", label: "By Category" },
+                      { key: "payment",  label: "By Payment" },
+                      { key: "income",   label: "By Income" },
+                    ].map(({ key, label }) => (
+                      <Box
+                        key={key}
+                        onClick={() => setBreakdownView(key)}
                         sx={{
-                          fontSize: 40,
-                          color: "text.disabled",
-                          opacity: 0.5,
-                          mb: 1,
+                          flex: 1, textAlign: "center", py: 0.9, fontSize: 11, fontWeight: 700,
+                          cursor: "pointer", letterSpacing: 0.3,
+                          background: breakdownView === key
+                            ? `linear-gradient(135deg, ${COLOR_HERO}, ${COLOR_DARK})`
+                            : "transparent",
+                          color: breakdownView === key ? "#fff" : "text.secondary",
+                          transition: "all 0.2s",
                         }}
-                      />
-                      <Typography sx={{ color: "text.disabled", fontSize: 13 }}>
-                        No expenses yet
-                      </Typography>
-                    </Box>
-                  ) : (
-                    categoryBreakdown.map(({ cat, total }) => (
-                      <Box key={cat} sx={{ mb: 2.5 }}>
-                        <Box
-                          sx={{
-                            display: "flex",
-                            justifyContent: "space-between",
-                            mb: 0.8,
-                          }}
-                        >
-                          <Typography
-                            sx={{
-                              fontSize: 13,
-                              color: "text.secondary",
-                              display: "flex",
-                              alignItems: "center",
-                              gap: 1,
-                              fontWeight: 500,
-                            }}
-                          >
-                            <span style={{ fontSize: 16 }}>
-                              {CAT_EMOJI[cat] || "📦"}
-                            </span>
-                            {cat}
-                          </Typography>
-                          <Typography
-                            sx={{
-                              fontSize: 14,
-                              fontWeight: 600,
-                              color: "text.primary",
-                            }}
-                          >
-                            ₹{fmt(total)}
-                          </Typography>
-                        </Box>
-                        <LinearProgress
-                          variant="determinate"
-                          value={
-                            totals.spend > 0 ? (total / totals.spend) * 100 : 0
-                          }
-                          sx={{
-                            height: 6,
-                            borderRadius: 4,
-                            bgcolor: isDark
-                              ? "rgba(255,255,255,0.05)"
-                              : "rgba(0,0,0,0.05)",
-                            "& .MuiLinearProgress-bar": {
-                              background: `linear-gradient(90deg, ${COLOR_HERO}, ${AMBER})`,
-                              borderRadius: 4,
-                            },
-                          }}
-                        />
+                      >
+                        {label}
                       </Box>
-                    ))
+                    ))}
+                  </Box>
+
+                  {/* By Category */}
+                  {breakdownView === "category" && (
+                    <>
+                      <SectionLabel icon={<DonutLarge />}>Expenses by Category</SectionLabel>
+                      {categoryBreakdown.length === 0 ? (
+                        <Box sx={{ py: 5, textAlign: "center" }}>
+                          <Typography sx={{ color: "text.disabled", fontSize: 13 }}>No expenses yet</Typography>
+                        </Box>
+                      ) : (
+                        categoryBreakdown.map(({ cat, total }) => (
+                          <Box key={cat} sx={{ mb: 2.5 }}>
+                            <Box sx={{ display: "flex", justifyContent: "space-between", mb: 0.8 }}>
+                              <Typography sx={{ fontSize: 13, color: "text.secondary", display: "flex", alignItems: "center", gap: 1, fontWeight: 500 }}>
+                                <span style={{ fontSize: 16 }}>{CAT_EMOJI[cat] || "📦"}</span>{cat}
+                              </Typography>
+                              <Typography sx={{ fontSize: 14, fontWeight: 600, color: "text.primary" }}>
+                                ₹{fmt(total)}
+                              </Typography>
+                            </Box>
+                            <LinearProgress variant="determinate" value={totals.spend > 0 ? (total / totals.spend) * 100 : 0}
+                              sx={{ height: 6, borderRadius: 4, bgcolor: isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)",
+                                "& .MuiLinearProgress-bar": { background: `linear-gradient(90deg, ${COLOR_HERO}, ${AMBER})`, borderRadius: 4 } }}
+                            />
+                          </Box>
+                        ))
+                      )}
+                    </>
+                  )}
+
+                  {/* By Payment Method */}
+                  {breakdownView === "payment" && (
+                    <>
+                      <SectionLabel icon={<CreditCard />}>Expenses by Payment Method</SectionLabel>
+                      {paymentMethodBreakdown.length === 0 ? (
+                        <Box sx={{ py: 5, textAlign: "center" }}>
+                          <Typography sx={{ color: "text.disabled", fontSize: 13 }}>No expenses yet</Typography>
+                        </Box>
+                      ) : (
+                        paymentMethodBreakdown.map(({ method, total }) => (
+                          <Box key={method} sx={{ mb: 2.5 }}>
+                            <Box sx={{ display: "flex", justifyContent: "space-between", mb: 0.8 }}>
+                              <Typography sx={{ fontSize: 13, color: "text.secondary", display: "flex", alignItems: "center", gap: 1, fontWeight: 500 }}>
+                                <span style={{ fontSize: 16 }}>{PM_EMOJI[method] || "📦"}</span>{method}
+                              </Typography>
+                              <Box sx={{ textAlign: "right" }}>
+                                <Typography sx={{ fontSize: 14, fontWeight: 600, color: "text.primary" }}>₹{fmt(total)}</Typography>
+                                <Typography sx={{ fontSize: 10, color: "text.disabled" }}>
+                                  {totals.spend > 0 ? Math.round((total / totals.spend) * 100) : 0}%
+                                </Typography>
+                              </Box>
+                            </Box>
+                            <LinearProgress variant="determinate" value={totals.spend > 0 ? (total / totals.spend) * 100 : 0}
+                              sx={{ height: 6, borderRadius: 4, bgcolor: isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)",
+                                "& .MuiLinearProgress-bar": { background: `linear-gradient(90deg, ${BLUE}, ${COLOR_HERO})`, borderRadius: 4 } }}
+                            />
+                          </Box>
+                        ))
+                      )}
+                    </>
+                  )}
+
+                  {/* By Income Source */}
+                  {breakdownView === "income" && (
+                    <>
+                      <SectionLabel icon={<ArrowUpward />}>Income by Source</SectionLabel>
+                      {incomeSourceBreakdown.length === 0 ? (
+                        <Box sx={{ py: 5, textAlign: "center" }}>
+                          <Typography sx={{ color: "text.disabled", fontSize: 13 }}>No income logged yet</Typography>
+                        </Box>
+                      ) : (
+                        incomeSourceBreakdown.map(({ source, total }) => (
+                          <Box key={source} sx={{ mb: 2.5 }}>
+                            <Box sx={{ display: "flex", justifyContent: "space-between", mb: 0.8 }}>
+                              <Typography sx={{ fontSize: 13, color: "text.secondary", display: "flex", alignItems: "center", gap: 1, fontWeight: 500 }}>
+                                <span style={{ fontSize: 16 }}>{IS_EMOJI[source] || "💰"}</span>{source}
+                              </Typography>
+                              <Box sx={{ textAlign: "right" }}>
+                                <Typography sx={{ fontSize: 14, fontWeight: 600, color: GREEN }}>₹{fmt(total)}</Typography>
+                                <Typography sx={{ fontSize: 10, color: "text.disabled" }}>
+                                  {totals.income > 0 ? Math.round((total / totals.income) * 100) : 0}%
+                                </Typography>
+                              </Box>
+                            </Box>
+                            <LinearProgress variant="determinate" value={totals.income > 0 ? (total / totals.income) * 100 : 0}
+                              sx={{ height: 6, borderRadius: 4, bgcolor: isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)",
+                                "& .MuiLinearProgress-bar": { background: `linear-gradient(90deg, ${alpha(GREEN, 0.7)}, ${GREEN})`, borderRadius: 4 } }}
+                            />
+                          </Box>
+                        ))
+                      )}
+                    </>
                   )}
                 </CardContent>
               </Card>
@@ -2649,6 +2782,8 @@ export default function FinanceOSPage({ embedded = false }) {
             category: "Groceries",
             description: "",
             type: "needed",
+            payment_method: "UPI",
+            income_source: "Salary",
             date: dayjs().format("YYYY-MM-DD"),
           });
         }}
@@ -2713,7 +2848,24 @@ export default function FinanceOSPage({ embedded = false }) {
               helperText={spendErrors.amount}
               sx={inputSx}
             />
-            {!form.isIncome && (
+            {form.isIncome ? (
+              <FormControl fullWidth sx={inputSx}>
+                <InputLabel>Income Source</InputLabel>
+                <Select
+                  value={form.income_source}
+                  onChange={(e) => setForm((p) => ({ ...p, income_source: e.target.value }))}
+                  label="Income Source"
+                >
+                  {INCOME_SOURCES.map((s) => (
+                    <MenuItem key={s} value={s}>
+                      <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+                        <span>{IS_EMOJI[s] || "💰"}</span>{s}
+                      </Box>
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            ) : (
               <>
                 <FormControl fullWidth sx={inputSx}>
                   <InputLabel>Category</InputLabel>
@@ -2726,15 +2878,8 @@ export default function FinanceOSPage({ embedded = false }) {
                   >
                     {SPEND_CATS.map((c) => (
                       <MenuItem key={c} value={c}>
-                        <Box
-                          sx={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 1.5,
-                          }}
-                        >
-                          <span>{CAT_EMOJI[c] || "📦"}</span>
-                          {c}
+                        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+                          <span>{CAT_EMOJI[c] || "📦"}</span>{c}
                         </Box>
                       </MenuItem>
                     ))}
@@ -2753,11 +2898,27 @@ export default function FinanceOSPage({ embedded = false }) {
                     <MenuItem value="wanted">💸 Desire / Want</MenuItem>
                   </Select>
                 </FormControl>
+                <FormControl fullWidth sx={inputSx}>
+                  <InputLabel>Paid via</InputLabel>
+                  <Select
+                    value={form.payment_method}
+                    onChange={(e) => setForm((p) => ({ ...p, payment_method: e.target.value }))}
+                    label="Paid via"
+                  >
+                    {PAYMENT_METHODS.map((m) => (
+                      <MenuItem key={m} value={m}>
+                        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+                          <span>{PM_EMOJI[m] || "📦"}</span>{m}
+                        </Box>
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
               </>
             )}
             <TextField
               fullWidth
-              label={form.isIncome ? "Source" : "Description"}
+              label="Notes (optional)"
               sx={inputSx}
               value={form.description}
               onChange={(e) =>
