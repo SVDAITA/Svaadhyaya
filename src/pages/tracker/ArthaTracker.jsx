@@ -54,6 +54,7 @@ import { keyframes } from "@mui/system";
 import {
   Add,
   Delete,
+  Edit as EditIcon,
   CloudUpload,
   AccountBalance,
   TrendingUp,
@@ -387,7 +388,20 @@ export default function FinanceOSPage({ embedded = false }) {
   const [loanErrors, setLoanErrors] = useState({});
   const [investErrors, setInvestErrors] = useState({});
   const [addOpen, setAddOpen] = useState(false);
-  const [breakdownView, setBreakdownView] = useState("category"); // "category" | "payment"
+  const [editOpen, setEditOpen] = useState(false);
+  const [editId, setEditId] = useState(null);
+  const [editForm, setEditForm] = useState({
+    isIncome: false,
+    amount: "",
+    category: "Groceries",
+    description: "",
+    type: "needed",
+    payment_method: "UPI",
+    income_source: "Salary",
+    date: dayjs().format("YYYY-MM-DD"),
+  });
+  const [editErrors, setEditErrors] = useState({});
+  const [breakdownView, setBreakdownView] = useState("category"); // "category" | "payment" | "income"
   const [form, setForm] = useState({
     isIncome: false,
     amount: "",
@@ -556,8 +570,33 @@ export default function FinanceOSPage({ embedded = false }) {
 
   // ── ACTIONS (Omitted for brevity, kept exactly the same logically) ───────
   // Reusing all logic cleanly below.
+  // Returns true if error looks like a schema-cache / unknown-column rejection
+  const isSchemaError = (err) =>
+    !err ? false : (
+      err.message?.includes("payment_method") ||
+      err.message?.includes("income_source") ||
+      err.message?.includes("No API key") ||
+      err.message?.includes("schema cache") ||
+      err.code === "PGRST204"
+    );
+
+  const buildBasePayload = (f, uid) => ({
+    user_id: uid,
+    amount: Number(f.amount),
+    category: f.isIncome ? (f.income_source || "Income") : f.category,
+    description: f.description || null,
+    type: f.isIncome ? null : f.type,
+    date: f.date,
+    income_flag: f.isIncome,
+  });
+
+  const buildFullPayload = (f, uid) => ({
+    ...buildBasePayload(f, uid),
+    ...(!f.isIncome && f.payment_method ? { payment_method: f.payment_method } : {}),
+    ...(f.isIncome  && f.income_source  ? { income_source:  f.income_source  } : {}),
+  });
+
   const addSpend = async () => {
-    /* Logic Preserved */
     const errs = {};
     if (!form.amount || isNaN(Number(form.amount)) || Number(form.amount) <= 0)
       errs.amount = "Enter a valid amount greater than 0";
@@ -566,30 +605,67 @@ export default function FinanceOSPage({ embedded = false }) {
     if (!user) return;
     setSaving(true);
     try {
-      const { error } = await supabase.from("finance_logs").insert({
-        user_id: user.id,
-        amount: Number(form.amount),
-        category: form.isIncome ? (form.income_source || "Income") : form.category,
-        description: form.description,
-        type: form.isIncome ? null : form.type,
-        date: form.date,
-        income_flag: form.isIncome,
-        payment_method: form.isIncome ? null : form.payment_method,
-        income_source: form.isIncome ? form.income_source : null,
-      });
+      let { error } = await supabase.from("finance_logs").insert(buildFullPayload(form, user.id));
+      // Schema cache hasn't refreshed yet — retry without the new columns
+      if (isSchemaError(error)) {
+        ({ error } = await supabase.from("finance_logs").insert(buildBasePayload(form, user.id)));
+      }
       if (error) throw error;
       setForm({
-        isIncome: false,
-        amount: "",
-        category: "Groceries",
-        description: "",
-        type: "needed",
-        payment_method: "UPI",
-        income_source: "Salary",
+        isIncome: false, amount: "", category: "Groceries", description: "",
+        type: "needed", payment_method: "UPI", income_source: "Salary",
         date: dayjs().format("YYYY-MM-DD"),
       });
       setAddOpen(false);
       showToast("Activity logged ✓");
+      await loadDashboardData();
+    } catch (err) {
+      showToast(err.message, "error");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const openEdit = (s) => {
+    setEditId(s.id);
+    setEditErrors({});
+    setEditForm({
+      isIncome: !!s.income_flag,
+      amount: String(s.amount || ""),
+      category: s.category || "Groceries",
+      description: s.description || "",
+      type: s.type || "needed",
+      payment_method: s.payment_method || "UPI",
+      income_source: s.income_source || (s.income_flag ? (s.category || "Salary") : "Salary"),
+      date: s.date || dayjs().format("YYYY-MM-DD"),
+    });
+    setEditOpen(true);
+  };
+
+  const updateSpend = async () => {
+    const errs = {};
+    if (!editForm.amount || isNaN(Number(editForm.amount)) || Number(editForm.amount) <= 0)
+      errs.amount = "Enter a valid amount greater than 0";
+    if (Object.keys(errs).length) { setEditErrors(errs); return; }
+    setEditErrors({});
+    if (!user || !editId) return;
+    setSaving(true);
+    try {
+      const base = buildBasePayload(editForm, user.id);
+      delete base.user_id; // UPDATE doesn't need user_id
+      const full = {
+        ...base,
+        ...(!editForm.isIncome && editForm.payment_method ? { payment_method: editForm.payment_method } : {}),
+        ...(editForm.isIncome  && editForm.income_source  ? { income_source:  editForm.income_source  } : {}),
+      };
+      let { error } = await supabase.from("finance_logs").update(full).eq("id", editId);
+      if (isSchemaError(error)) {
+        ({ error } = await supabase.from("finance_logs").update(base).eq("id", editId));
+      }
+      if (error) throw error;
+      setEditOpen(false);
+      setEditId(null);
+      showToast("Entry updated ✓");
       await loadDashboardData();
     } catch (err) {
       showToast(err.message, "error");
@@ -1530,19 +1606,26 @@ export default function FinanceOSPage({ embedded = false }) {
                             >
                               {s.income_flag ? "+" : "−"}₹{fmt(s.amount)}
                             </TableCell>
-                            <TableCell>
+                            <TableCell sx={{ whiteSpace: "nowrap" }}>
+                              <IconButton
+                                size="small"
+                                onClick={() => openEdit(s)}
+                                sx={{
+                                  color: "text.disabled",
+                                  "&:hover": { color: COLOR_HERO, bgcolor: alpha(COLOR_HERO, 0.1) },
+                                }}
+                              >
+                                <EditIcon sx={{ fontSize: 16 }} />
+                              </IconButton>
                               <IconButton
                                 size="small"
                                 onClick={() => deleteSpend(s.id, s.category || "this entry")}
                                 sx={{
                                   color: "text.disabled",
-                                  "&:hover": {
-                                    color: RED,
-                                    bgcolor: alpha(RED, 0.1),
-                                  },
+                                  "&:hover": { color: RED, bgcolor: alpha(RED, 0.1) },
                                 }}
                               >
-                                <Delete sx={{ fontSize: 18 }} />
+                                <Delete sx={{ fontSize: 16 }} />
                               </IconButton>
                             </TableCell>
                           </TableRow>
@@ -3359,6 +3442,105 @@ export default function FinanceOSPage({ embedded = false }) {
             ) : (
               "Set Focus"
             )}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* ── Edit Transaction Dialog ── */}
+      <Dialog
+        open={editOpen}
+        onClose={() => { setEditOpen(false); setEditId(null); setEditErrors({}); }}
+        maxWidth="xs"
+        fullWidth
+        PaperProps={{ sx: dialogPaperSx }}
+      >
+        <DialogTitle sx={{ fontFamily: '"DM Serif Display",serif', fontSize: 24, pt: 3 }}>
+          Edit {editForm.isIncome ? "Income" : "Expense"}
+        </DialogTitle>
+        <DialogContent>
+          <Stack spacing={3} sx={{ mt: 1 }}>
+            {/* Income / Expense toggle */}
+            <Box sx={{ display: "flex", borderRadius: 2, overflow: "hidden", border: `1px solid ${isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.1)"}` }}>
+              {[{ label: "Expense", val: false, color: RED }, { label: "Income", val: true, color: GREEN }].map(({ label, val, color }) => (
+                <Button key={label} fullWidth onClick={() => setEditForm((p) => ({ ...p, isIncome: val }))}
+                  sx={{ borderRadius: 0, py: 1.5, fontWeight: 700, fontSize: 14,
+                    background: editForm.isIncome === val ? alpha(color, 0.15) : "transparent",
+                    color: editForm.isIncome === val ? color : "text.secondary",
+                    borderBottom: editForm.isIncome === val ? `3px solid ${color}` : "3px solid transparent",
+                  }}>
+                  {label}
+                </Button>
+              ))}
+            </Box>
+
+            <TextField fullWidth label="Amount (₹)" type="number" autoFocus
+              value={editForm.amount}
+              onChange={(e) => { setEditForm((p) => ({ ...p, amount: e.target.value })); if (editErrors.amount) setEditErrors((p) => ({ ...p, amount: undefined })); }}
+              error={!!editErrors.amount} helperText={editErrors.amount} sx={inputSx}
+            />
+
+            {editForm.isIncome ? (
+              <FormControl fullWidth sx={inputSx}>
+                <InputLabel>Income Source</InputLabel>
+                <Select value={editForm.income_source} onChange={(e) => setEditForm((p) => ({ ...p, income_source: e.target.value }))} label="Income Source">
+                  {INCOME_SOURCES.map((s) => (
+                    <MenuItem key={s} value={s}>
+                      <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}><span>{IS_EMOJI[s] || "💰"}</span>{s}</Box>
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            ) : (
+              <>
+                <FormControl fullWidth sx={inputSx}>
+                  <InputLabel>Category</InputLabel>
+                  <Select value={editForm.category} onChange={(e) => setEditForm((p) => ({ ...p, category: e.target.value }))} label="Category">
+                    {SPEND_CATS.map((c) => (
+                      <MenuItem key={c} value={c}>
+                        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}><span>{CAT_EMOJI[c] || "📦"}</span>{c}</Box>
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+                <FormControl fullWidth sx={inputSx}>
+                  <InputLabel>Nature of Spend</InputLabel>
+                  <Select value={editForm.type} onChange={(e) => setEditForm((p) => ({ ...p, type: e.target.value }))} label="Nature of Spend">
+                    <MenuItem value="needed">✅ Essential Need</MenuItem>
+                    <MenuItem value="wanted">💸 Desire / Want</MenuItem>
+                  </Select>
+                </FormControl>
+                <FormControl fullWidth sx={inputSx}>
+                  <InputLabel>Paid via</InputLabel>
+                  <Select value={editForm.payment_method} onChange={(e) => setEditForm((p) => ({ ...p, payment_method: e.target.value }))} label="Paid via">
+                    {PAYMENT_METHODS.map((m) => (
+                      <MenuItem key={m} value={m}>
+                        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}><span>{PM_EMOJI[m] || "📦"}</span>{m}</Box>
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </>
+            )}
+
+            <TextField fullWidth label="Notes (optional)" sx={inputSx}
+              value={editForm.description}
+              onChange={(e) => setEditForm((p) => ({ ...p, description: e.target.value }))}
+            />
+            <TextField fullWidth type="date" label="Date" sx={inputSx}
+              value={editForm.date}
+              onChange={(e) => setEditForm((p) => ({ ...p, date: e.target.value }))}
+              InputLabelProps={{ shrink: true }}
+            />
+          </Stack>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 3, gap: 1 }}>
+          <Button onClick={() => { setEditOpen(false); setEditId(null); setEditErrors({}); }}
+            sx={{ color: "text.secondary", borderRadius: 2 }} disabled={saving}>
+            Cancel
+          </Button>
+          <Button variant="contained" onClick={updateSpend} disabled={saving}
+            sx={{ background: `linear-gradient(135deg, ${COLOR_HERO}, ${COLOR_DARK})`, borderRadius: 2, fontWeight: 700, px: 4 }}>
+            {saving ? <CircularProgress size={22} sx={{ color: "#fff" }} /> : "Save Changes"}
           </Button>
         </DialogActions>
       </Dialog>
