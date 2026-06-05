@@ -2671,6 +2671,30 @@ export default function TodayPage() {
   const isMorning = hour >= 5 && hour < 11;
   const isEvening = hour >= 21;
 
+  // ── Auto-close yesterday if the user left the day open ────────────────────
+  // Runs once after the initial load. Silently writes last_close to yesterday
+  // if there was any habit activity but no manual close.
+  useEffect(() => {
+    if (!user || loading) return;
+    (async () => {
+      const yd = dayjs().subtract(1, "day").format("YYYY-MM-DD");
+      const { data } = await supabase
+        .from("days")
+        .select("id, last_close, habits")
+        .eq("user_id", user.id)
+        .eq("day_date", yd)
+        .maybeSingle();
+      if (!data || data.last_close) return; // already closed or no record
+      const hasActivity =
+        data.habits && Object.values(data.habits).some(Boolean);
+      if (!hasActivity) return; // nothing was done — don't touch it
+      await supabase
+        .from("days")
+        .update({ last_close: new Date().toISOString() })
+        .eq("id", data.id);
+    })();
+  }, [user, loading]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const [habits, setHabits] = useState(_todayCache?.habits ?? {});
   const [habitsData, setHabitsData] = useState(_todayCache?.habitsData ?? {});
   const [dayType, setDayType] = useState(_todayCache?.dayType ?? "working");
@@ -2704,6 +2728,7 @@ export default function TodayPage() {
   const [undoSnack, setUndoSnack] = useState(false);
   const [errSnack, setErrSnack] = useState(false);
   const [dismissMorning, setDismissMorning] = useState(false);
+  const [dismissNudge, setDismissNudge] = useState(false);
   const [deleteTaskConfirm, setDeleteTaskConfirm] = useState({ open: false, section: null, id: null, label: "" });
 
   // Pick a stable daily quote (changes once per day) — loaded async from DB
@@ -3834,6 +3859,71 @@ export default function TodayPage() {
           </Typography>
         </Box>
       )}
+
+      {/* ── Evening nudge banner ── */}
+      {isEvening && !dayClosed && !dismissNudge && (() => {
+        const urgency =
+          hour >= 23 ? "critical" :
+          hour >= 22 ? "high" :
+          "medium";
+        const bannerColor =
+          urgency === "critical" ? "#C53030" :
+          urgency === "high"     ? "#C07830" :
+          "#B45309";
+        const msg =
+          urgency === "critical"
+            ? "Midnight is near — close your day before it slips away"
+            : urgency === "high"
+            ? "One hour left — log your wins and close the day"
+            : "Evening check-in — a few minutes to reflect before you rest";
+        const sub =
+          urgency === "critical"
+            ? "Your streaks are safe. Closing preserves your wins."
+            : "Your habits are tracked. Close the day to record your wins →";
+        return (
+          <Box
+            sx={{
+              mb: 2,
+              p: 1.5,
+              borderRadius: 2,
+              background: isDark ? `${bannerColor}12` : `${bannerColor}0E`,
+              border: `1px solid ${bannerColor}35`,
+              display: "flex",
+              alignItems: "center",
+              gap: 1.5,
+            }}
+          >
+            <Nightlight sx={{ fontSize: 17, color: bannerColor, flexShrink: 0 }} />
+            <Box sx={{ flex: 1 }}>
+              <Typography sx={{ fontSize: 13, fontWeight: 700, color: bannerColor, lineHeight: 1.3 }}>
+                {msg}
+              </Typography>
+              <Typography sx={{ fontSize: 11, color: isDark ? "#9C9A94" : "#6B6B6B", mt: 0.25 }}>
+                {sub}
+              </Typography>
+            </Box>
+            <Button
+              size="small"
+              onClick={() => setShowSunset(true)}
+              sx={{
+                fontSize: 11, fontWeight: 700, textTransform: "none",
+                color: bannerColor, background: `${bannerColor}15`,
+                border: `1px solid ${bannerColor}40`,
+                borderRadius: 1.5, px: 1.5, py: 0.5, flexShrink: 0,
+                "&:hover": { background: `${bannerColor}25` },
+              }}
+            >
+              Close day
+            </Button>
+            <Typography
+              onClick={() => setDismissNudge(true)}
+              sx={{ fontSize: 11, color: "#9C9A94", cursor: "pointer", flexShrink: 0, "&:hover": { color: textP } }}
+            >
+              Later
+            </Typography>
+          </Box>
+        );
+      })()}
 
       <TodayLakshyaBanner
         habits={habits}
