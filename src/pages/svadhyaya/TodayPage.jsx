@@ -2683,30 +2683,6 @@ export default function TodayPage() {
     ? "Your streaks are safe. Closing preserves your wins."
     : "Your habits are tracked. Close the day to record your wins →";
 
-  // ── Auto-close yesterday if the user left the day open ────────────────────
-  // Runs once after the initial load. Silently writes last_close to yesterday
-  // if there was any habit activity but no manual close.
-  useEffect(() => {
-    if (!user || loading) return;
-    (async () => {
-      const yd = dayjs().subtract(1, "day").format("YYYY-MM-DD");
-      const { data } = await supabase
-        .from("days")
-        .select("id, last_close, habits")
-        .eq("user_id", user.id)
-        .eq("day_date", yd)
-        .maybeSingle();
-      if (!data || data.last_close) return; // already closed or no record
-      const hasActivity =
-        data.habits && Object.values(data.habits).some(Boolean);
-      if (!hasActivity) return; // nothing was done — don't touch it
-      await supabase
-        .from("days")
-        .update({ last_close: new Date().toISOString() })
-        .eq("id", data.id);
-    })();
-  }, [user, loading]); // eslint-disable-line react-hooks/exhaustive-deps
-
   const [habits, setHabits] = useState(_todayCache?.habits ?? {});
   const [habitsData, setHabitsData] = useState(_todayCache?.habitsData ?? {});
   const [dayType, setDayType] = useState(_todayCache?.dayType ?? "working");
@@ -2752,6 +2728,29 @@ export default function TodayPage() {
       setDailyQuote(quotes[((dayIndex % quotes.length) + quotes.length) % quotes.length]);
     });
   }, []);
+
+  // ── Auto-close yesterday ──────────────────────────────────────────────────
+  // Placed here intentionally — AFTER all useState declarations so that
+  // `loading` is not in TDZ when the dependency array is evaluated.
+  useEffect(() => {
+    if (!user || loading) return;
+    (async () => {
+      const yd = dayjs().subtract(1, "day").format("YYYY-MM-DD");
+      const { data } = await supabase
+        .from("days")
+        .select("id, last_close, habits")
+        .eq("user_id", user.id)
+        .eq("day_date", yd)
+        .maybeSingle();
+      if (!data || data.last_close) return;
+      const hasActivity = data.habits && Object.values(data.habits).some(Boolean);
+      if (!hasActivity) return;
+      await supabase
+        .from("days")
+        .update({ last_close: new Date().toISOString() })
+        .eq("id", data.id);
+    })();
+  }, [user, loading]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const isWeekend = isWeekendDay();
   const isDisrupted = dayType === "disrupted";
