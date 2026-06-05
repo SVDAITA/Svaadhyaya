@@ -2671,6 +2671,18 @@ export default function TodayPage() {
   const isMorning = hour >= 5 && hour < 11;
   const isEvening = hour >= 21;
 
+  // Evening nudge — computed here to avoid IIFE-in-JSX bundler issues
+  const nudgeUrgency  = hour >= 23 ? "critical" : hour >= 22 ? "high" : "medium";
+  const nudgeColor    = nudgeUrgency === "critical" ? "#C53030" : nudgeUrgency === "high" ? "#C07830" : "#B45309";
+  const nudgeMsg      = nudgeUrgency === "critical"
+    ? "Midnight is near — close your day before it slips away"
+    : nudgeUrgency === "high"
+    ? "One hour left — log your wins and close the day"
+    : "Evening check-in — a few minutes to reflect before you rest";
+  const nudgeSub      = nudgeUrgency === "critical"
+    ? "Your streaks are safe. Closing preserves your wins."
+    : "Your habits are tracked. Close the day to record your wins →";
+
   // ── Auto-close yesterday if the user left the day open ────────────────────
   // Runs once after the initial load. Silently writes last_close to yesterday
   // if there was any habit activity but no manual close.
@@ -3861,69 +3873,45 @@ export default function TodayPage() {
       )}
 
       {/* ── Evening nudge banner ── */}
-      {isEvening && !dayClosed && !dismissNudge && (() => {
-        const urgency =
-          hour >= 23 ? "critical" :
-          hour >= 22 ? "high" :
-          "medium";
-        const bannerColor =
-          urgency === "critical" ? "#C53030" :
-          urgency === "high"     ? "#C07830" :
-          "#B45309";
-        const msg =
-          urgency === "critical"
-            ? "Midnight is near — close your day before it slips away"
-            : urgency === "high"
-            ? "One hour left — log your wins and close the day"
-            : "Evening check-in — a few minutes to reflect before you rest";
-        const sub =
-          urgency === "critical"
-            ? "Your streaks are safe. Closing preserves your wins."
-            : "Your habits are tracked. Close the day to record your wins →";
-        return (
-          <Box
-            sx={{
-              mb: 2,
-              p: 1.5,
-              borderRadius: 2,
-              background: isDark ? `${bannerColor}12` : `${bannerColor}0E`,
-              border: `1px solid ${bannerColor}35`,
-              display: "flex",
-              alignItems: "center",
-              gap: 1.5,
-            }}
-          >
-            <Nightlight sx={{ fontSize: 17, color: bannerColor, flexShrink: 0 }} />
-            <Box sx={{ flex: 1 }}>
-              <Typography sx={{ fontSize: 13, fontWeight: 700, color: bannerColor, lineHeight: 1.3 }}>
-                {msg}
-              </Typography>
-              <Typography sx={{ fontSize: 11, color: isDark ? "#9C9A94" : "#6B6B6B", mt: 0.25 }}>
-                {sub}
-              </Typography>
-            </Box>
-            <Button
-              size="small"
-              onClick={() => setShowSunset(true)}
-              sx={{
-                fontSize: 11, fontWeight: 700, textTransform: "none",
-                color: bannerColor, background: `${bannerColor}15`,
-                border: `1px solid ${bannerColor}40`,
-                borderRadius: 1.5, px: 1.5, py: 0.5, flexShrink: 0,
-                "&:hover": { background: `${bannerColor}25` },
-              }}
-            >
-              Close day
-            </Button>
-            <Typography
-              onClick={() => setDismissNudge(true)}
-              sx={{ fontSize: 11, color: "#9C9A94", cursor: "pointer", flexShrink: 0, "&:hover": { color: textP } }}
-            >
-              Later
+      {isEvening && !dayClosed && !dismissNudge && (
+        <Box
+          sx={{
+            mb: 2, p: 1.5, borderRadius: 2,
+            background: isDark ? `${nudgeColor}12` : `${nudgeColor}0E`,
+            border: `1px solid ${nudgeColor}35`,
+            display: "flex", alignItems: "center", gap: 1.5,
+          }}
+        >
+          <Nightlight sx={{ fontSize: 17, color: nudgeColor, flexShrink: 0 }} />
+          <Box sx={{ flex: 1 }}>
+            <Typography sx={{ fontSize: 13, fontWeight: 700, color: nudgeColor, lineHeight: 1.3 }}>
+              {nudgeMsg}
+            </Typography>
+            <Typography sx={{ fontSize: 11, color: isDark ? "#9C9A94" : "#6B6B6B", mt: 0.25 }}>
+              {nudgeSub}
             </Typography>
           </Box>
-        );
-      })()}
+          <Button
+            size="small"
+            onClick={() => setShowSunset(true)}
+            sx={{
+              fontSize: 11, fontWeight: 700, textTransform: "none",
+              color: nudgeColor, background: `${nudgeColor}15`,
+              border: `1px solid ${nudgeColor}40`,
+              borderRadius: 1.5, px: 1.5, py: 0.5, flexShrink: 0,
+              "&:hover": { background: `${nudgeColor}25` },
+            }}
+          >
+            Close day
+          </Button>
+          <Typography
+            onClick={() => setDismissNudge(true)}
+            sx={{ fontSize: 11, color: "#9C9A94", cursor: "pointer", flexShrink: 0, "&:hover": { color: textP } }}
+          >
+            Later
+          </Typography>
+        </Box>
+      )}
 
       <TodayLakshyaBanner
         habits={habits}
