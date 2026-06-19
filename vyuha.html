@@ -1099,6 +1099,7 @@ const AUTH_KEY        = 'vyuha_auth_v1';
 const BACKUP_META_KEY = 'vyuha_backup_last';
 const IDB_NAME        = 'vyuha_idb_v1';
 const IDB_STORE       = 'kvstore';
+const DATA_FILE_KEY   = 'dataFileHandle';
 
 // ═══════════════════════════════════════════════════════════════════
 // UTILITIES
@@ -1183,6 +1184,67 @@ async function idbGet(key) {
     req.onsuccess = e => res(e.target.result);
     req.onerror   = e => rej(e.target.error);
   });
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// FILE-BASED DATA STORE (Google Drive / any synced folder)
+// ═══════════════════════════════════════════════════════════════════
+
+async function getDataFileHandle() {
+  try { return (await idbGet(DATA_FILE_KEY)) || null; } catch { return null; }
+}
+
+async function verifyFilePermission(handle) {
+  if (!handle) return false;
+  try {
+    const perm = await handle.queryPermission({ mode: 'readwrite' });
+    if (perm === 'granted') return true;
+    const req = await handle.requestPermission({ mode: 'readwrite' });
+    return req === 'granted';
+  } catch { return false; }
+}
+
+async function readDataFile(handle) {
+  const file = await handle.getFile();
+  const text = await file.text();
+  return JSON.parse(text);
+}
+
+async function writeDataFile(handle, data) {
+  const writable = await handle.createWritable();
+  await writable.write(JSON.stringify(data, null, 2));
+  await writable.close();
+}
+
+async function connectDataFile(currentData) {
+  if (!('showSaveFilePicker' in window)) return null;
+  try {
+    const handle = await window.showSaveFilePicker({
+      suggestedName: 'vyuha-data.json',
+      types: [{ description: 'Vyuha Data', accept: { 'application/json': ['.json'] } }],
+    });
+    await writeDataFile(handle, currentData);
+    await idbSet(DATA_FILE_KEY, handle);
+    return handle;
+  } catch (e) {
+    if (e.name !== 'AbortError') throw e;
+    return null;
+  }
+}
+
+async function openDataFile() {
+  if (!('showOpenFilePicker' in window)) return null;
+  try {
+    const [handle] = await window.showOpenFilePicker({
+      types: [{ description: 'Vyuha Data', accept: { 'application/json': ['.json'] } }],
+      multiple: false,
+    });
+    await idbSet(DATA_FILE_KEY, handle);
+    return handle;
+  } catch (e) {
+    if (e.name !== 'AbortError') throw e;
+    return null;
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -1834,7 +1896,7 @@ function Sidebar({ view, onNav, userName, data }) {
 // TOPBAR
 // ═══════════════════════════════════════════════════════════════════
 
-function TopBar({ view, crumb, data, darkMode, onToggleTheme }) {
+function TopBar({ view, crumb, data, darkMode, onToggleTheme, fileConnected }) {
   const todayLog = data.dailyLogs.find(l => l.date === todayStr());
   const dayStatus = !todayLog ? 'not-started' : todayLog.isClosed ? 'closed' : 'open';
   const statusLabel = { 'not-started': 'Day not started', open: 'Day open', closed: 'Day closed' };
@@ -1861,6 +1923,18 @@ function TopBar({ view, crumb, data, darkMode, onToggleTheme }) {
           <div className="status-dot" />
           {statusLabel[dayStatus]}
         </div>
+        {fileConnected !== undefined && (
+          <div title={fileConnected ? 'Data file connected — syncing to Google Drive' : 'No data file — using local storage only'}
+            style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12,
+              color: fileConnected ? 'var(--green)' : 'var(--text-3)',
+              background: fileConnected ? 'rgba(34,197,94,0.08)' : 'var(--bg-3)',
+              border: `1px solid ${fileConnected ? 'rgba(34,197,94,0.25)' : 'var(--border)'}`,
+              borderRadius: 'var(--r-sm)', padding: '4px 9px', transition: 'all var(--t) var(--ease)' }}>
+            <div style={{ width: 7, height: 7, borderRadius: '50%',
+              background: fileConnected ? 'var(--green)' : 'var(--text-4)' }} />
+            {fileConnected ? 'Drive' : 'Local'}
+          </div>
+        )}
         <button onClick={onToggleTheme} title={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
           style={{ background: 'var(--bg-3)', border: '1px solid var(--border-hi)', borderRadius: 'var(--r-sm)',
             padding: '5px 9px', cursor: 'pointer', display: 'flex', alignItems: 'center', color: 'var(--text-2)',
@@ -4665,7 +4739,7 @@ function LearningPage() {
 // ═══════════════════════════════════════════════════════════════════
 
 function SettingsPage() {
-  const { data, setData } = useApp();
+  const { data, setData, fileConnected, fileName, connectGDriveFile, openGDriveFile, disconnectFile } = useApp();
   const snack = useSnack();
   const auth = loadAuth();
 
@@ -4778,11 +4852,35 @@ function SettingsPage() {
     }
   }
 
+  const initials = (data.settings.userName || 'L').slice(0, 2).toUpperCase();
+
   return (
     <div className="page">
       <div className="page-header">
         <div className="page-title">Settings</div>
         <div className="page-subtitle">Account security, backup, and preferences</div>
+      </div>
+
+      {/* Profile display */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 24, maxWidth: 520,
+        padding: '14px 18px', borderRadius: 'var(--r)', background: 'var(--bg-1)',
+        border: '1px solid var(--border)' }}>
+        <div style={{ width: 44, height: 44, borderRadius: '50%', flexShrink: 0,
+          background: 'linear-gradient(135deg, var(--primary), var(--cyan))',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontSize: 16, fontWeight: 700, color: '#fff' }}>
+          {initials}
+        </div>
+        <div>
+          <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)' }}>
+            {data.settings.userName || 'Lead'}
+          </div>
+          {data.settings.userRole && (
+            <div style={{ fontSize: 12, color: 'var(--text-3)', fontFamily: 'var(--mono)', marginTop: 2 }}>
+              {data.settings.userRole}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Identity */}
@@ -4804,6 +4902,48 @@ function SettingsPage() {
         </div>
         <button className="btn btn-primary" onClick={saveIdentity}>Save Profile</button>
       </div>
+
+      {/* Data File */}
+      {'showSaveFilePicker' in window && (
+        <div className="card" style={{ marginBottom: 20, maxWidth: 520 }}>
+          <div className="card-title">Data File (Google Drive Sync)</div>
+          <div style={{ fontSize: 13, color: 'var(--text-2)', marginBottom: 14, lineHeight: 1.6 }}>
+            Connect a <code style={{ fontFamily: 'var(--mono)', fontSize: 12 }}>vyuha-data.json</code> file
+            inside your Google Drive folder. Every save writes directly to that file — open Vyuha on any
+            device with Drive synced and your data stays current.
+          </div>
+          {fileConnected ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 13,
+                color: 'var(--green)', fontFamily: 'var(--mono)' }}>
+                <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--green)' }} />
+                {fileName}
+              </div>
+              <button className="btn btn-secondary" onClick={async () => {
+                await disconnectFile();
+                snack('Data file disconnected', 'info');
+              }}>
+                Disconnect
+              </button>
+            </div>
+          ) : (
+            <div className="flex gap-2" style={{ flexWrap: 'wrap' }}>
+              <button className="btn btn-primary" onClick={async () => {
+                const ok = await openGDriveFile();
+                if (ok) snack('Data file loaded — saves will sync via Google Drive', 'success');
+              }}>
+                <Icon name="upload" size={14} /> Open Existing File
+              </button>
+              <button className="btn btn-secondary" onClick={async () => {
+                const ok = await connectGDriveFile();
+                if (ok) snack('New data file created — saves will sync via Google Drive', 'success');
+              }}>
+                Create New File
+              </button>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Security */}
       <div className="card" style={{ marginBottom: 20, maxWidth: 520 }}>
@@ -4957,48 +5097,106 @@ function SettingsPage() {
 // ═══════════════════════════════════════════════════════════════════
 
 function App() {
-  const [unlocked,  setUnlocked]  = useState(false);
-  const [userName,  setUserName]  = useState('Lead');
-  const [view,      setView]      = useState('today');
-  const [crumb,     setCrumb]     = useState(null);
-  const [navData,   setNavData]   = useState({});
-  const [data,      setDataState] = useState(loadData);
+  const [unlocked,       setUnlocked]       = useState(false);
+  const [userName,       setUserName]        = useState('Lead');
+  const [view,           setView]            = useState('today');
+  const [crumb,          setCrumb]           = useState(null);
+  const [navData,        setNavData]         = useState({});
+  const [data,           setDataState]       = useState(loadData);
+  const [fileConnected,  setFileConnected]   = useState(false);
+  const [fileName,       setFileName]        = useState('');
+  const fileHandleRef = useRef(null);
 
   useEffect(() => {
-    const dark = data.settings?.darkMode;
-    document.body.classList.toggle('dark-mode', !!dark);
+    document.body.classList.toggle('dark-mode', !!data.settings?.darkMode);
   }, [data.settings?.darkMode]);
 
   function setData(newData) {
     setDataState(newData);
     saveData(newData);
-  }
-
-  function toggleTheme() {
-    const dark = !data.settings?.darkMode;
-    setData({ ...data, settings: { ...data.settings, darkMode: dark } });
-  }
-
-  function onUnlock(name) {
-    setUserName(name);
-    setUnlocked(true);
-    const lastBackup = localStorage.getItem(BACKUP_META_KEY);
-    if (lastBackup !== todayStr()) {
-      doAutoBackup(data).then(ok => {
-        if (ok) localStorage.setItem(BACKUP_META_KEY, todayStr());
-      });
+    if (fileHandleRef.current) {
+      writeDataFile(fileHandleRef.current, newData).catch(() => {});
     }
   }
 
+  function toggleTheme() {
+    setData({ ...data, settings: { ...data.settings, darkMode: !data.settings?.darkMode } });
+  }
+
+  async function onUnlock(name) {
+    setUserName(name);
+    setUnlocked(true);
+    // Try to connect to the data file (requires user gesture — PIN submit qualifies)
+    const handle = await getDataFileHandle();
+    if (handle) {
+      const ok = await verifyFilePermission(handle);
+      if (ok) {
+        fileHandleRef.current = handle;
+        setFileConnected(true);
+        setFileName(handle.name);
+        try {
+          const fileData = await readDataFile(handle);
+          const merged = { ...defaultData(), ...fileData };
+          setDataState(merged);
+          saveData(merged); // keep localStorage in sync
+        } catch {}
+      }
+    }
+    const lastBackup = localStorage.getItem(BACKUP_META_KEY);
+    if (lastBackup !== todayStr()) {
+      doAutoBackup(data).then(ok => { if (ok) localStorage.setItem(BACKUP_META_KEY, todayStr()); });
+    }
+  }
+
+  async function connectGDriveFile() {
+    try {
+      const handle = await connectDataFile(data);
+      if (handle) {
+        fileHandleRef.current = handle;
+        setFileConnected(true);
+        setFileName(handle.name);
+        return true;
+      }
+    } catch (e) { console.error(e); }
+    return false;
+  }
+
+  async function openGDriveFile() {
+    try {
+      const handle = await openDataFile();
+      if (handle) {
+        const ok = await verifyFilePermission(handle);
+        if (!ok) return false;
+        fileHandleRef.current = handle;
+        setFileConnected(true);
+        setFileName(handle.name);
+        const fileData = await readDataFile(handle);
+        const merged = { ...defaultData(), ...fileData };
+        setDataState(merged);
+        saveData(merged);
+        return true;
+      }
+    } catch (e) { console.error(e); }
+    return false;
+  }
+
+  async function disconnectFile() {
+    await idbSet(DATA_FILE_KEY, null);
+    fileHandleRef.current = null;
+    setFileConnected(false);
+    setFileName('');
+  }
+
   function navigate(v, c = null, nd = {}) {
-    setView(v);
-    setCrumb(c);
-    setNavData(nd);
+    setView(v); setCrumb(c); setNavData(nd);
   }
 
   if (!unlocked) return <PinLock onUnlock={onUnlock} />;
 
-  const appCtxValue = { data, setData, navigate, userName, navData };
+  const appCtxValue = {
+    data, setData, navigate, userName, navData,
+    fileConnected, fileName, connectGDriveFile, openGDriveFile, disconnectFile,
+  };
 
   return (
     <SnackbarProvider>
@@ -5006,7 +5204,8 @@ function App() {
         <div className="app-shell">
           <Sidebar view={view} onNav={v => navigate(v)} userName={userName} data={data} />
           <div className="content-wrapper">
-            <TopBar view={view} crumb={crumb} data={data} darkMode={!!data.settings?.darkMode} onToggleTheme={toggleTheme} />
+            <TopBar view={view} crumb={crumb} data={data} darkMode={!!data.settings?.darkMode}
+              onToggleTheme={toggleTheme} fileConnected={fileConnected} />
             {view === 'today'          && <TodayPage />}
             {view === 'dashboard'      && <DashboardPage />}
             {view === 'projects'       && <ProjectsPage />}
