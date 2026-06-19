@@ -1131,6 +1131,7 @@ function fmtDateShort(d) {
 
 function taskRecurringToday(task) {
   if (!task.recurring?.enabled) return false;
+  if (task.recurring.until && todayStr() > task.recurring.until) return false;
   const dow  = new Date().getDay(); // 0=Sun…6=Sat
   const freq = task.recurring.frequency || 'daily';
   if (freq === 'daily')   return true;
@@ -1143,6 +1144,66 @@ function daysUntil(d) {
   if (!d) return null;
   const diff = new Date(d + 'T00:00:00') - new Date(todayStr() + 'T00:00:00');
   return Math.ceil(diff / 86400000);
+}
+
+// ── Browser notifications ─────────────────────────────────────────
+async function requestNotifPermission() {
+  if (!('Notification' in window)) return false;
+  if (Notification.permission === 'granted') return true;
+  if (Notification.permission === 'denied') return false;
+  const result = await Notification.requestPermission();
+  return result === 'granted';
+}
+
+function fireNotif(title, body, tag) {
+  if (!('Notification' in window) || Notification.permission !== 'granted') return;
+  new Notification(title, { body, tag: `vyuha_${tag}`, icon: '' });
+}
+
+function checkAndNotify(data, firedRef) {
+  if (!('Notification' in window) || Notification.permission !== 'granted') return;
+  const now   = new Date();
+  const h     = now.getHours();
+  const today = todayStr();
+  const fired = firedRef.current;
+  const once  = (k, fn) => { if (!fired.has(`${today}_${k}`)) { fired.add(`${today}_${k}`); fn(); } };
+
+  const todayLog = (data.dailyLogs || []).find(l => l.date === today);
+  const dayOpen  = todayLog && !todayLog.isClosed;
+
+  // 9am – day not started
+  if (h >= 9 && !todayLog)
+    once('begin', () => fireNotif('Vyuha', "Your day hasn't started yet — ready to plan?", 'begin'));
+
+  // 9am – tasks due today
+  if (h >= 9 && dayOpen) {
+    const due = (data.tasks || []).filter(t => t.dueDate === today && t.status !== 'done');
+    if (due.length)
+      once('due', () => fireNotif(`${due.length} task${due.length > 1 ? 's' : ''} due today`,
+        due.slice(0, 3).map(t => `• ${t.title}`).join('\n'), 'due'));
+  }
+
+  // Project deadlines today
+  if (h >= 9) {
+    (data.projects || [])
+      .filter(p => (p.deadline === today || p.bidDate === today) && !['completed','won','lost'].includes(p.status))
+      .forEach(p => once(`dl_${p.id}`, () => fireNotif('Deadline today', p.name, `dl_${p.id}`)));
+  }
+
+  // 5pm – close day
+  if (h >= 17 && dayOpen)
+    once('close', () => fireNotif('Vyuha', "End of day — time to close your day and reflect.", 'close'));
+
+  // 30-min before bid date (check every minute)
+  if (h >= 9) {
+    (data.projects || [])
+      .filter(p => p.bidDate && !['won','lost'].includes(p.status))
+      .forEach(p => {
+        const diff = daysUntil(p.bidDate);
+        if (diff === 1)
+          once(`bid1_${p.id}`, () => fireNotif('Bid date tomorrow', p.name, `bid1_${p.id}`));
+      });
+  }
 }
 
 function dayOfWeek() {
@@ -2874,9 +2935,10 @@ function QuickAddTaskModal({ open, onClose, data, onSave }) {
   const [title,     setTitle]     = useState('');
   const [priority,  setPriority]  = useState('medium');
   const [dueDate,   setDueDate]   = useState(todayStr());
-  const [recurring,  setRecurring]  = useState(false);
-  const [recurFreq,  setRecurFreq]  = useState('daily');
-  const [recurDays,  setRecurDays]  = useState([1,2,3,4,5]);
+  const [recurring,   setRecurring]  = useState(false);
+  const [recurFreq,   setRecurFreq]  = useState('daily');
+  const [recurDays,   setRecurDays]  = useState([1,2,3,4,5]);
+  const [recurUntil,  setRecurUntil] = useState('');
 
   const activeProjects = (data.projects || []).filter(p =>
     ['active', 'pursuing', 'proposal-submitted'].includes(p.status)
@@ -2884,24 +2946,27 @@ function QuickAddTaskModal({ open, onClose, data, onSave }) {
 
   useEffect(() => {
     if (open) {
-      setTitle(''); setPriority('medium'); setDueDate(todayStr()); setRecurring(false); setRecurFreq('daily'); setRecurDays([1,2,3,4,5]);
+      setTitle(''); setPriority('medium'); setDueDate(todayStr()); setRecurring(false); setRecurFreq('daily'); setRecurDays([1,2,3,4,5]); setRecurUntil('');
       if (activeProjects.length > 0 && !projId) setProjId(activeProjects[0].id);
     }
   }, [open]);
 
   function handleSave() {
     if (!title.trim() || !projId) return;
+    if (recurring && recurFreq === 'weekly' && recurDays.length === 0) {
+      snack('Select at least one day for weekly recurring', 'warning'); return;
+    }
     const task = {
       id: genId('task'), projectId: projId, title: title.trim(),
       status: 'todo', priority, dueDate: dueDate || null,
       notes: '',
       recurring: recurring
-        ? { enabled: true, frequency: recurFreq, days: recurFreq === 'weekly' ? recurDays : [] }
+        ? { enabled: true, frequency: recurFreq, days: recurFreq === 'weekly' ? recurDays : [], until: recurUntil || null }
         : { enabled: false },
       createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
     };
     onSave(task);
-    setTitle(''); setPriority('medium'); setDueDate(todayStr()); setRecurring(false);
+    setTitle(''); setPriority('medium'); setDueDate(todayStr()); setRecurring(false); setRecurUntil('');
   }
 
   return (
@@ -2982,6 +3047,12 @@ function QuickAddTaskModal({ open, onClose, data, onSave }) {
                 ))}
               </div>
             )}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginLeft: 4 }}>
+              <span style={{ fontSize: 12, color: 'var(--text-3)', whiteSpace: 'nowrap' }}>Until</span>
+              <input className="input" type="date" value={recurUntil} min={todayStr()}
+                onChange={e => setRecurUntil(e.target.value)}
+                style={{ padding: '3px 8px', fontSize: 12, width: 140 }} />
+            </div>
           </>}
         </div>
       </div>
@@ -3161,6 +3232,8 @@ function ActiveDay({ log, data, setData }) {
   }
 
   function removeAdhoc(id) {
+    const task = (log.adhocTasks || []).find(t => t.id === id);
+    if (!window.confirm(`Remove "${task?.title}" from today?`)) return;
     updateLog({ adhocTasks: (log.adhocTasks || []).filter(t => t.id !== id) });
   }
 
@@ -3311,7 +3384,7 @@ function ActiveDay({ log, data, setData }) {
                         {project.type === 'fulltime' ? 'FT' : project.type === 'presales' ? 'PS' : 'PT'}
                       </span>;
                     })()}
-                    <span style={{ fontSize: 13.5, fontWeight: 600 }}>{project ? project.name : 'Tasks'}</span>
+                    <span style={{ fontSize: 13.5, fontWeight: 600 }}>{project ? project.name : <span style={{ color: 'var(--text-3)' }}>Deleted project</span>}</span>
                     {project?.client && (
                       <span style={{ fontSize: 11, color: 'var(--text-3)', fontFamily: 'var(--mono)' }}>· {project.client}</span>
                     )}
@@ -3342,9 +3415,12 @@ function ActiveDay({ log, data, setData }) {
                           textDecoration: done ? 'line-through' : 'none',
                           color: done ? 'var(--text-3)' : 'var(--text)' }}>{task.title}</span>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
-                          {task.recurring?.enabled && (
-                            <span title="Recurring" style={{ fontSize: 12, color: 'var(--primary)', fontFamily: 'var(--mono)' }}>↻</span>
-                          )}
+                          {task.recurring?.enabled && (() => {
+                            const expired = task.recurring.until && todayStr() > task.recurring.until;
+                            return <span title={expired ? 'Recurring ended' : `Recurring · ${task.recurring.frequency || 'daily'}`}
+                              style={{ fontSize: 11, fontFamily: 'var(--mono)',
+                                color: expired ? 'var(--text-3)' : 'var(--primary)' }}>↻{expired ? ' ended' : ''}</span>;
+                          })()}
                           {task.dueDate && due !== null && (
                             <span style={{ fontSize: 10, fontFamily: 'var(--mono)',
                               color: due < 0 ? 'var(--red)' : due <= 3 ? 'var(--amber)' : 'var(--text-3)' }}>
@@ -3834,6 +3910,7 @@ function ProjectDetail({ projId }) {
   const [taskRecurring,  setTaskRecurring]  = useState(false);
   const [taskRecurFreq,  setTaskRecurFreq]  = useState('daily');
   const [taskRecurDays,  setTaskRecurDays]  = useState([1,2,3,4,5]);
+  const [taskRecurUntil, setTaskRecurUntil] = useState('');
   const [taskFilter,     setTaskFilter]     = useState('open');
   const [editTask,       setEditTask]       = useState(null);
 
@@ -3867,17 +3944,20 @@ function ProjectDetail({ projId }) {
   // ── Task actions ──────────────────────────────────────────────
   function addTask() {
     if (!taskInput.trim()) return;
+    if (taskRecurring && taskRecurFreq === 'weekly' && taskRecurDays.length === 0) {
+      snack('Select at least one day for weekly recurring', 'warning'); return;
+    }
     const task = {
       id: genId('task'), title: taskInput.trim(), projectId: projId,
       priority: taskPriority, status: 'todo', dueDate: taskDueDate || null,
       notes: '',
       recurring: taskRecurring
-        ? { enabled: true, frequency: taskRecurFreq, days: taskRecurFreq === 'weekly' ? taskRecurDays : [] }
+        ? { enabled: true, frequency: taskRecurFreq, days: taskRecurFreq === 'weekly' ? taskRecurDays : [], until: taskRecurUntil || null }
         : { enabled: false },
       createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
     };
     setData({ ...data, tasks: [...data.tasks, task] });
-    setTaskInput(''); setTaskDueDate(''); setTaskRecurring(false); setTaskRecurFreq('daily'); setTaskRecurDays([1,2,3,4,5]);
+    setTaskInput(''); setTaskDueDate(''); setTaskRecurring(false); setTaskRecurFreq('daily'); setTaskRecurDays([1,2,3,4,5]); setTaskRecurUntil('');
     snack(taskRecurring ? 'Recurring task added' : 'Task added', 'success', 2000);
   }
 
@@ -3890,13 +3970,20 @@ function ProjectDetail({ projId }) {
   }
 
   function deleteTask(id) {
+    const task = data.tasks.find(t => t.id === id);
+    if (!window.confirm(`Delete "${task?.title}"? This cannot be undone.`)) return;
     setData({ ...data, tasks: data.tasks.filter(t => t.id !== id) });
-    snack('Task removed', 'info', 2000);
+    snack('Task deleted', 'info', 2000);
   }
 
   function saveEditTask() {
+    if (!editTask.title?.trim()) { snack('Task title is required', 'warning'); return; }
+    if (editTask.recurring?.enabled && editTask.recurring?.frequency === 'weekly' &&
+        !(editTask.recurring?.days?.length)) {
+      snack('Select at least one day for weekly recurring', 'warning'); return;
+    }
     const updated = data.tasks.map(t => t.id === editTask.id
-      ? { ...editTask, updatedAt: new Date().toISOString() } : t);
+      ? { ...editTask, title: editTask.title.trim(), updatedAt: new Date().toISOString() } : t);
     setData({ ...data, tasks: updated });
     setEditTask(null);
     snack('Task updated', 'success', 2000);
@@ -3913,26 +4000,44 @@ function ProjectDetail({ projId }) {
   }
 
   function deleteNote(id) {
+    if (!window.confirm('Delete this note?')) return;
     setData({ ...data, notes: data.notes.filter(n => n.id !== id) });
     snack('Deleted', 'info', 2000);
   }
 
   // ── Project actions ───────────────────────────────────────────
   function saveEditProject() {
+    if (!editForm.name?.trim()) { snack('Project name is required', 'warning'); return; }
+    const start = editForm.startDate;
+    const end   = editForm.type === 'presales' ? editForm.bidDate : editForm.deadline;
+    if (start && end && start > end) { snack('Start date cannot be after the deadline', 'warning'); return; }
     const updated = data.projects.map(p => p.id === projId
-      ? { ...editForm, updatedAt: new Date().toISOString() } : p);
+      ? { ...editForm, name: editForm.name.trim(), updatedAt: new Date().toISOString() } : p);
     setData({ ...data, projects: updated });
     setShowEdit(false);
     snack('Project updated', 'success');
   }
 
   function deleteProject() {
-    if (!window.confirm(`Delete "${proj.name}"? This will also remove all its tasks and notes.`)) return;
+    const taskCount = data.tasks.filter(t => t.projectId === projId).length;
+    const noteCount = data.notes.filter(n => n.projectId === projId).length;
+    const extra = [
+      taskCount ? `${taskCount} task${taskCount > 1 ? 's' : ''}` : '',
+      noteCount ? `${noteCount} note${noteCount > 1 ? 's' : ''}` : '',
+    ].filter(Boolean).join(' and ');
+    const msg = `Delete "${proj.name}"?${extra ? ` This will also remove ${extra}.` : ''}`;
+    if (!window.confirm(msg)) return;
+    const deletedTaskIds = new Set(data.tasks.filter(t => t.projectId === projId).map(t => t.id));
+    const updatedLogs = data.dailyLogs.map(log => ({
+      ...log,
+      plannedTaskIds: (log.plannedTaskIds || []).filter(id => !deletedTaskIds.has(id)),
+    }));
     setData({
       ...data,
-      projects: data.projects.filter(p => p.id !== projId),
-      tasks:    data.tasks.filter(t => t.projectId !== projId),
-      notes:    data.notes.filter(n => n.projectId !== projId),
+      projects:  data.projects.filter(p => p.id !== projId),
+      tasks:     data.tasks.filter(t => t.projectId !== projId),
+      notes:     data.notes.filter(n => n.projectId !== projId),
+      dailyLogs: updatedLogs,
     });
     navigate('projects');
     snack('Project deleted', 'info');
@@ -4091,6 +4196,12 @@ function ProjectDetail({ projId }) {
                     ))}
                   </div>
                 )}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginLeft: 8 }}>
+                  <span style={{ fontSize: 12, color: 'var(--text-3)', whiteSpace: 'nowrap' }}>Until</span>
+                  <input className="input" type="date" value={taskRecurUntil} min={todayStr()}
+                    onChange={e => setTaskRecurUntil(e.target.value)}
+                    style={{ padding: '3px 8px', fontSize: 12, width: 140 }} />
+                </div>
               </div>
             )}
           </div>
@@ -4143,13 +4254,16 @@ function ProjectDetail({ projId }) {
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                         <span style={{ fontSize: 13.5, textDecoration: isDone ? 'line-through' : 'none',
                           color: isDone ? 'var(--text-3)' : 'var(--text)' }}>{task.title}</span>
-                        {task.recurring?.enabled && (
-                          <span title={`Recurring · ${task.recurring.frequency || 'daily'}`}
-                            style={{ fontSize: 11, color: 'var(--primary)', fontFamily: 'var(--mono)',
-                              background: 'var(--primary-lo)', padding: '1px 5px', borderRadius: 4 }}>
-                            ↻ {task.recurring.frequency || 'daily'}
-                          </span>
-                        )}
+                        {task.recurring?.enabled && (() => {
+                          const expired = task.recurring.until && todayStr() > task.recurring.until;
+                          return <span title={expired ? 'Recurring ended' : `Recurring · ${task.recurring.frequency || 'daily'}`}
+                            style={{ fontSize: 11, fontFamily: 'var(--mono)',
+                              color: expired ? 'var(--text-3)' : 'var(--primary)',
+                              background: expired ? 'var(--bg-3)' : 'var(--primary-lo)',
+                              padding: '1px 5px', borderRadius: 4 }}>
+                            ↻ {expired ? 'ended' : (task.recurring.frequency || 'daily')}
+                          </span>;
+                        })()}
                       </div>
                       {task.notes && (
                         <div style={{ fontSize: 11.5, color: 'var(--text-3)', marginTop: 2 }}>{task.notes}</div>
@@ -4281,6 +4395,12 @@ function ProjectDetail({ projId }) {
                     })}
                   </div>
                 )}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6 }}>
+                  <span style={{ fontSize: 12, color: 'var(--text-3)', whiteSpace: 'nowrap' }}>Until</span>
+                  <input className="input" type="date" value={editTask.recurring?.until || ''} min={todayStr()}
+                    onChange={e => setEditTask(t => ({ ...t, recurring: { ...t.recurring, until: e.target.value || null } }))}
+                    style={{ padding: '3px 8px', fontSize: 12, width: 140 }} />
+                </div>
               </>}
             </div>
           </div>
@@ -4333,6 +4453,10 @@ function ProjectsPage() {
 
   function handleAdd() {
     if (!form.name.trim()) { snack('Project name is required', 'warning'); return; }
+    const end = form.type === 'presales' ? form.bidDate : form.deadline;
+    if (form.startDate && end && form.startDate > end) {
+      snack('Start date cannot be after the deadline', 'warning'); return;
+    }
     const proj = {
       ...form,
       id: genId('proj'),
@@ -4500,6 +4624,8 @@ function LearningPage() {
   }
 
   function handleDelete(id) {
+    const item = data.learnings.find(l => l.id === id);
+    if (!window.confirm(`Delete "${item?.title}"?`)) return;
     setData({ ...data, learnings: data.learnings.filter(l => l.id !== id) });
     snack('Learning removed', 'info', 2000);
   }
@@ -4659,10 +4785,12 @@ function LearningPage() {
 
                       {/* Meta row */}
                       <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
-                        {proj && (
+                        {l.projectId && (proj ? (
                           <span className={`badge ${getProjectTypeBadge(proj.type).cls}`}
                             style={{ fontSize: 10 }}>{proj.name}</span>
-                        )}
+                        ) : (
+                          <span className="badge badge-gray" style={{ fontSize: 10, opacity: 0.6 }}>Deleted project</span>
+                        ))}
                         {l.source && (
                           <span style={{ fontSize: 11, color: 'var(--text-3)', fontFamily: 'var(--mono)',
                             display: 'flex', alignItems: 'center', gap: 4 }}>
@@ -5105,7 +5233,18 @@ function App() {
   const [data,           setDataState]       = useState(loadData);
   const [fileConnected,  setFileConnected]   = useState(false);
   const [fileName,       setFileName]        = useState('');
-  const fileHandleRef = useRef(null);
+  const fileHandleRef   = useRef(null);
+  const notifFiredRef   = useRef(new Set());
+  const dataRef         = useRef(data);
+  useEffect(() => { dataRef.current = data; }, [data]);
+
+  // Notification interval — starts after unlock
+  useEffect(() => {
+    if (!unlocked) return;
+    checkAndNotify(dataRef.current, notifFiredRef);
+    const iv = setInterval(() => checkAndNotify(dataRef.current, notifFiredRef), 60_000);
+    return () => clearInterval(iv);
+  }, [unlocked]);
 
   useEffect(() => {
     document.body.classList.toggle('dark-mode', !!data.settings?.darkMode);
@@ -5126,6 +5265,7 @@ function App() {
   async function onUnlock(name) {
     setUserName(name);
     setUnlocked(true);
+    requestNotifPermission();
     // Try to connect to the data file (requires user gesture — PIN submit qualifies)
     const handle = await getDataFileHandle();
     if (handle) {
