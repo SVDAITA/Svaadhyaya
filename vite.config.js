@@ -23,6 +23,8 @@ export default defineConfig({
         ]
       },
       workbox: {
+        skipWaiting: true,
+        clientsClaim: true,
         navigateFallback: 'index.html',
         navigateFallbackDenylist: [/^\/rest\//, /^\/auth\/reset-password/],
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
