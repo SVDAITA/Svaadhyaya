@@ -157,13 +157,13 @@ export default function TrackerPage() {
   const vis = useVisibility();
   const visibleTrackers = TRACKERS.filter((t) => vis.trackers[t.key] !== false);
 
-  const bgBase = isDark ? "#0A0A09" : "#F8FAFC";
+  const bgBase = isDark ? "#0A0A09" : "var(--sv-surface-deep)";
   const bgGradient = isDark
     ? `radial-gradient(ellipse 90% 35% at 50% -5%, ${alpha(heroColor, 0.12)} 0%, #0A0A09 65%)`
-    : `radial-gradient(ellipse 90% 35% at 50% -5%, ${alpha(heroColor, 0.09)} 0%, #F8FAFC 65%)`;
+    : `radial-gradient(ellipse 90% 35% at 50% -5%, ${alpha(heroColor, 0.09)} 0%, var(--sv-surface-deep) 65%)`;
 
   const border = isDark ? alpha("#ffffff", 0.08) : "#E2E8F0";
-  const cardBg = isDark ? alpha("#181716", 0.9) : "#FFFFFF";
+  const cardBg = isDark ? alpha("#181716", 0.9) : "var(--sv-surface)";
   const textP = isDark ? "#F2EFEB" : "#0f172a";
   const textS = isDark ? "#A6A39E" : "#64748b";
 

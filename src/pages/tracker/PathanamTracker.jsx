@@ -1549,7 +1549,7 @@ export default function ReadingLogPage() {
                         p: 2,
                         borderRadius: 2,
                         border: `1px solid ${isDark ? "rgba(255,255,255,0.08)" : "#E0DDD8"}`,
-                        background: isDark ? "rgba(255,255,255,0.03)" : "#FDFCFA",
+                        background: isDark ? "rgba(255,255,255,0.03)" : "var(--sv-surface)",
                         height: "100%",
                         display: "flex",
                         flexDirection: "column",

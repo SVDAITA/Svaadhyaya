@@ -217,8 +217,8 @@ export default function DisruptionPage() {
   // ── Theme tokens
   const bg = isDark
     ? `radial-gradient(ellipse 90% 35% at 50% -5%, ${heroColor}08 0%, #0D0C0A 65%)`
-    : `radial-gradient(ellipse 90% 35% at 50% -5%, ${heroColor}10 0%, #F8FAFC 65%)`;
-  const cardBg   = isDark ? "#1A1916" : "#FFFFFF";
+    : `radial-gradient(ellipse 90% 35% at 50% -5%, ${heroColor}10 0%, var(--sv-surface-deep) 65%)`;
+  const cardBg   = isDark ? "#1A1916" : "var(--sv-surface)";
   const border   = isDark ? "rgba(255,255,255,0.08)" : "#E2E8F0";
   const textP    = isDark ? "#F0EDE8" : "#0f172a";
   const textS    = isDark ? "#9C9A94" : "#64748b";

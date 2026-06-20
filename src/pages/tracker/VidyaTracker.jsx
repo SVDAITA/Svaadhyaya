@@ -126,7 +126,7 @@ export default function VidyaTracker({ embedded = false }) {
   const gold   = VIDYA_AMBER;
   const textP  = isDark ? "#F0EDE8" : "#1A0800";
   const textS  = isDark ? "#9C8A74" : "#7A5A3A";
-  const cardBg = isDark ? "#1A1610" : "#FDFAF5";
+  const cardBg = isDark ? "#1A1610" : "var(--sv-surface)";
   const bdr    = isDark ? `rgba(160,82,45,0.22)` : `rgba(160,82,45,0.20)`;
 
   // ── STATE ─────────────────────────────────────────────────────────────────
@@ -1019,7 +1019,7 @@ export default function VidyaTracker({ embedded = false }) {
 
       {/* Book Dialog */}
       <Dialog open={bookDlg} onClose={() => setBookDlg(false)} fullWidth maxWidth="sm"
-        PaperProps={{ sx: { borderRadius: 3, bgcolor: isDark ? "#1A1610" : "#FDFAF5", border: `1px solid ${bdr}` } }}>
+        PaperProps={{ sx: { borderRadius: 3, bgcolor: isDark ? "#1A1610" : "var(--sv-surface)", border: `1px solid ${bdr}` } }}>
         <DialogTitle sx={{ fontFamily: '"Fraunces",serif', fontWeight: 600, fontSize: 18, pb: 1 }}>
           {editBook ? "Edit Book" : "Add Book"} 📖
         </DialogTitle>
@@ -1065,7 +1065,7 @@ export default function VidyaTracker({ embedded = false }) {
 
       {/* Course Dialog */}
       <Dialog open={courseDlg} onClose={() => setCourseDlg(false)} fullWidth maxWidth="sm"
-        PaperProps={{ sx: { borderRadius: 3, bgcolor: isDark ? "#1A1610" : "#FDFAF5", border: `1px solid ${bdr}` } }}>
+        PaperProps={{ sx: { borderRadius: 3, bgcolor: isDark ? "#1A1610" : "var(--sv-surface)", border: `1px solid ${bdr}` } }}>
         <DialogTitle sx={{ fontFamily: '"Fraunces",serif', fontWeight: 600, fontSize: 18, pb: 1 }}>
           {editCourse ? "Edit Course" : "Add Course"} 🎓
         </DialogTitle>
@@ -1104,7 +1104,7 @@ export default function VidyaTracker({ embedded = false }) {
 
       {/* Study Log Dialog */}
       <Dialog open={studyLogDlg} onClose={() => setStudyLogDlg(false)} fullWidth maxWidth="sm"
-        PaperProps={{ sx: { borderRadius: 3, bgcolor: isDark ? "#1A1610" : "#FDFAF5", border: `1px solid ${bdr}` } }}>
+        PaperProps={{ sx: { borderRadius: 3, bgcolor: isDark ? "#1A1610" : "var(--sv-surface)", border: `1px solid ${bdr}` } }}>
         <DialogTitle sx={{ fontFamily: '"Fraunces",serif', fontWeight: 600, fontSize: 18, pb: 1 }}>
           {editStudyLog ? "Edit Session" : "Log Study Session"} 📓
         </DialogTitle>
@@ -1172,7 +1172,7 @@ export default function VidyaTracker({ embedded = false }) {
 
       {/* Insight Dialog */}
       <Dialog open={insightDlg} onClose={() => setInsightDlg(false)} fullWidth maxWidth="sm"
-        PaperProps={{ sx: { borderRadius: 3, bgcolor: isDark ? "#1A1610" : "#FDFAF5", border: `1px solid ${bdr}` } }}>
+        PaperProps={{ sx: { borderRadius: 3, bgcolor: isDark ? "#1A1610" : "var(--sv-surface)", border: `1px solid ${bdr}` } }}>
         <DialogTitle sx={{ fontFamily: '"Fraunces",serif', fontWeight: 600, fontSize: 18, pb: 1 }}>Capture Insight 💡</DialogTitle>
         <DialogContent sx={{ pt: 1 }}>
           <Stack spacing={2} sx={{ mt: 1 }}>
@@ -1199,7 +1199,7 @@ export default function VidyaTracker({ embedded = false }) {
 
       {/* Practice Item Dialog */}
       <Dialog open={pracDlg} onClose={() => setPracDlg(false)} fullWidth maxWidth="sm"
-        PaperProps={{ sx: { borderRadius: 3, bgcolor: isDark ? "#1A1610" : "#FDFAF5", border: `1px solid ${bdr}` } }}>
+        PaperProps={{ sx: { borderRadius: 3, bgcolor: isDark ? "#1A1610" : "var(--sv-surface)", border: `1px solid ${bdr}` } }}>
         <DialogTitle sx={{ fontFamily: '"Fraunces",serif', fontWeight: 600, fontSize: 18, pb: 1 }}>
           {editPrac ? "Edit Practice Item" : "Add Practice Item"} 🕉️
         </DialogTitle>
@@ -1238,7 +1238,7 @@ export default function VidyaTracker({ embedded = false }) {
 
       {/* Skill Dialog */}
       <Dialog open={skillDlg} onClose={() => setSkillDlg(false)} fullWidth maxWidth="sm"
-        PaperProps={{ sx: { borderRadius: 3, bgcolor: isDark ? "#1A1610" : "#FDFAF5", border: `1px solid ${bdr}` } }}>
+        PaperProps={{ sx: { borderRadius: 3, bgcolor: isDark ? "#1A1610" : "var(--sv-surface)", border: `1px solid ${bdr}` } }}>
         <DialogTitle sx={{ fontFamily: '"Fraunces",serif', fontWeight: 600, fontSize: 18, pb: 1 }}>
           {editSkill ? "Edit Skill" : "Add Skill"} 🎯
         </DialogTitle>

@@ -222,7 +222,7 @@ function KalachakraSVG({ size = 20, color = "#A65D2E" }) {
 // ── PANCHANGAM ─────────────────────────────────────────────────────────────────
 function PanchangamCard({ data, loading, heroColor, isDark }) {
   const clock = useRunningClock();
-  const cardBg = isDark ? "#1A1916" : "#FCFBF9";
+  const cardBg = isDark ? "#1A1916" : "var(--sv-surface)";
   const border = isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)";
   const textP = isDark ? "#F0EDE8" : "#2C2C2C";
   const textS = isDark ? "#7A7874" : "#9C9A94";
@@ -567,7 +567,7 @@ function AddTaskDialog({
   const [lakshyaId, setLakshyaId] = useState("");
   const [siddhiId, setSiddhiId] = useState("");
   const [isDeep, setIsDeep] = useState(false);
-  const bg = isDark ? "#1A1916" : "#FCFBF9";
+  const bg = isDark ? "#1A1916" : "var(--sv-surface)";
   const border = isDark ? "rgba(255,255,255,0.08)" : "#D1D0CF";
   const textP = isDark ? "#F0EDE8" : "#2C2C2C";
   const textS = isDark ? "#7A7874" : "#9C9A94";
@@ -808,7 +808,7 @@ function LinkLakshyaDialog({
 }) {
   const [lakshyaId, setLakshyaId] = useState("");
   const [siddhiId, setSiddhiId] = useState("");
-  const bg = isDark ? "#1A1916" : "#FCFBF9";
+  const bg = isDark ? "#1A1916" : "var(--sv-surface)";
   const border = isDark ? "rgba(255,255,255,0.08)" : "#D1D0CF";
   const textP = isDark ? "#F0EDE8" : "#2C2C2C";
   const textS = isDark ? "#7A7874" : "#9C9A94";
@@ -1048,7 +1048,7 @@ function MorningFlowModal({
     }
   }, [open]);
 
-  const bg = isDark ? "#1A1916" : "#FCFBF9";
+  const bg = isDark ? "#1A1916" : "var(--sv-surface)";
   const border = isDark ? "rgba(255,255,255,0.08)" : "#D1D0CF";
   const textP = isDark ? "#F0EDE8" : "#2C2C2C";
   const textS = isDark ? "#7A7874" : "#5F5F5F";
@@ -1219,7 +1219,7 @@ function MorningFlowModal({
                       mb: 1,
                       borderRadius: 2,
                       border: `1px solid ${isOn ? heroColor + "60" : border}`,
-                      background: isOn ? `${heroColor}10` : isDark ? "#0F0E0C" : "#FAF9F6",
+                      background: isOn ? `${heroColor}10` : isDark ? "#0F0E0C" : "var(--sv-surface-deep)",
                       cursor: "pointer",
                       transition: "all 0.2s",
                     }}
@@ -1268,7 +1268,7 @@ function MorningFlowModal({
               <Typography sx={{ fontSize: 12, color: textS, mb: 2.5 }}>
                 {dayjs().format("dddd, D MMMM")} · Begin with clarity
               </Typography>
-              <Box sx={{ background: isDark ? "#0F0E0C" : "#FAF9F6", border: `1px solid ${border}`, borderRadius: 2, px: 2, py: 1.5, mb: 2 }}>
+              <Box sx={{ background: isDark ? "#0F0E0C" : "var(--sv-surface-deep)", border: `1px solid ${border}`, borderRadius: 2, px: 2, py: 1.5, mb: 2 }}>
                 <TextField
                   fullWidth
                   multiline
@@ -1317,7 +1317,7 @@ function MorningFlowModal({
               </Typography>
               <Typography sx={{ fontSize: 12, color: textS, mb: 2.5 }}>Begin with these — everything else follows</Typography>
               {pendingSacred.slice(0, 4).map((s) => (
-                <Box key={s.id} sx={{ display: "flex", alignItems: "center", gap: 1.5, py: 0.75, px: 1.5, mb: 0.75, borderRadius: 2, background: isDark ? "#0F0E0C" : "#FAF9F6", border: `1px solid ${border}` }}>
+                <Box key={s.id} sx={{ display: "flex", alignItems: "center", gap: 1.5, py: 0.75, px: 1.5, mb: 0.75, borderRadius: 2, background: isDark ? "#0F0E0C" : "var(--sv-surface-deep)", border: `1px solid ${border}` }}>
                   <Typography sx={{ fontSize: 16 }}>{s.emoji || "·"}</Typography>
                   <Typography sx={{ fontSize: 13, color: textP, flex: 1 }}>{s.label}</Typography>
                 </Box>
@@ -1361,7 +1361,7 @@ function EveningFlowModal({
 
   // Reset to step 1 whenever the modal closes so it's fresh next time
   useEffect(() => { if (!open) setStep(1); }, [open]);
-  const bg = isDark ? "#1A1916" : "#FCFBF9";
+  const bg = isDark ? "#1A1916" : "var(--sv-surface)";
   const border = isDark ? "rgba(255,255,255,0.08)" : "#D1D0CF";
   const textP = isDark ? "#F0EDE8" : "#2C2C2C";
   const textS = isDark ? "#7A7874" : "#5F5F5F";
@@ -1437,7 +1437,7 @@ function EveningFlowModal({
                   sx={{
                     mb: 1.25,
                     "& .MuiOutlinedInput-root": {
-                      background: isDark ? "#0F0E0C" : "#FAF9F6",
+                      background: isDark ? "#0F0E0C" : "var(--sv-surface-deep)",
                       fontSize: 13,
                     },
                   }}
@@ -1510,7 +1510,7 @@ function EveningFlowModal({
                       n[i] = { ...n[i], label: e.target.value };
                       setTomorrowTasks(n);
                     }}
-                    sx={{ "& .MuiOutlinedInput-root": { background: isDark ? "#0F0E0C" : "#FAF9F6", fontSize: 13 } }}
+                    sx={{ "& .MuiOutlinedInput-root": { background: isDark ? "#0F0E0C" : "var(--sv-surface-deep)", fontSize: 13 } }}
                   />
                   <Tooltip title={t.deep ? "Deep work (click to unset)" : "Mark as deep work"}>
                     <Box
@@ -1663,7 +1663,7 @@ function SunsetDialog({
   resonanceScore,
 }) {
   const isMobile = useMediaQuery("(max-width:600px)");
-  const bg = isDark ? "#1A1916" : "#FCFBF9";
+  const bg = isDark ? "#1A1916" : "var(--sv-surface)";
   const border = isDark ? "rgba(255,255,255,0.08)" : "#D1D0CF";
   const textP = isDark ? "#F0EDE8" : "#2C2C2C";
   const textS = isDark ? "#7A7874" : "#5F5F5F";
@@ -1761,7 +1761,7 @@ function SunsetDialog({
 
 // ── DISRUPTION MODAL ──────────────────────────────────────────────────────────
 function DisruptModal({ open, onClose, onSelect, heroColor, isDark }) {
-  const bg = isDark ? "#1A1916" : "#FCFBF9";
+  const bg = isDark ? "#1A1916" : "var(--sv-surface)";
   const border = isDark ? "rgba(255,255,255,0.08)" : "#D1D0CF";
   const textP = isDark ? "#F0EDE8" : "#2C2C2C";
   const textS = isDark ? "#7A7874" : "#9C9A94";
@@ -1844,7 +1844,7 @@ function DisruptModal({ open, onClose, onSelect, heroColor, isDark }) {
               border: `1px solid ${border}`,
               mb: 1,
               cursor: "pointer",
-              background: isDark ? "#0F0E0C" : "#FAF9F6",
+              background: isDark ? "#0F0E0C" : "var(--sv-surface-deep)",
               transition: "all 0.15s",
               "&:hover": {
                 background: `${heroColor}08`,
@@ -2384,7 +2384,7 @@ function JapamLogDialog({ userId, goal, todayCount, allCount, open, onClose, onL
   };
 
   const accent = "#C07830";
-  const bg = isDark ? "#1A1916" : "#FDFCFA";
+  const bg = isDark ? "#1A1916" : "var(--sv-surface)";
   const textP = isDark ? "#F0EDE8" : "#2C2C2C";
   const textS = isDark ? "#9C9A94" : "#6C6A64";
 
@@ -2509,7 +2509,7 @@ function VacationDialog({ open, onClose, onSave, heroColor, isDark }) {
 
   useEffect(() => { if (open) { setStartDate(today); setEndDate(today); setReason(""); setMinTasks(["anushthanam"]); } }, [open]);
 
-  const bg     = isDark ? "#1A1916" : "#FCFBF9";
+  const bg     = isDark ? "#1A1916" : "var(--sv-surface)";
   const border = isDark ? "rgba(255,255,255,0.08)" : "#D1D0CF";
   const textP  = isDark ? "#F0EDE8" : "#2C2C2C";
   const textS  = isDark ? "#7A7874" : "#9C9A94";
@@ -2769,7 +2769,7 @@ export default function TodayPage() {
   const allCore = enrichWithLakshya(DEFAULT_CORE).concat(customCore);
   const allEvening = enrichWithLakshya(DEFAULT_EVENING).concat(customEvening);
 
-  const cardBg = isDark ? "#1A1916" : "#FCFBF9";
+  const cardBg = isDark ? "#1A1916" : "var(--sv-surface)";
   const border = isDark ? "rgba(255,255,255,0.08)" : "#D1D0CF";
   const textP = isDark ? "#F0EDE8" : "#2C2C2C";
   const textS = isDark ? "#7A7874" : "#9C9A94";
@@ -4305,7 +4305,7 @@ export default function TodayPage() {
         PaperProps={{
           sx: {
             borderRadius: 3,
-            background: isDark ? "#1A1916" : "#FDFCFA",
+            background: isDark ? "#1A1916" : "var(--sv-surface)",
             border: `1px solid ${isDark ? "rgba(255,255,255,0.08)" : "#E2DDD6"}`,
             overflow: "hidden",
           },
@@ -4492,7 +4492,7 @@ export default function TodayPage() {
 
       {/* ── VRITTI POPUP ── */}
       <Dialog open={vrittiOpen} onClose={() => setVrittiOpen(false)} fullWidth maxWidth="xs"
-        PaperProps={{ sx: { borderRadius: 3, background: isDark ? "#0E1420" : "#F8FAFE", border: `1px solid ${isDark ? "rgba(26,95,176,0.22)" : "rgba(26,95,176,0.18)"}`, overflow: "hidden" } }}>
+        PaperProps={{ sx: { borderRadius: 3, background: isDark ? "#0E1420" : "var(--sv-surface)", border: `1px solid ${isDark ? "rgba(26,95,176,0.22)" : "rgba(26,95,176,0.18)"}`, overflow: "hidden" } }}>
         <Box sx={{ px: 3, pt: 2.5, pb: 1.5, display: "flex", alignItems: "center", gap: 1.5, borderBottom: `1px solid ${isDark ? "rgba(26,95,176,0.15)" : "#E0E8F8"}` }}>
           <Typography sx={{ fontSize: 18 }}>🚀</Typography>
           <Box sx={{ flex: 1 }}>
@@ -4668,7 +4668,7 @@ export default function TodayPage() {
 
       {/* ── READING / VIDYA POPUP ── */}
       <Dialog open={readingOpen} onClose={() => setReadingOpen(false)} fullWidth maxWidth="xs"
-        PaperProps={{ sx: { borderRadius: 3, background: isDark ? "#1A1610" : "#FDFAF5", border: `1px solid ${isDark ? "rgba(160,82,45,0.22)" : "rgba(160,82,45,0.20)"}`, overflow: "hidden" } }}>
+        PaperProps={{ sx: { borderRadius: 3, background: isDark ? "#1A1610" : "var(--sv-surface)", border: `1px solid ${isDark ? "rgba(160,82,45,0.22)" : "rgba(160,82,45,0.20)"}`, overflow: "hidden" } }}>
         <Box sx={{ px: 3, pt: 2.5, pb: 1.5, display: "flex", alignItems: "center", gap: 1.5, borderBottom: `1px solid ${isDark ? "rgba(160,82,45,0.15)" : "#F0E8E0"}` }}>
           <Typography sx={{ fontSize: 18 }}>📖</Typography>
           <Box sx={{ flex: 1 }}>
@@ -4770,7 +4770,7 @@ export default function TodayPage() {
         PaperProps={{
           sx: {
             borderRadius: 3,
-            background: isDark ? "#1A1916" : "#FDFCFA",
+            background: isDark ? "#1A1916" : "var(--sv-surface)",
             border: `1px solid ${isDark ? "rgba(255,255,255,0.08)" : "#E2DDD6"}`,
             overflow: "hidden",
           },
@@ -4938,7 +4938,7 @@ export default function TodayPage() {
         PaperProps={{
           sx: {
             borderRadius: 3,
-            background: isDark ? "#1A1916" : "#FDFCFA",
+            background: isDark ? "#1A1916" : "var(--sv-surface)",
             border: `1px solid ${isDark ? "rgba(255,255,255,0.08)" : "#E2DDD6"}`,
             overflow: "hidden",
           },

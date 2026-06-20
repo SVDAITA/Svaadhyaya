@@ -166,7 +166,7 @@ export default function NaadaTracker({ embedded = false }) {
   const gold   = NAADA_GOLD;
   const textP  = isDark ? "#F0EDE8" : "#1A0800";
   const textS  = isDark ? "#9C8A74" : "#7A5A3A";
-  const cardBg = isDark ? "#1C1510" : "#FDFAF5";
+  const cardBg = isDark ? "#1C1510" : "var(--sv-surface)";
   const bdr    = isDark ? `rgba(192,120,48,0.18)` : `rgba(192,120,48,0.25)`;
 
   // ── GLOBAL STATE ──────────────────────────────────────────────────────────

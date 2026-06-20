@@ -117,7 +117,7 @@ export default function VrittiTracker({ embedded = false }) {
   const blue   = VRITTI_BLUE;
   const textP  = isDark ? "#F0EDE8" : "#0A1628";
   const textS  = isDark ? "#8A9AB8" : "#5A7090";
-  const cardBg = isDark ? "#0E1420" : "#F8FAFE";
+  const cardBg = isDark ? "#0E1420" : "var(--sv-surface)";
   const bdr    = isDark ? `rgba(26,95,176,0.22)` : `rgba(26,95,176,0.18)`;
 
   // ── GLOBAL STATE ──────────────────────────────────────────────────────────

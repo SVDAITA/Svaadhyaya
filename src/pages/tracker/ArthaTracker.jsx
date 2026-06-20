@@ -1086,7 +1086,7 @@ export default function FinanceOSPage({ embedded = false }) {
   const cardSx = {
     borderRadius: 4,
     border: `1px solid ${isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)"}`,
-    background: isDark ? "rgba(255,255,255,0.02)" : "#FFFFFF",
+    background: isDark ? "rgba(255,255,255,0.02)" : "var(--sv-surface)",
     boxShadow: isDark ? "none" : "0 4px 20px rgba(0,0,0,0.03)",
   };
 
@@ -1139,7 +1139,7 @@ export default function FinanceOSPage({ embedded = false }) {
         minHeight: "100vh",
         background: isDark
           ? `radial-gradient(ellipse 90% 35% at 50% -5%, ${COLOR_HERO}12 0%, #0A0D0C 65%)`
-          : `radial-gradient(ellipse 90% 35% at 50% -5%, ${COLOR_HERO}10 0%, #F8FAFC 65%)`,
+          : `radial-gradient(ellipse 90% 35% at 50% -5%, ${COLOR_HERO}10 0%, var(--sv-surface-deep) 65%)`,
         pb: 6,
       }}
     >

@@ -254,7 +254,7 @@ export default function SettingsPage() {
   const border = isDark ? "rgba(255,255,255,0.08)" : "#D1D0CF";
   const textP = isDark ? "#F0EDE8" : "#2C2C2C";
   const textS = isDark ? "#7A7874" : "#5F5F5F";
-  const inputBg = isDark ? "rgba(255,255,255,0.03)" : "#FAF9F6";
+  const inputBg = isDark ? "rgba(255,255,255,0.03)" : "var(--sv-surface-deep)";
 
   // Derived
   const fullName = [firstName, lastName].filter(Boolean).join(" ");
@@ -479,7 +479,7 @@ export default function SettingsPage() {
           border: "1px solid",
           borderColor: border,
           borderRadius: 3,
-          background: isDark ? "#1A1916" : "#FCFBF9",
+          background: isDark ? "#1A1916" : "var(--sv-surface)",
           boxShadow: "none",
         }}
       >
@@ -567,7 +567,7 @@ export default function SettingsPage() {
                       bgcolor: heroColor,
                       color: "#fff",
                       border: "2px solid",
-                      borderColor: isDark ? "#1A1916" : "#FCFBF9",
+                      borderColor: isDark ? "#1A1916" : "var(--sv-surface)",
                       "&:hover": { bgcolor: heroColor, opacity: 0.85 },
                     }}
                   >
@@ -688,7 +688,7 @@ export default function SettingsPage() {
                   sx={{
                     p: 1.5,
                     borderRadius: 2,
-                    background: isDark ? "rgba(255,255,255,0.03)" : "#FAF9F6",
+                    background: isDark ? "rgba(255,255,255,0.03)" : "var(--sv-surface-deep)",
                     border: `1px solid ${border}`,
                     mb: 3,
                     display: "flex",
@@ -1643,7 +1643,7 @@ export default function SettingsPage() {
           sx: {
             borderRadius: 3,
             border: `1px solid ${border}`,
-            background: isDark ? "#1A1916" : "#FCFBF9",
+            background: isDark ? "#1A1916" : "var(--sv-surface)",
             boxShadow: "none",
           },
         }}
@@ -1696,7 +1696,7 @@ export default function SettingsPage() {
           sx: {
             borderRadius: 3,
             border: `1px solid ${border}`,
-            background: isDark ? "#1A1916" : "#FCFBF9",
+            background: isDark ? "#1A1916" : "var(--sv-surface)",
             boxShadow: "none",
           },
         }}

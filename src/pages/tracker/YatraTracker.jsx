@@ -94,8 +94,8 @@ function TripRow({ trip, onDelete, isDark, index }) {
   const [expanded, setExpanded] = useState(false);
 
   const border    = isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.06)";
-  const rowBg     = isDark ? "rgba(255,255,255,0.025)" : "#FFFFFF";
-  const expandBg  = isDark ? "rgba(255,255,255,0.03)"  : "#FAFAFA";
+  const rowBg     = isDark ? "rgba(255,255,255,0.025)" : "var(--sv-surface)";
+  const expandBg  = isDark ? "rgba(255,255,255,0.03)"  : "var(--sv-surface-deep)";
   const textP     = isDark ? "#F0EDE8" : "#1A1A1A";
   const textS     = isDark ? "#9C9A94" : "#6B6B6B";
   const safeColor = isDark ? "#6AAEE8" : COLOR;
@@ -287,7 +287,7 @@ export default function PravesaPage() {
   const safeColor = isDark ? "#6AAEE8" : COLOR;
   const pageBg    = isDark
     ? "radial-gradient(ellipse 90% 35% at 50% -5%, #1A5FB018 0%, #0A0A0A 65%)"
-    : "radial-gradient(ellipse 90% 35% at 50% -5%, #1A5FB010 0%, #F8FAFC 65%)";
+    : "radial-gradient(ellipse 90% 35% at 50% -5%, #1A5FB010 0%, var(--sv-surface-deep) 65%)";
 
   // ── Data ──────────────────────────────────────────────────────────────────
   const load = useCallback(async (force = false) => {
@@ -586,7 +586,7 @@ export default function PravesaPage() {
             </FormControl>
 
             {/* Cost breakdown */}
-            <Box sx={{ p: 2, borderRadius: 2.5, border: `1px solid ${border}`, background: isDark ? "rgba(0,0,0,0.2)" : "#FAFAFA" }}>
+            <Box sx={{ p: 2, borderRadius: 2.5, border: `1px solid ${border}`, background: isDark ? "rgba(0,0,0,0.2)" : "var(--sv-surface-deep)" }}>
               <Typography sx={{ fontSize: 11, color: textS, fontWeight: 700, letterSpacing: 1.2, textTransform: "uppercase", mb: 1.75 }}>
                 Financial Breakdown
               </Typography>

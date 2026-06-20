@@ -243,7 +243,7 @@ function TopBar({ user, heroColor, mode, toggleTheme, isDark }) {
         // Glassmorphism effect
         background: isDark
           ? "rgba(18, 17, 16, 0.85)"
-          : "rgba(255, 255, 255, 0.92)",
+          : `color-mix(in srgb, var(--sv-surface) 88%, transparent)`,
         backdropFilter: "blur(12px)",
         WebkitBackdropFilter: "blur(12px)",
         position: "sticky",
@@ -640,7 +640,7 @@ export default function AppLayout() {
             sx={{
               background: isDark
                 ? `rgba(10, 9, 8, 0.92)`
-                : `rgba(252, 249, 244, 0.96)`,
+                : `color-mix(in srgb, var(--sv-surface) 94%, transparent)`,
               backdropFilter: "blur(16px)",
               WebkitBackdropFilter: "blur(16px)",
               borderBottom: `1.5px solid ${isDark ? "rgba(255,255,255,0.10)" : "rgba(0,0,0,0.10)"}`,
@@ -784,7 +784,7 @@ export default function AppLayout() {
                 height: 65,
                 background: isDark
                   ? "rgba(10, 9, 8, 0.9)"
-                  : "rgba(244, 241, 236, 0.95)",
+                  : `color-mix(in srgb, var(--sv-surface) 96%, transparent)`,
                 backdropFilter: "blur(10px)",
                 pb: 1, // Safe area padding
               }}

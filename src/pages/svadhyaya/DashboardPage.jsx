@@ -425,7 +425,7 @@ function DayDialog({ date, dayData, isVacation, onClose, heroColor, isDark }) {
         sx: {
           borderRadius: 4,
           border: `1px solid ${alpha(heroColor, 0.2)}`,
-          background: isDark ? "#0F0E0C" : "#FDFCF9",
+          background: isDark ? "#0F0E0C" : "var(--sv-surface)",
           backgroundImage: ashramPattern,
           boxShadow: `0 28px 72px ${alpha(heroColor, isDark ? 0.25 : 0.12)}`,
         },

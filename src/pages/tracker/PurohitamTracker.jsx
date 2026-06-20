@@ -2439,7 +2439,7 @@ function AnushtanamTab({ user, isDark }) {
                               textTransform: "uppercase",
                               color: textS,
                               borderColor: border,
-                              bgcolor: isDark ? "#16140F" : "#F8FAFC",
+                              bgcolor: isDark ? "#16140F" : "var(--sv-surface)",
                               py: 1,
                             }}
                           >
@@ -2847,10 +2847,10 @@ export default function PurohitamTracker({ embedded = false, defaultTab = 0 }) {
 
   const bgSaffron = isDark
     ? `radial-gradient(ellipse 90% 35% at 50% -5%, ${SAFFRON}10 0%, #0D0B08 65%)`
-    : `radial-gradient(ellipse 90% 35% at 50% -5%, ${SAFFRON}12 0%, #F8FAFC 65%)`;
+    : `radial-gradient(ellipse 90% 35% at 50% -5%, ${SAFFRON}12 0%, var(--sv-surface-deep) 65%)`;
   const bgIndigo = isDark
     ? `radial-gradient(ellipse 90% 35% at 50% -5%, ${INDIGO}12 0%, #0A0A12 65%)`
-    : `radial-gradient(ellipse 90% 35% at 50% -5%, ${INDIGO}09 0%, #F8FAFC 65%)`;
+    : `radial-gradient(ellipse 90% 35% at 50% -5%, ${INDIGO}09 0%, var(--sv-surface-deep) 65%)`;
 
   const bg = tab === 0 ? bgSaffron : bgIndigo;
   const accent = tab === 0 ? SAFFRON : INDIGO;

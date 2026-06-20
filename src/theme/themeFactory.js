@@ -146,7 +146,11 @@ export function createAppTheme(
     components: {
       MuiCssBaseline: {
         styleOverrides: {
-          body: { transition: FLUID_TRANSITION },
+          body: {
+            transition: FLUID_TRANSITION,
+            '--sv-surface': cardBg,
+            '--sv-surface-deep': isDark ? '#0F0E0C' : (contentBg ? blendColors('#ffffff', contentBg, 0.55) : '#FAF9F6'),
+          },
           '*, *::before, *::after': {
             transitionProperty: 'background-color, color, border-color, box-shadow',
             transitionDuration: '0.25s',
