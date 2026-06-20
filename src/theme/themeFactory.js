@@ -116,7 +116,7 @@ export function createAppTheme(
   const cardBorder = isDark ? '1px solid rgba(248,250,252,0.08)' : '1px solid rgba(15,23,42,0.08)'
   const cardBg = isDark
     ? PAPER_DARK
-    : (contentBg ? blendColors('#ffffff', contentBg, 0.16) : PAPER_LIGHT)
+    : (contentBg ? blendColors('#ffffff', contentBg, 0.44) : PAPER_LIGHT)
 
   const backgrounds = isDark
     ? { default: BG_DARK, paper: PAPER_DARK }
@@ -149,7 +149,7 @@ export function createAppTheme(
           body: {
             transition: FLUID_TRANSITION,
             '--sv-surface': cardBg,
-            '--sv-surface-deep': isDark ? '#0F0E0C' : (contentBg ? blendColors('#ffffff', contentBg, 0.55) : '#FAF9F6'),
+            '--sv-surface-deep': isDark ? '#0F0E0C' : (contentBg ? blendColors('#ffffff', contentBg, 0.72) : '#FAF9F6'),
           },
           '*, *::before, *::after': {
             transitionProperty: 'background-color, color, border-color, box-shadow',

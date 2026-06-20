@@ -214,7 +214,7 @@ function MandalaWatermark({ color }) {
 
 // ── TOP BAR (desktop) ──────────────────────────────────────────────────────────
 
-function TopBar({ user, heroColor, mode, toggleTheme, isDark }) {
+function TopBar({ user, heroColor, mode, toggleTheme, isDark, drawerBg, sidebarIsDark, sidebarTextP, sidebarTextS, sidebarDivClr }) {
   const navigate = useNavigate();
   const { level, siddhi } = useSiddhiLevel();
   const name = user?.user_metadata?.full_name || "Subbu";
@@ -226,24 +226,23 @@ function TopBar({ user, heroColor, mode, toggleTheme, isDark }) {
     .slice(0, 2);
   const avatarSrc = useMemo(() => localStorage.getItem("sv_avatar"), []);
 
-  const divider = isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)";
-  const textP = isDark ? "#F0EDE8" : "#2C2C2C";
-  const textS = isDark ? "#9C9A94" : "#7A6E62";
+  const onDark = isDark || sidebarIsDark;
+  const divider = onDark ? (sidebarIsDark ? sidebarDivClr : "rgba(255,255,255,0.06)") : "rgba(0,0,0,0.06)";
+  const textP = sidebarIsDark ? sidebarTextP : (isDark ? "#F0EDE8" : "#2C2C2C");
+  const textS = sidebarIsDark ? sidebarTextS : (isDark ? "#9C9A94" : "#7A6E62");
+  const topBg = isDark ? "rgba(18, 17, 16, 0.85)" : (sidebarIsDark ? drawerBg : "var(--sv-surface)");
 
   return (
     <Box
       sx={{
-        height: 64, // Increased touch target size
+        height: 64,
         display: "flex",
         alignItems: "center",
         justifyContent: "flex-end",
         px: 4,
         gap: 2,
         borderBottom: `1px solid ${divider}`,
-        // Glassmorphism effect
-        background: isDark
-          ? "rgba(18, 17, 16, 0.85)"
-          : `color-mix(in srgb, var(--sv-surface) 88%, transparent)`,
+        background: topBg,
         backdropFilter: "blur(12px)",
         WebkitBackdropFilter: "blur(12px)",
         position: "sticky",
@@ -285,10 +284,10 @@ function TopBar({ user, heroColor, mode, toggleTheme, isDark }) {
           px: 1.5,
           py: 0.75,
           border: `1px solid ${divider}`,
-          background: isDark ? "rgba(255,255,255,0.02)" : "rgba(0,0,0,0.02)",
+          background: onDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.02)",
           "&:hover": {
             borderColor: `${heroColor}50`,
-            background: `${heroColor}08`,
+            background: onDark ? "rgba(255,255,255,0.10)" : `${heroColor}08`,
             boxShadow: `0 4px 12px ${heroColor}15`,
           },
           transition: "all 0.2s ease",
@@ -640,10 +639,10 @@ export default function AppLayout() {
             sx={{
               background: isDark
                 ? `rgba(10, 9, 8, 0.92)`
-                : `color-mix(in srgb, var(--sv-surface) 94%, transparent)`,
+                : sidebarIsDark ? drawerBg : `color-mix(in srgb, var(--sv-surface) 94%, transparent)`,
               backdropFilter: "blur(16px)",
               WebkitBackdropFilter: "blur(16px)",
-              borderBottom: `1.5px solid ${isDark ? "rgba(255,255,255,0.10)" : "rgba(0,0,0,0.10)"}`,
+              borderBottom: `1.5px solid ${isDark || sidebarIsDark ? "rgba(255,255,255,0.10)" : "rgba(0,0,0,0.10)"}`,
               boxShadow: isDark
                 ? "0 1px 12px rgba(0,0,0,0.4)"
                 : "0 1px 8px rgba(0,0,0,0.08)",
@@ -655,9 +654,9 @@ export default function AppLayout() {
                 size="small"
                 onClick={() => setMobileOpen(true)}
                 sx={{
-                  color: textP,
+                  color: sidebarIsDark ? sidebarTextP : textP,
                   mr: 1,
-                  border: `1px solid ${isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.12)"}`,
+                  border: `1px solid ${isDark || sidebarIsDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.12)"}`,
                   borderRadius: 2,
                   p: "6px",
                   "&:hover": { background: `${heroColor}14`, borderColor: heroColor, color: heroColor },
@@ -682,7 +681,7 @@ export default function AppLayout() {
                       fontWeight: 600,
                       fontSize: 18,
                       lineHeight: 1.1,
-                      color: textP,
+                      color: sidebarIsDark ? sidebarTextP : textP,
                     }}
                   >
                     Svādhyāya
@@ -696,7 +695,7 @@ export default function AppLayout() {
                       color: sidebarIconColor,
                       fontWeight: 600,
                       fontFamily: '"Noto Sans Devanagari", "Mangal", sans-serif',
-                      opacity: isDark ? 0.75 : 1,
+                      opacity: isDark || sidebarIsDark ? 0.85 : 1,
                     }}
                   >
                     स्वाध्याय
@@ -707,7 +706,7 @@ export default function AppLayout() {
               <IconButton
                 size="small"
                 onClick={toggleTheme}
-                sx={{ color: textS }}
+                sx={{ color: sidebarIsDark ? sidebarTextS : textS }}
               >
                 {mode === "dark" ? (
                   <LightMode sx={{ fontSize: 20 }} />
@@ -780,11 +779,11 @@ export default function AppLayout() {
               value={currentBottomNav !== -1 ? currentBottomNav : 0}
               onChange={(_, v) => navigate(BOTTOM_NAV[v].path)}
               sx={{
-                borderTop: `1px solid ${dividerClr}`,
+                borderTop: `1px solid ${sidebarIsDark ? sidebarDivClr : dividerClr}`,
                 height: 65,
                 background: isDark
                   ? "rgba(10, 9, 8, 0.9)"
-                  : `color-mix(in srgb, var(--sv-surface) 96%, transparent)`,
+                  : sidebarIsDark ? drawerBg : `color-mix(in srgb, var(--sv-surface) 96%, transparent)`,
                 backdropFilter: "blur(10px)",
                 pb: 1, // Safe area padding
               }}
@@ -800,8 +799,8 @@ export default function AppLayout() {
                       fontWeight: 500,
                       mt: 0.5,
                     },
-                    color: textS,
-                    "&.Mui-selected": { color: heroColor },
+                    color: sidebarIsDark ? sidebarTextS : textS,
+                    "&.Mui-selected": { color: sidebarIsDark ? sidebarIconColor : heroColor },
                   }}
                 />
               ))}
@@ -849,6 +848,11 @@ export default function AppLayout() {
               mode={mode}
               toggleTheme={toggleTheme}
               isDark={isDark}
+              drawerBg={drawerBg}
+              sidebarIsDark={sidebarIsDark}
+              sidebarTextP={sidebarTextP}
+              sidebarTextS={sidebarTextS}
+              sidebarDivClr={sidebarDivClr}
             />
 
             <Box sx={{ flex: 1 }}>

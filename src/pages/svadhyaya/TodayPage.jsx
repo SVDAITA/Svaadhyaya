@@ -403,7 +403,7 @@ function CompletionDialog({
       onClose={onClose}
       PaperProps={{
         sx: {
-          background: isDark ? "#1A1916" : "#FFFFFF",
+          background: isDark ? "#1A1916" : "var(--sv-surface)",
           borderRadius: 3,
           p: 1,
           width: "100%",
@@ -4595,7 +4595,7 @@ export default function TodayPage() {
                 value={vidyaLogForm.source_id}
                 onChange={(e) => setVidyaLogForm((f) => ({ ...f, source_id: e.target.value }))}
                 sx={{ width: "100%", mb: 1.25, p: "6px 10px", borderRadius: 1.5, fontSize: 13,
-                  bgcolor: isDark ? "rgba(255,255,255,0.06)" : "#fff",
+                  bgcolor: isDark ? "rgba(255,255,255,0.06)" : "var(--sv-surface)",
                   color: isDark ? "#F0EDE8" : "#2C1210",
                   border: `1px solid ${isDark ? "rgba(255,255,255,0.12)" : "#D8CCC8"}`,
                   outline: "none" }}>
@@ -4613,7 +4613,7 @@ export default function TodayPage() {
                 onChange={(e) => setVidyaLogForm((f) => ({ ...f, hours: e.target.value }))}
                 placeholder="e.g. 1.5"
                 sx={{ flex: 1, p: "5px 10px", borderRadius: 1.5, fontSize: 13,
-                  bgcolor: isDark ? "rgba(255,255,255,0.06)" : "#fff",
+                  bgcolor: isDark ? "rgba(255,255,255,0.06)" : "var(--sv-surface)",
                   color: isDark ? "#F0EDE8" : "#2C1210",
                   border: `1px solid ${isDark ? "rgba(255,255,255,0.12)" : "#D8CCC8"}`,
                   outline: "none" }} />
@@ -4624,7 +4624,7 @@ export default function TodayPage() {
               onChange={(e) => setVidyaLogForm((f) => ({ ...f, notes: e.target.value }))}
               placeholder="Notes (optional)"
               sx={{ width: "100%", p: "6px 10px", borderRadius: 1.5, fontSize: 12, resize: "none",
-                bgcolor: isDark ? "rgba(255,255,255,0.06)" : "#fff",
+                bgcolor: isDark ? "rgba(255,255,255,0.06)" : "var(--sv-surface)",
                 color: isDark ? "#F0EDE8" : "#2C1210",
                 border: `1px solid ${isDark ? "rgba(255,255,255,0.12)" : "#D8CCC8"}`,
                 outline: "none", boxSizing: "border-box" }} />
