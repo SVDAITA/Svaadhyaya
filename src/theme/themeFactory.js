@@ -113,6 +113,11 @@ export function createAppTheme(
     contrastText: getContrastText(secondaryColor),
   }
 
+  const cardBorder = isDark ? '1px solid rgba(248,250,252,0.08)' : '1px solid rgba(15,23,42,0.08)'
+  const cardBg = isDark
+    ? PAPER_DARK
+    : (contentBg ? blendColors('#ffffff', contentBg, 0.16) : PAPER_LIGHT)
+
   const backgrounds = isDark
     ? { default: BG_DARK, paper: PAPER_DARK }
     : { default: contentBg || BG_LIGHT, paper: cardBg }
@@ -122,11 +127,6 @@ export function createAppTheme(
     : { primary: TEXT_PRIMARY_LIGHT, secondary: TEXT_SECONDARY_LIGHT, disabled: '#94a3b8' }
 
   const divider = isDark ? 'rgba(248,250,252,0.08)' : 'rgba(15,23,42,0.1)'
-
-  const cardBorder = isDark ? '1px solid rgba(248,250,252,0.08)' : '1px solid rgba(15,23,42,0.08)'
-  const cardBg = isDark
-    ? PAPER_DARK
-    : (contentBg ? blendColors('#ffffff', contentBg, 0.16) : PAPER_LIGHT)
 
   return createTheme({
     palette: {
