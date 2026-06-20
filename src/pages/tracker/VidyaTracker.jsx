@@ -1268,7 +1268,7 @@ export default function VidyaTracker({ embedded = false }) {
 
       {/* Delete Confirm */}
       <Dialog open={delDlg.open} onClose={() => setDelDlg({ open: false, title: "", fn: null })}
-        PaperProps={{ sx: { borderRadius: 3, bgcolor: isDark ? "#1A1610" : "#fff", maxWidth: 360 } }}>
+        PaperProps={{ sx: { borderRadius: 3, bgcolor: isDark ? "#1A1610" : "var(--sv-surface)", maxWidth: 360 } }}>
         <DialogTitle sx={{ fontSize: 16, fontWeight: 700 }}>Confirm Delete</DialogTitle>
         <DialogContent>
           <Typography sx={{ fontSize: 14 }}>{delDlg.title}</Typography>

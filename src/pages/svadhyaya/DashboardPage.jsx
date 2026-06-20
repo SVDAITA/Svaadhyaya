@@ -1073,7 +1073,7 @@ function ReadingCard({ books, readingSessions, isDark, days = 30 }) {
       sx={{
         border: `1px solid ${alpha(rc, 0.25)}`,
         borderRadius: 2.5,
-        background: isDark ? "rgba(26,25,22,0.7)" : "#fff",
+        background: isDark ? "rgba(26,25,22,0.7)" : "var(--sv-surface)",
         boxShadow: "none",
         height: "100%",
         animation: `${fadeUp} 0.5s ease 0.2s both`,
@@ -1236,7 +1236,7 @@ function ReadingCard({ books, readingSessions, isDark, days = 30 }) {
             <RechTooltip
               contentStyle={{
                 fontSize: 11,
-                background: isDark ? "#1A1916" : "#fff",
+                background: isDark ? "#1A1916" : "var(--sv-surface)",
                 border: `1px solid ${alpha(rc, 0.3)}`,
                 borderRadius: 8,
               }}
@@ -1319,7 +1319,7 @@ function JapaCard({ japaLogs, japaGoals, isDark, days = 14 }) {
       sx={{
         border: `1px solid ${alpha(jc, 0.25)}`,
         borderRadius: 2.5,
-        background: isDark ? "rgba(26,25,22,0.7)" : "#fff",
+        background: isDark ? "rgba(26,25,22,0.7)" : "var(--sv-surface)",
         boxShadow: "none",
         height: "100%",
         animation: `${fadeUp} 0.5s ease 0.25s both`,
@@ -1454,7 +1454,7 @@ function JapaCard({ japaLogs, japaGoals, isDark, days = 14 }) {
             <RechTooltip
               contentStyle={{
                 fontSize: 11,
-                background: isDark ? "#1A1916" : "#fff",
+                background: isDark ? "#1A1916" : "var(--sv-surface)",
                 border: `1px solid ${alpha(jc, 0.3)}`,
                 borderRadius: 8,
               }}
@@ -1540,7 +1540,7 @@ function FinanceCard({ financeLogs, financeBudgets, isDark, days = 30 }) {
       sx={{
         border: `1px solid ${alpha(fc, 0.25)}`,
         borderRadius: 2.5,
-        background: isDark ? "rgba(26,25,22,0.7)" : "#fff",
+        background: isDark ? "rgba(26,25,22,0.7)" : "var(--sv-surface)",
         boxShadow: "none",
         height: "100%",
         animation: `${fadeUp} 0.5s ease 0.3s both`,
@@ -1651,7 +1651,7 @@ function FinanceCard({ financeLogs, financeBudgets, isDark, days = 30 }) {
             <RechTooltip
               contentStyle={{
                 fontSize: 11,
-                background: isDark ? "#1A1916" : "#fff",
+                background: isDark ? "#1A1916" : "var(--sv-surface)",
                 border: `1px solid ${alpha(fc, 0.3)}`,
                 borderRadius: 8,
               }}
@@ -1766,7 +1766,7 @@ function MovementCard({ activityLogs, latestWeightKg, isDark, days = 14 }) {
       sx={{
         border: `1px solid ${alpha(mc, 0.25)}`,
         borderRadius: 2.5,
-        background: isDark ? "rgba(26,25,22,0.7)" : "#fff",
+        background: isDark ? "rgba(26,25,22,0.7)" : "var(--sv-surface)",
         boxShadow: "none",
         animation: `${fadeUp} 0.5s ease 0.35s both`,
       }}
@@ -2033,7 +2033,7 @@ function MovementCard({ activityLogs, latestWeightKg, isDark, days = 14 }) {
                 <RechTooltip
                   contentStyle={{
                     fontSize: 11,
-                    background: isDark ? "#1A1916" : "#fff",
+                    background: isDark ? "#1A1916" : "var(--sv-surface)",
                     border: `1px solid ${alpha(mc, 0.3)}`,
                     borderRadius: 8,
                   }}
@@ -2145,7 +2145,7 @@ function LifeRhythmHeatmap({ dayMap, isDark, onDayClick, japaLogs = [] }) {
       sx={{
         border: `1px solid ${isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)"}`,
         borderRadius: 2.5,
-        background: isDark ? "rgba(26,25,22,0.7)" : "#fff",
+        background: isDark ? "rgba(26,25,22,0.7)" : "var(--sv-surface)",
         boxShadow: "none",
         animation: `${fadeUp} 0.5s ease 0.1s both`,
       }}
@@ -2365,7 +2365,7 @@ function LifeBalanceRadar({ dynamicStreaks, isDark, heroColor }) {
       sx={{
         border: `1px solid ${isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)"}`,
         borderRadius: 2.5,
-        background: isDark ? "rgba(26,25,22,0.7)" : "#fff",
+        background: isDark ? "rgba(26,25,22,0.7)" : "var(--sv-surface)",
         boxShadow: "none",
         height: "100%",
         animation: `${fadeUp} 0.5s ease 0.15s both`,
@@ -2827,7 +2827,7 @@ const TYPE_META = {
 function ActiveMilestonesCard({ lakshyas, isDark }) {
   const textP = isDark ? "#F0EDE8" : "#2C2C2C";
   const textS = isDark ? "#7A7874" : "#9C9A94";
-  const bg = isDark ? "rgba(26,25,22,0.7)" : "#fff";
+  const bg = isDark ? "rgba(26,25,22,0.7)" : "var(--sv-surface)";
 
   const lakshyaRows = useMemo(() =>
     lakshyas.map((l) => {

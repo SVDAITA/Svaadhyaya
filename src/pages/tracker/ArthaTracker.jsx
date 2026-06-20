@@ -1063,7 +1063,7 @@ export default function FinanceOSPage({ embedded = false }) {
   const dialogPaperSx = {
     background: isDark
       ? "linear-gradient(145deg, #1A202C 0%, #2D3748 100%)"
-      : "#FFFFFF",
+      : "var(--sv-surface)",
     border: `1px solid ${isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.1)"}`,
     borderRadius: 4,
     boxShadow: isDark
@@ -1397,7 +1397,7 @@ export default function FinanceOSPage({ embedded = false }) {
                     />
                     <Tooltip
                       contentStyle={{
-                        background: isDark ? "#1A202C" : "#FFFFFF",
+                        background: isDark ? "#1A202C" : "var(--sv-surface)",
                         border: `1px solid ${isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.1)"}`,
                         borderRadius: 12,
                         boxShadow: "0 10px 25px rgba(0,0,0,0.1)",
@@ -2532,7 +2532,7 @@ export default function FinanceOSPage({ embedded = false }) {
                           </Pie>
                           <Tooltip
                             contentStyle={{
-                              background: isDark ? "#1A202C" : "#FFF",
+                              background: isDark ? "#1A202C" : "var(--sv-surface)",
                               border: `1px solid ${isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.1)"}`,
                               borderRadius: 12,
                               boxShadow: "0 10px 25px rgba(0,0,0,0.1)",

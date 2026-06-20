@@ -281,7 +281,7 @@ export default function PravesaPage() {
   const showSnack = (msg, severity = "success") => setSnack({ open: true, msg, severity });
 
   const border    = isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)";
-  const cardBg    = isDark ? "#161616" : "#FFFFFF";
+  const cardBg    = isDark ? "#161616" : "var(--sv-surface)";
   const textP     = isDark ? "#F0EDE8" : "#1A1A1A";
   const textS     = isDark ? "#9C9A94" : "#6B6B6B";
   const safeColor = isDark ? "#6AAEE8" : COLOR;

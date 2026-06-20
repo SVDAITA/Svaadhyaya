@@ -920,7 +920,7 @@ export default function DietPage() {
                   placeholder={`[\n  {"name": "Brown Rice", "quantity": "2", "unit": "kg", "category": "Grains"},\n  {"name": "Spinach", "quantity": "500", "unit": "g", "category": "Vegetables"}\n]`}
                   value={pantryJsonInput}
                   onChange={(e) => setPantryJsonInput(e.target.value)}
-                  sx={{ mb: 2, "& textarea": { fontSize: 13, fontFamily: "'Fira Code', monospace", color: textP }, "& .MuiOutlinedInput-root": { background: isDark ? "rgba(0,0,0,0.3)" : "#fff", borderRadius: 2 } }}
+                  sx={{ mb: 2, "& textarea": { fontSize: 13, fontFamily: "'Fira Code', monospace", color: textP }, "& .MuiOutlinedInput-root": { background: isDark ? "rgba(0,0,0,0.3)" : "var(--sv-surface)", borderRadius: 2 } }}
                 />
                 <Button
                   variant="contained"
@@ -994,7 +994,7 @@ export default function DietPage() {
         onClose={() => !editHistSaving && setEditHistDay(null)}
         maxWidth="sm"
         fullWidth
-        PaperProps={{ sx: { borderRadius: 4, background: isDark ? "#1A1915" : "#FFFDF9" } }}
+        PaperProps={{ sx: { borderRadius: 4, background: isDark ? "#1A1915" : "var(--sv-surface)" } }}
       >
         <DialogTitle sx={{ fontSize: 18, fontFamily: '"Fraunces",serif', color: textP, pb: 0.5 }}>
           Edit Meals · {editHistDay && dayjs(editHistDay).format("MMM D, YYYY")}
@@ -1080,7 +1080,7 @@ export default function DietPage() {
       <Dialog
         open={addPantryOpen}
         onClose={() => setAddPantryOpen(false)}
-        PaperProps={{ sx: { borderRadius: 4, background: isDark ? "#1A1915" : "#FFFDF9", maxWidth: 420, width: "100%" } }}
+        PaperProps={{ sx: { borderRadius: 4, background: isDark ? "#1A1915" : "var(--sv-surface)", maxWidth: 420, width: "100%" } }}
       >
         <DialogTitle sx={{ fontSize: 18, fontFamily: '"Fraunces",serif', color: textP, pb: 1 }}>Add Pantry Item</DialogTitle>
         <DialogContent sx={{ pt: "8px !important" }}>

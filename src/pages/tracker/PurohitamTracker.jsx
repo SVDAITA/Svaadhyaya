@@ -259,7 +259,7 @@ let _purohitamCache = null;
 // ═══════════════════════════════════════════════════════════════════
 function PurohitamTab({ user, isDark }) {
   const border = isDark ? "rgba(255,255,255,0.08)" : "#E8E5DF";
-  const cardBg = isDark ? "#1A1510" : "#FFFBF5";
+  const cardBg = isDark ? "#1A1510" : "var(--sv-surface)";
   const textP = isDark ? "#F5EFE0" : "#2C2010";
   const textS = isDark ? "#A09070" : "#7A6040";
 
@@ -1586,7 +1586,7 @@ let _anushtanamCache = null;
 // ═══════════════════════════════════════════════════════════════════
 function AnushtanamTab({ user, isDark }) {
   const border = isDark ? "rgba(255,255,255,0.08)" : "#DDE0F0";
-  const cardBg = isDark ? "#0F0E1A" : "#F8F8FF";
+  const cardBg = isDark ? "#0F0E1A" : "var(--sv-surface)";
   const textP = isDark ? "#E8E8F8" : "#1A1A3A";
   const textS = isDark ? "#8080AA" : "#5A5A7A";
 
