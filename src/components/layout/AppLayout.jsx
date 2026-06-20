@@ -376,6 +376,10 @@ export default function AppLayout() {
   const sidebarTextS = sidebarIsDark ? "rgba(255,255,255,0.42)" : textS;
   const sidebarDivClr = sidebarIsDark ? "rgba(255,255,255,0.09)" : dividerClr;
 
+  // Bright theme-matched icon color so mandala is always visible on dark sidebars
+  const SIDEBAR_ICON_COLORS = { saffron: "#E8A030", indigo: "#7EB8F7", forest: "#68C98E", plum: "#C4A0F0" };
+  const sidebarIconColor = sidebarIsDark ? (SIDEBAR_ICON_COLORS[layoutTheme.id] || "#E8C47A") : heroColor;
+
   const drawerContent = (
     <Box
       sx={{
@@ -391,7 +395,7 @@ export default function AppLayout() {
         position: "relative",
       }}
     >
-      <MandalaWatermark color={heroColor} />
+      <MandalaWatermark color={sidebarIconColor} />
 
       {/* Brand Header */}
       <Box
@@ -403,7 +407,7 @@ export default function AppLayout() {
           gap: 2,
           minHeight: 76,
           position: "relative",
-          background: `linear-gradient(180deg, ${heroColor}${isDark ? "15" : sidebarIsDark ? "22" : "10"} 0%, transparent 100%)`,
+          background: `linear-gradient(180deg, ${sidebarIconColor}${isDark || sidebarIsDark ? "20" : "10"} 0%, transparent 100%)`,
         }}
       >
         <Box
@@ -411,17 +415,17 @@ export default function AppLayout() {
             width: 42,
             height: 42,
             borderRadius: "50%",
-            background: isDark ? `${heroColor}45` : `${heroColor}15`,
-            border: `1.5px solid ${isDark ? `${heroColor}AA` : `${heroColor}50`}`,
+            background: `${sidebarIconColor}${isDark || sidebarIsDark ? "30" : "15"}`,
+            border: `1.5px solid ${sidebarIconColor}${isDark || sidebarIsDark ? "90" : "50"}`,
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
             flexShrink: 0,
-            boxShadow: isDark ? `0 0 22px ${heroColor}60` : `0 0 15px ${heroColor}25`,
+            boxShadow: `0 0 ${isDark || sidebarIsDark ? "22px" : "12px"} ${sidebarIconColor}${isDark || sidebarIsDark ? "55" : "25"}`,
             mx: collapsed ? "auto" : 0,
           }}
         >
-          <MandalaSVG size={24} color={heroColor} boost={isDark ? 3 : 1} />
+          <MandalaSVG size={24} color={sidebarIconColor} boost={isDark || sidebarIsDark ? 3 : 1} />
         </Box>
 
         {!collapsed && (
@@ -443,7 +447,7 @@ export default function AppLayout() {
               sx={{
                 fontSize: 11,
                 letterSpacing: 0,
-                color: sidebarIsDark ? heroColor : (isDark ? textP : heroColor),
+                color: sidebarIconColor,
                 fontWeight: 600,
                 whiteSpace: "nowrap",
                 fontFamily: '"Noto Sans Devanagari", "Mangal", sans-serif',
@@ -670,7 +674,7 @@ export default function AppLayout() {
                   gap: 1.5,
                 }}
               >
-                <MandalaSVG size={20} color={heroColor} boost={isDark ? 3 : 1} />
+                <MandalaSVG size={20} color={sidebarIconColor} boost={isDark || sidebarIsDark ? 3 : 1} />
                 <Box>
                   <Typography
                     sx={{
@@ -689,7 +693,7 @@ export default function AppLayout() {
                       display: "block",
                       fontSize: 10,
                       letterSpacing: 0,
-                      color: isDark ? textP : heroColor,
+                      color: sidebarIconColor,
                       fontWeight: 600,
                       fontFamily: '"Noto Sans Devanagari", "Mangal", sans-serif',
                       opacity: isDark ? 0.75 : 1,

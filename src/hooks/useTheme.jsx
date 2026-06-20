@@ -85,10 +85,11 @@ export const ThemeProvider = ({ children }) => {
   }
 
   // Dynamic theme: recreated whenever mode, primaryColor, or secondaryColor changes
-  const theme = useMemo(
-    () => createAppTheme(mode, primaryColor, secondaryColor),
-    [mode, primaryColor, secondaryColor],
-  )
+  const theme = useMemo(() => {
+    const lt = LAYOUT_THEMES.find(t => t.id === layoutThemeId) || LAYOUT_THEMES[0]
+    const contentBg = mode === 'light' && lt.id !== 'default' ? lt.appBg : null
+    return createAppTheme(mode, primaryColor, secondaryColor, contentBg)
+  }, [mode, primaryColor, secondaryColor, layoutThemeId])
 
   const value = {
     mode,

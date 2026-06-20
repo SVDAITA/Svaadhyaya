@@ -44,6 +44,11 @@ export function lightenColor(hex, amount) {
   return rgbToHex(r + (255 - r) * amount, g + (255 - g) * amount, b + (255 - b) * amount)
 }
 
+function blendColors(hex1, hex2, amount) {
+  const c1 = hexToRgb(hex1), c2 = hexToRgb(hex2)
+  return rgbToHex(c1.r + (c2.r - c1.r) * amount, c1.g + (c2.g - c1.g) * amount, c1.b + (c2.b - c1.b) * amount)
+}
+
 // ── PILLAR CONSTANTS ──────────────────────────────────────────────────────────
 export const SPIRIT = '#C07830'
 export const MUSIC = '#7C4DAB'
@@ -90,6 +95,7 @@ export function createAppTheme(
   mode = 'light',
   primaryColor = '#1e3a8a',
   secondaryColor = '#b45309',
+  contentBg = null,
 ) {
   const isDark = mode === 'dark'
 
@@ -109,7 +115,7 @@ export function createAppTheme(
 
   const backgrounds = isDark
     ? { default: BG_DARK, paper: PAPER_DARK }
-    : { default: BG_LIGHT, paper: PAPER_LIGHT }
+    : { default: contentBg || BG_LIGHT, paper: cardBg }
 
   const text = isDark
     ? { primary: TEXT_PRIMARY_DARK, secondary: TEXT_SECONDARY_DARK, disabled: '#475569' }
@@ -117,8 +123,10 @@ export function createAppTheme(
 
   const divider = isDark ? 'rgba(248,250,252,0.08)' : 'rgba(15,23,42,0.1)'
 
-  const cardBorder = isDark ? '1px solid rgba(248,250,252,0.08)' : '1px solid rgba(15,23,42,0.1)'
-  const cardBg = isDark ? PAPER_DARK : PAPER_LIGHT
+  const cardBorder = isDark ? '1px solid rgba(248,250,252,0.08)' : '1px solid rgba(15,23,42,0.08)'
+  const cardBg = isDark
+    ? PAPER_DARK
+    : (contentBg ? blendColors('#ffffff', contentBg, 0.16) : PAPER_LIGHT)
 
   return createTheme({
     palette: {
