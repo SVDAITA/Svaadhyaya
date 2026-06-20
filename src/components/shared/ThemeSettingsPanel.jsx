@@ -211,6 +211,58 @@ function LivePreview({ primaryColor, secondaryColor, mode }) {
   )
 }
 
+// ── LAYOUT THEME CARD ─────────────────────────────────────────────────────────
+
+function LayoutThemeCard({ theme, selected, onClick }) {
+  const sidebarIsDark = theme.id !== 'default'
+  const dotColor = sidebarIsDark ? 'rgba(255,255,255,0.28)' : 'rgba(0,0,0,0.14)'
+  const lineColor = 'rgba(0,0,0,0.1)'
+  const borderColor = selected ? theme.accent : 'transparent'
+
+  return (
+    <Box
+      onClick={onClick}
+      sx={{
+        cursor: 'pointer',
+        borderRadius: 2,
+        overflow: 'hidden',
+        border: `2px solid ${borderColor}`,
+        boxShadow: selected
+          ? `0 0 0 3px ${theme.accent}40`
+          : '0 2px 8px rgba(0,0,0,0.12)',
+        transition: 'all 0.18s ease',
+        '&:hover': { transform: 'scale(1.04)', boxShadow: `0 4px 14px rgba(0,0,0,0.18)` },
+        position: 'relative',
+        userSelect: 'none',
+      }}
+    >
+      <Box sx={{ display: 'flex', height: 58 }}>
+        {/* Sidebar strip */}
+        <Box sx={{
+          width: 30, background: theme.drawerBg, flexShrink: 0,
+          display: 'flex', flexDirection: 'column', alignItems: 'center', pt: 1.25, gap: '5px',
+        }}>
+          {[0.85, 0.55, 0.55].map((op, i) => (
+            <Box key={i} sx={{ width: 14, height: 3, borderRadius: 1, background: dotColor, opacity: op }} />
+          ))}
+        </Box>
+        {/* Content area */}
+        <Box sx={{ flex: 1, background: theme.appBg, p: '7px 8px', display: 'flex', flexDirection: 'column', gap: '5px' }}>
+          <Box sx={{ height: 4, background: lineColor, borderRadius: 1, width: '55%' }} />
+          <Box sx={{ height: 3, background: lineColor, borderRadius: 1, width: '80%', opacity: 0.65 }} />
+          <Box sx={{ height: 3, background: lineColor, borderRadius: 1, width: '42%', opacity: 0.5 }} />
+          <Box sx={{ mt: 'auto', height: 8, background: theme.accent, borderRadius: 1, width: 28, opacity: 0.85 }} />
+        </Box>
+      </Box>
+      {selected && (
+        <Box sx={{ position: 'absolute', top: 3, right: 3 }}>
+          <CheckCircle sx={{ fontSize: 13, color: theme.accent }} />
+        </Box>
+      )}
+    </Box>
+  )
+}
+
 // ── MAIN PANEL ────────────────────────────────────────────────────────────────
 
 export default function ThemeSettingsPanel() {
@@ -218,6 +270,8 @@ export default function ThemeSettingsPanel() {
     mode, toggleTheme,
     primaryColor, setPrimaryColor,
     secondaryColor, setSecondaryColor,
+    layoutThemeId, setLayoutThemeId,
+    LAYOUT_THEMES,
   } = useThemeMode()
 
   const isDark = mode === 'dark'
@@ -228,6 +282,38 @@ export default function ThemeSettingsPanel() {
 
   return (
     <Box sx={{ maxWidth: 560 }}>
+
+      {/* ── Layout Theme ── */}
+      <Box sx={{ mb: 4 }}>
+        <Typography sx={{ fontSize: 10, fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', color: textS, mb: 1.5 }}>
+          Layout Theme
+        </Typography>
+        <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 1.25, mb: 1 }}>
+          {LAYOUT_THEMES.map(theme => (
+            <Box key={theme.id}>
+              <LayoutThemeCard
+                theme={theme}
+                selected={layoutThemeId === theme.id}
+                onClick={() => setLayoutThemeId(theme.id)}
+              />
+              <Typography sx={{
+                fontSize: 10, textAlign: 'center', mt: 0.75,
+                color: layoutThemeId === theme.id ? theme.accent : textS,
+                fontWeight: layoutThemeId === theme.id ? 700 : 400,
+                lineHeight: 1.2,
+              }}>
+                {theme.name}
+              </Typography>
+            </Box>
+          ))}
+        </Box>
+        <Typography sx={{ fontSize: 10, color: textS, mt: 1 }}>
+          Changes sidebar and page background. Applies in light mode only.
+        </Typography>
+      </Box>
+
+      <Divider sx={{ borderColor: divClr, mb: 4 }} />
+
       {/* ── Mode Toggle ── */}
       <Box sx={{ mb: 4 }}>
         <Typography sx={{ fontSize: 10, fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', color: textS, mb: 1.5 }}>

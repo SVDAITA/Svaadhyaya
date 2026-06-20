@@ -39,7 +39,7 @@ import {
   Waves,
 } from "@mui/icons-material";
 import { useAuth } from "../../hooks/useAuth";
-import { useThemeMode } from "../../hooks/useTheme";
+import { useThemeMode, LAYOUT_THEMES } from "../../hooks/useTheme";
 import { useVisibility } from "../../hooks/useVisibility";
 import { useSiddhiLevel } from "../../hooks/useSiddhiLevel";
 
@@ -333,7 +333,7 @@ function TopBar({ user, heroColor, mode, toggleTheme, isDark }) {
 
 export default function AppLayout() {
   const { user } = useAuth();
-  const { mode, toggleTheme, heroColor } = useThemeMode();
+  const { mode, toggleTheme, heroColor, layoutThemeId } = useThemeMode();
   const isDark = mode === "dark";
   const navigate = useNavigate();
   const location = useLocation();
@@ -358,14 +358,23 @@ export default function AppLayout() {
     .slice(0, 2);
   const avatarSrc = useMemo(() => localStorage.getItem("sv_avatar"), []);
 
+  // Layout theme
+  const layoutTheme = LAYOUT_THEMES.find(t => t.id === layoutThemeId) || LAYOUT_THEMES[0];
+  const sidebarIsDark = !isDark && layoutTheme.id !== 'default';
+
   // Theme Constants
   const appBg = isDark
     ? `radial-gradient(ellipse 120% 35% at 50% 0%, ${heroColor}09 0%, #0D0C0A 55%)`
-    : `radial-gradient(ellipse 120% 35% at 50% 0%, ${heroColor}12 0%, #F8F5EF 55%)`;
-  const drawerBg = isDark ? "#0A0908" : "#FFFFFF";
+    : layoutTheme.appBg;
+  const drawerBg = isDark ? "#0A0908" : layoutTheme.drawerBg;
   const dividerClr = isDark ? "rgba(255,255,255,0.06)" : "#E2E8F0";
   const textP = isDark ? "#F0EDE8" : "#0f172a";
   const textS = isDark ? "#8C8881" : "#64748b";
+
+  // Sidebar uses light text when sidebar bg is dark in light mode
+  const sidebarTextP = sidebarIsDark ? "#F0EDE8" : textP;
+  const sidebarTextS = sidebarIsDark ? "rgba(255,255,255,0.42)" : textS;
+  const sidebarDivClr = sidebarIsDark ? "rgba(255,255,255,0.09)" : dividerClr;
 
   const drawerContent = (
     <Box
@@ -375,10 +384,10 @@ export default function AppLayout() {
         height: "100%",
         overflow: "hidden",
         background: drawerBg,
-        borderRight: `1px solid ${dividerClr}`,
+        borderRight: `1px solid ${sidebarDivClr}`,
         boxShadow: isDark
           ? `inset -10px 0 20px -10px rgba(0,0,0,0.5)`
-          : `1px 0 0 0 ${dividerClr}`,
+          : sidebarIsDark ? `inset -1px 0 0 0 ${sidebarDivClr}` : `1px 0 0 0 ${dividerClr}`,
         position: "relative",
       }}
     >
@@ -394,7 +403,7 @@ export default function AppLayout() {
           gap: 2,
           minHeight: 76,
           position: "relative",
-          background: `linear-gradient(180deg, ${heroColor}${isDark ? "15" : "10"} 0%, transparent 100%)`,
+          background: `linear-gradient(180deg, ${heroColor}${isDark ? "15" : sidebarIsDark ? "22" : "10"} 0%, transparent 100%)`,
         }}
       >
         <Box
@@ -423,7 +432,7 @@ export default function AppLayout() {
                 fontWeight: 700,
                 fontSize: 19,
                 lineHeight: 1.1,
-                color: textP,
+                color: sidebarTextP,
                 letterSpacing: 0.5,
               }}
             >
@@ -434,7 +443,7 @@ export default function AppLayout() {
               sx={{
                 fontSize: 11,
                 letterSpacing: 0,
-                color: isDark ? textP : heroColor,
+                color: sidebarIsDark ? heroColor : (isDark ? textP : heroColor),
                 fontWeight: 600,
                 whiteSpace: "nowrap",
                 fontFamily: '"Noto Sans Devanagari", "Mangal", sans-serif',
@@ -457,8 +466,8 @@ export default function AppLayout() {
               transform: "translateY(-50%)",
               width: 24,
               height: 24,
-              background: appBg,
-              border: `1px solid ${dividerClr}`,
+              background: isDark ? "#1A1918" : layoutTheme.appBg,
+              border: `1px solid ${sidebarDivClr}`,
               borderRadius: "50%",
               display: "flex",
               alignItems: "center",
@@ -473,7 +482,7 @@ export default function AppLayout() {
             <ChevronRight
               sx={{
                 fontSize: 16,
-                color: textS,
+                color: sidebarTextS,
                 transform: collapsed ? "none" : "rotate(180deg)",
                 transition: "transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
               }}
@@ -507,14 +516,14 @@ export default function AppLayout() {
                       fontWeight: 700,
                       letterSpacing: 1.5,
                       textTransform: "uppercase",
-                      color: textS,
+                      color: sidebarTextS,
                       opacity: 0.7,
                     }}
                   >
                     {item.label}
                   </Typography>
                 ) : (
-                  <Divider sx={{ borderColor: dividerClr, mx: 1 }} />
+                  <Divider sx={{ borderColor: sidebarDivClr, mx: 1 }} />
                 )}
               </Box>
             );
@@ -550,17 +559,17 @@ export default function AppLayout() {
                   // Gorgeous active states
                   ...(active
                     ? {
-                        background: isDark
-                          ? `linear-gradient(90deg, ${itemColor}25 0%, ${itemColor}05 100%)`
+                        background: isDark || sidebarIsDark
+                          ? `linear-gradient(90deg, ${itemColor}30 0%, ${itemColor}08 100%)`
                           : `linear-gradient(90deg, ${itemColor}15 0%, ${itemColor}05 100%)`,
                         boxShadow: `inset 3px 0 0 ${itemColor}`,
                       }
                     : {}),
                   "&:hover": {
-                    background: isDark
-                      ? "rgba(255,255,255,0.03)"
+                    background: isDark || sidebarIsDark
+                      ? "rgba(255,255,255,0.05)"
                       : "rgba(0,0,0,0.03)",
-                    transform: "translateX(4px)", // Subtle hover indent
+                    transform: "translateX(4px)",
                   },
                   transition: "all 0.2s ease",
                 }}
@@ -568,7 +577,7 @@ export default function AppLayout() {
                 <ListItemIcon
                   sx={{
                     minWidth: collapsed ? 0 : 36,
-                    color: active ? itemColor : textS,
+                    color: active ? itemColor : sidebarTextS,
                     "& svg": {
                       fontSize: 20,
                       filter: active
@@ -587,7 +596,7 @@ export default function AppLayout() {
                     primaryTypographyProps={{
                       fontSize: 14,
                       fontWeight: active ? 600 : 500,
-                      color: active ? textP : textS,
+                      color: active ? sidebarTextP : sidebarTextS,
                       letterSpacing: 0.3,
                     }}
                   />
