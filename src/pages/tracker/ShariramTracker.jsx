@@ -1082,51 +1082,35 @@ export default function ShariramHealthOS({ embedded = false }) {
                       >
                         Sleep Quality
                       </Typography>
-                      <Stack direction="row" spacing={0.75}>
-                        {[1, 2, 3, 4, 5].map((n) => (
-                          <Box
-                            key={n}
-                            onClick={() =>
-                              setMovSleepQ(movSleepQ === n ? 0 : n)
-                            }
-                            sx={{
-                              width: 32,
-                              height: 32,
-                              borderRadius: "50%",
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "center",
-                              fontSize: 16,
-                              cursor: "pointer",
-                              border: `2px solid ${n <= movSleepQ ? "#6AAEE8" : theme.palette.divider}`,
-                              bgcolor:
-                                n <= movSleepQ
-                                  ? alpha("#6AAEE8", 0.15)
-                                  : "transparent",
-                              transition: "all 0.15s",
-                              userSelect: "none",
-                            }}
-                          >
-                            {["😴", "😐", "🙂", "😊", "🌟"][n - 1]}
-                          </Box>
-                        ))}
+                      <Stack direction="row" spacing={0.75} flexWrap="wrap">
+                        {[
+                          { n: 1, emoji: "😴", label: "Poor",      color: "#CF4E4E" },
+                          { n: 2, emoji: "😐", label: "Fair",      color: "#E8A030" },
+                          { n: 3, emoji: "🙂", label: "Good",      color: "#6AAEE8" },
+                          { n: 4, emoji: "😊", label: "Great",     color: "#2D7A4F" },
+                          { n: 5, emoji: "🌟", label: "Excellent", color: "#7C4DAB" },
+                        ].map(({ n, emoji, label, color }) => {
+                          const selected = movSleepQ === n;
+                          return (
+                            <Box key={n} onClick={() => setMovSleepQ(selected ? 0 : n)}
+                              sx={{
+                                display: "flex", alignItems: "center", gap: 0.5,
+                                px: 1.25, py: 0.5, borderRadius: 2, cursor: "pointer",
+                                border: `2px solid ${selected ? color : theme.palette.divider}`,
+                                bgcolor: selected ? alpha(color, 0.15) : "transparent",
+                                transition: "all 0.15s", userSelect: "none",
+                                "&:hover": { borderColor: color, bgcolor: alpha(color, 0.08) },
+                              }}
+                            >
+                              <Typography sx={{ fontSize: 15, lineHeight: 1 }}>{emoji}</Typography>
+                              <Typography sx={{ fontSize: 11, fontWeight: selected ? 700 : 500,
+                                color: selected ? color : "text.secondary", lineHeight: 1 }}>
+                                {label}
+                              </Typography>
+                            </Box>
+                          );
+                        })}
                       </Stack>
-                      {movSleepQ > 0 && (
-                        <Typography
-                          variant="caption"
-                          sx={{
-                            color: "text.secondary",
-                            mt: 0.5,
-                            display: "block",
-                          }}
-                        >
-                          {
-                            ["Poor", "Fair", "Good", "Great", "Excellent"][
-                              movSleepQ - 1
-                            ]
-                          }
-                        </Typography>
-                      )}
                     </Box>
 
                     <Button

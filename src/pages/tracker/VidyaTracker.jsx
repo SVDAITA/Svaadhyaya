@@ -146,8 +146,11 @@ export default function VidyaTracker({ embedded = false }) {
   const [bookLakshyaId, setBookLakshyaId] = useState("");
   const [editBook,    setEditBook]   = useState(null);
   const [bookDlg,    setBookDlg]    = useState(false);
-  const [bookFilter, setBookFilter] = useState("reading");
-  const [bookPage,   setBookPage]   = useState(1);
+  const [bookFilter,      setBookFilter]      = useState("all");
+  const [bookPage,        setBookPage]        = useState(1);
+  const [bookSearch,      setBookSearch]      = useState("");
+  const [bookLangFilter,  setBookLangFilter]  = useState("all");
+  const [bookGenreFilter, setBookGenreFilter] = useState("all");
 
   // ── COURSES STATE ─────────────────────────────────────────────────────────
   const emptyCourse = { title: "", platform: "", instructor: "", url: "", status: "in_progress", progress_pct: 0, rating: 3, start_date: today, completed_date: "", notes: "" };
@@ -250,19 +253,22 @@ export default function VidyaTracker({ embedded = false }) {
   const saveBook = async () => {
     if (!bookForm.title.trim()) return;
     haptic(10);
+    const totalP = bookForm.total_pages !== "" ? Number(bookForm.total_pages) : null;
+    const readP  = bookForm.pages_read  !== "" ? Number(bookForm.pages_read)  : 0;
+    const autoComplete = totalP && readP >= totalP;
     const payload = {
       user_id:      user.id,
       title:        bookForm.title.trim(),
       author:       bookForm.author || null,
       language:     bookForm.language || "English",
-      status:       bookForm.status  || "reading",
-      total_pages:  bookForm.total_pages !== "" ? Number(bookForm.total_pages) : null,
-      pages_read:   bookForm.pages_read  !== "" ? Number(bookForm.pages_read)  : 0,
+      status:       autoComplete ? "completed" : (bookForm.status || "reading"),
+      total_pages:  totalP,
+      pages_read:   readP,
       genre:        bookForm.genre        || null,
       notes:        bookForm.notes       || null,
       one_line:     bookForm.one_line    || null,
       started_date: bookForm.started_date  || null,
-      finished_date:bookForm.finished_date || null,
+      finished_date: autoComplete && !bookForm.finished_date ? today : (bookForm.finished_date || null),
     };
     if (editBook) {
       const { error } = await supabase.from("books").update(payload).eq("id", editBook);
@@ -566,20 +572,76 @@ export default function VidyaTracker({ embedded = false }) {
               </Stack>
             </Box>
 
-            {/* Filter */}
-            <Stack direction="row" spacing={1} sx={{ mb: 2, flexWrap: "wrap", gap: 0.5 }}>
-              {["all", ...BOOK_STATUS.map((s) => s.value)].map((f) => (
-                <Chip key={f} label={f === "all" ? "All" : BOOK_STATUS.find((s) => s.value === f)?.label || f}
-                  size="small" onClick={() => { haptic(6); setBookFilter(f); setBookPage(1); }}
-                  sx={{ cursor: "pointer", fontWeight: 600, fontSize: 11,
-                    bgcolor: bookFilter === f ? `${gold}22` : "transparent",
-                    color: bookFilter === f ? gold : textS,
-                    border: `1px solid ${bookFilter === f ? gold : bdr}` }} />
-              ))}
-            </Stack>
+            {/* Search + Filters */}
+            <Box sx={{ mb: 2 }}>
+              {/* Search bar */}
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1.5,
+                bgcolor: cardBg, border: `1px solid ${bdr}`, borderRadius: 2.5, px: 1.5, py: 0.75 }}>
+                <Typography sx={{ fontSize: 16, lineHeight: 1 }}>🔍</Typography>
+                <Box component="input" placeholder="Search by title or author…"
+                  value={bookSearch} onChange={(e) => { setBookSearch(e.target.value); setBookPage(1); }}
+                  sx={{ flex: 1, border: "none", outline: "none", background: "transparent",
+                    fontSize: 13, color: textP, fontFamily: '"Plus Jakarta Sans",sans-serif',
+                    "::placeholder": { color: textS } }} />
+                {bookSearch && (
+                  <Box component="span" onClick={() => setBookSearch("")}
+                    sx={{ fontSize: 12, color: textS, cursor: "pointer", px: 0.5, "&:hover": { color: textP } }}>✕</Box>
+                )}
+              </Box>
+              {/* Status chips */}
+              <Stack direction="row" spacing={0.75} sx={{ mb: 1, flexWrap: "wrap", gap: 0.5 }}>
+                {["all", ...BOOK_STATUS.map((s) => s.value)].map((f) => (
+                  <Chip key={f} label={f === "all" ? "All" : BOOK_STATUS.find((s) => s.value === f)?.label || f}
+                    size="small" onClick={() => { haptic(6); setBookFilter(f); setBookPage(1); }}
+                    sx={{ cursor: "pointer", fontWeight: 600, fontSize: 11,
+                      bgcolor: bookFilter === f ? `${gold}22` : "transparent",
+                      color: bookFilter === f ? gold : textS,
+                      border: `1px solid ${bookFilter === f ? gold : bdr}` }} />
+                ))}
+              </Stack>
+              {/* Language filter */}
+              <Stack direction="row" spacing={0.75} sx={{ mb: 1, flexWrap: "wrap", gap: 0.5 }}>
+                <Typography sx={{ fontSize: 10, fontWeight: 700, color: textS, letterSpacing: 1, textTransform: "uppercase", alignSelf: "center", mr: 0.5 }}>Lang</Typography>
+                {["all", ...LANG_OPTIONS].map((l) => (
+                  <Chip key={l} label={l === "all" ? "Any" : l} size="small"
+                    onClick={() => { haptic(6); setBookLangFilter(l); setBookPage(1); }}
+                    sx={{ cursor: "pointer", fontWeight: 600, fontSize: 10,
+                      bgcolor: bookLangFilter === l ? `${VIDYA_BLUE}22` : "transparent",
+                      color: bookLangFilter === l ? VIDYA_BLUE : textS,
+                      border: `1px solid ${bookLangFilter === l ? VIDYA_BLUE : bdr}` }} />
+                ))}
+              </Stack>
+              {/* Genre filter — derived from actual data */}
+              {(() => {
+                const genres = [...new Set(books.map((b) => b.genre).filter(Boolean))].sort();
+                if (!genres.length) return null;
+                return (
+                  <Stack direction="row" spacing={0.75} sx={{ flexWrap: "wrap", gap: 0.5 }}>
+                    <Typography sx={{ fontSize: 10, fontWeight: 700, color: textS, letterSpacing: 1, textTransform: "uppercase", alignSelf: "center", mr: 0.5 }}>Genre</Typography>
+                    {["all", ...genres].map((g) => (
+                      <Chip key={g} label={g === "all" ? "Any" : g} size="small"
+                        onClick={() => { haptic(6); setBookGenreFilter(g); setBookPage(1); }}
+                        sx={{ cursor: "pointer", fontWeight: 600, fontSize: 10,
+                          bgcolor: bookGenreFilter === g ? `${VIDYA_SIENNA}22` : "transparent",
+                          color: bookGenreFilter === g ? VIDYA_SIENNA : textS,
+                          border: `1px solid ${bookGenreFilter === g ? VIDYA_SIENNA : bdr}` }} />
+                    ))}
+                  </Stack>
+                );
+              })()}
+            </Box>
 
             {(() => {
-              const filtered = books.filter((b) => bookFilter === "all" || b.status === bookFilter);
+              const filtered = books.filter((b) => {
+                if (bookFilter !== "all" && b.status !== bookFilter) return false;
+                if (bookLangFilter !== "all" && (b.language || "English") !== bookLangFilter) return false;
+                if (bookGenreFilter !== "all" && (b.genre || "") !== bookGenreFilter) return false;
+                if (bookSearch.trim()) {
+                  const q = bookSearch.toLowerCase();
+                  if (!b.title?.toLowerCase().includes(q) && !b.author?.toLowerCase().includes(q)) return false;
+                }
+                return true;
+              });
               const paged    = filtered.slice((bookPage - 1) * PER_PAGE, bookPage * PER_PAGE);
               if (filtered.length === 0)
                 return <Typography sx={{ fontSize: 13, color: textS, py: 3, textAlign: "center" }}>No books yet. Add your first book →</Typography>;
@@ -1044,7 +1106,13 @@ export default function VidyaTracker({ embedded = false }) {
             </Box>
             <Box sx={{ display: "flex", gap: 2 }}>
               <TextField label="Total pages" type="number" size="small" sx={{ flex: 1 }} value={bookForm.total_pages || ""} onChange={(e) => setBookForm((f) => ({ ...f, total_pages: e.target.value }))} />
-              <TextField label="Pages read" type="number" size="small" sx={{ flex: 1 }} value={bookForm.pages_read || ""} onChange={(e) => setBookForm((f) => ({ ...f, pages_read: e.target.value }))} />
+              <TextField label="Pages read" type="number" size="small" sx={{ flex: 1 }} value={bookForm.pages_read || ""} onChange={(e) => {
+                const pRead = e.target.value;
+                setBookForm((f) => {
+                  const auto = f.total_pages && pRead && Number(pRead) >= Number(f.total_pages);
+                  return { ...f, pages_read: pRead, ...(auto ? { status: "completed", finished_date: f.finished_date || today } : {}) };
+                });
+              }} />
             </Box>
             <TextField label="One-line summary" size="small" fullWidth placeholder="What's this book about?" value={bookForm.one_line || ""} onChange={(e) => setBookForm((f) => ({ ...f, one_line: e.target.value }))} />
             <Box sx={{ display: "flex", gap: 2 }}>
